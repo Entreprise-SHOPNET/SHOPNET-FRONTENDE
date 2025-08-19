@@ -20,4 +20,4 @@ workflows:
     publishing:
       email:
         recipients:
-          - ton.email@domaine.com
+          - entrepriseshopia@domaine.com
