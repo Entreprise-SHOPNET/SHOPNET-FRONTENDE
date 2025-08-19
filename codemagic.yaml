@@ -3,16 +3,20 @@
 workflows:
   android-apk:
     name: Build Android APK
-    max_build_duration: 5
+    max_build_duration: 60 # minutes, tu peux ajuster
     environment:
       vars:
         NODE_ENV: development
     scripts:
       - name: Install dependencies
-        script: yarn install
+        script: npm install
       - name: Prebuild Expo
         script: npx expo prebuild
       - name: Build APK
         script: npx eas build -p android --profile preview --non-interactive
     artifacts:
       - build/android/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - entrepriseshoia@domaine.com
