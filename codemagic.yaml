@@ -1,4 +1,3 @@
-
 workflows:
   android-apk:
     name: Build Android APK
@@ -6,18 +5,13 @@ workflows:
     environment:
       vars:
         NODE_ENV: development
+        EXPO_TOKEN: Y-39ShqJWGt4w1WgdlZe0amzC_0XTm0VY5EDxj1N
     scripts:
       - name: Install dependencies
         script: npm install
-      - name: Install EAS CLI
-        script: npm install -g eas-cli
       - name: Prebuild Expo
         script: npx expo prebuild
       - name: Build APK
-        script: eas build -p android --profile preview --non-interactive
+        script: npx eas build -p android --non-interactive
     artifacts:
       - build/android/**/*.apk
-    publishing:
-      email:
-        recipients:
-          - entrepriseshopia@domaine.com
