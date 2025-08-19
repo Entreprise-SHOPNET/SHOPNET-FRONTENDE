@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Shopnet",
-    "slug": "Shopnet",
+    "name": "SHOPNET",
+    "slug": "shopai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -11,17 +11,22 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "photosPermission": "L'application a besoin d'accéder à vos photos pour publier vos produits"
     },
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    },
+          "ios": {
+        "supportsTablet": true,
+        "bundleIdentifier": "com.shopai.app"
+      },
+      "android": {
+        "package": "com.shopai.app",
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/images/adaptive-icon.png",
+          "backgroundColor": "#ffffff"
+        },
+        "googleServicesFile": "./google-services.json",
+        "versionCode": 1
+      },
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -32,6 +37,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d76b4fe6-afca-420f-8937-577e1eecdc3d"
+      }
     }
   }
 }

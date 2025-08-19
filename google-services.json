@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "761228110533",
+    "project_id": "shopia-notification",
+    "storage_bucket": "shopia-notification.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:761228110533:android:04452904d69b7fa4935eac",
+        "android_client_info": {
+          "package_name": "com.shopia.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZ3BMl3YOxHyElCEsvY98ab8lRcGXW8Hc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
