@@ -1,7 +1,7 @@
-name: Build Android APK and notify
+name: Build Android APK
 
 on:
-  workflow_dispatch:   # Lancer manuellement depuis GitHub Actions
+  workflow_dispatch: # pour lancer manuellement depuis GitHub Actions
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
 
       # 6️⃣ Build APK seulement
       - name: Build Android APK
-        run: eas build --platform android --profile preview --non-interactive --output ./dist --type apk
+        run: eas build --platform android --profile preview --non-interactive --type apk
 
       # 7️⃣ Upload de l’APK comme artifact
       - name: Upload APK artifact
@@ -40,17 +40,3 @@ jobs:
         with:
           name: shopnet-apk
           path: dist/**/*.apk
-
-      # 8️⃣ Envoyer un email de notification
-      - name: Send email notification
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: entrepriseshopia@gmail.com
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Build Android ShopNET terminé"
-          body: "Le build Android (APK) est terminé. Télécharge-le depuis GitHub Actions → Artifacts."
-          to: entrepriseshopia@gmail.com
-          from: entrepriseshopia@gmail.com
-          secure: true
