@@ -1,7 +1,7 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch: # pour lancer manuellement depuis GitHub Actions
+  workflow_dispatch:   # Permet de lancer manuellement le build depuis GitHub Actions
 
 jobs:
   build:
@@ -26,17 +26,13 @@ jobs:
       - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
-      # 5️⃣ Authentifier EAS avec le token sécurisé
-      - name: Authenticate EAS
-        run: eas login --token ${{ secrets.EAS_TOKEN }}
-
-      # 6️⃣ Build APK seulement
+      # 5️⃣ Build APK seulement
       - name: Build Android APK
-        run: eas build --platform android --profile preview --non-interactive --type apk
+        run: eas build --platform android --profile preview --non-interactive --type apk --output ./dist
 
-      # 7️⃣ Upload de l’APK comme artifact
+      # 6️⃣ Upload de l’APK comme artifact
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: shopnet-apk
           path: dist/**/*.apk
