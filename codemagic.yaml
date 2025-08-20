@@ -17,14 +17,10 @@ workflows:
           npm -v
           npm config set script-shell bash
       - name: Install dependencies
-        script: npm ci --cache /tmp/npm-cache
+        script: npm ci
       - name: Prebuild Expo
         script: npx expo prebuild --no-install
       - name: Build APK
         script: npx eas build --platform android --non-interactive --profile preview
-    cache:
-      npm: true
-      cocoapods: true
-      cache-default-path: /tmp/npm-cache
     artifacts:
       - build/**/*.apk
