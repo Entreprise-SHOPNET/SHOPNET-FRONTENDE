@@ -7,7 +7,7 @@ android {
     compileSdkVersion 35
 
     defaultConfig {
-        applicationId "com.shopnet" // <-- adapte avec ton package
+        applicationId "com.shopnet.app" // <-- adapte avec ton package
         minSdkVersion 24
         targetSdkVersion 34
         versionCode 1
@@ -23,7 +23,6 @@ android {
         jvmTarget = "17"
     }
 
-    // Nécessaire pour éviter les conflits de ressources natives RN/Expo
     packagingOptions {
         resources {
             excludes += [
@@ -41,7 +40,6 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
 }
 
-// Configuration React Native (auto)
 react {
     // Active Hermes par défaut (Expo SDK 52 l'utilise)
     hermesEnabled = true
