@@ -1,32 +1,30 @@
 workflows:
-  shopnet-frontend:
-    name: Shopnet Frontend Build
+  android:
+    name: Build Android APK
     max_build_duration: 60
     environment:
-      node: 20.19.0
-      npm: latest
-      groups:
-        - expo_credentials
       vars:
-        EXPO_TOKEN: "Y-39ShqJWGt4w1WgdlZe0amzC_0XTm0VY5EDxj1N"
-    cache:
-      cache_paths:
-        - $HOME/.npm
-        - $HOME/.expo
+        EXPO_TOKEN:
+          value: Y-39ShqJWGt4w1WgdlZe0amzC_0XTm0VY5EDxj1N
+          is_sensitive: true
+        ANDROID_KEYSTORE_PATH:
+          value: $CM_BUILD_DIR/@shopia__shopai.jks
+          is_sensitive: true
+        ANDROID_KEYSTORE_PASSWORD:
+          value: 823c916b5933495a94a83bdd07aacb3b
+          is_sensitive: true
+        ANDROID_KEY_ALIAS:
+          value: c912d60ee44b7b143187a4a9e9e84d07
+          is_sensitive: true
+        ANDROID_KEY_PASSWORD:
+          value: 4a18a087078d873a6ffbed838fa09eb1
+          is_sensitive: true
     scripts:
       - name: Install dependencies
-        script: |
-          npm install
-      - name: Prebuild Expo project
-        script: |
-          npx expo prebuild --platform android
+        script: npm ci
+      - name: Prebuild Expo (optional)
+        script: npx expo prebuild --no-install
       - name: Build Android APK
-        script: |
-          npx eas-cli build --platform android --profile preview --non-interactive
+        script: npx eas build --platform android --profile preview --non-interactive
     artifacts:
-      - android/app/build/outputs/**/*.apk
-    publishing:
-      email:
-        recipients:
-          - entrepriseshopia@gmail.com
-
+      - build/**/*.apk
