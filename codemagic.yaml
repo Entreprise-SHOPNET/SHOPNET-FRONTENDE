@@ -9,14 +9,17 @@ workflows:
         ANDROID_KEY_ALIAS: "c912d60ee44b7b143187a4a9e9e84d07"
         ANDROID_KEY_PASSWORD: "4a18a087078d873a6ffbed838fa09eb1"
     scripts:
-      - name: Check Node & NPM versions
+      - name: Check Node & NPM
         script: |
           node -v
           npm -v
-      - name: Install dependencies
-        script: npm install
-      - name: Clean npm cache
-        script: npm cache clean --force
+      - name: Install EAS CLI
+        script: npm install -g eas-cli
+      - name: Clean project & npm cache
+        script: |
+          rm -rf node_modules
+          npm cache clean --force
+          npm install
       - name: Prebuild Expo
         script: npx expo prebuild --clean
       - name: Build APK
