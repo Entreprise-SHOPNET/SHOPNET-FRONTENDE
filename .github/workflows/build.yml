@@ -1,48 +1,56 @@
 name: Build Android APK and notify
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # Lancer manuellement depuis GitHub Actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Récupérer le code du dépôt
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ Installer Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
+      # 3️⃣ Installer les dépendances
       - name: Install dependencies
         run: npm ci
 
+      # 4️⃣ Installer Expo CLI et EAS CLI
       - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
+      # 5️⃣ Authentifier EAS avec le token sécurisé
       - name: Authenticate EAS
-        run: eas login --token ${{ LDokhxFc4xBZa8UU9_UiDFJl7H1k5E1iYoGvbYLF }}
+        run: eas login --token ${{ secrets.EAS_TOKEN }}
 
-      - name: Build Android APK/AAB
-        run: eas build --platform android --profile preview --non-interactive
+      # 6️⃣ Build APK seulement
+      - name: Build Android APK
+        run: eas build --platform android --profile preview --non-interactive --output ./dist --type apk
 
-      - name: Upload APK/AAB artifact
+      # 7️⃣ Upload de l’APK comme artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v3
         with:
-          name: shopnet-build
-          path: dist/**/*.{apk,aab}
+          name: shopnet-apk
+          path: dist/**/*.apk
 
+      # 8️⃣ Envoyer un email de notification
       - name: Send email notification
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
-          username: ${{ entrepriseshopia@gmail.com }}
-          password: ${{ 779xxL.# }}
+          username: entrepriseshopia@gmail.com
+          password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "Build Android ShopNET terminé"
-          body: "Le build Android (APK/AAB) est terminé. Télécharge-le depuis GitHub Actions → Artifacts."
+          body: "Le build Android (APK) est terminé. Télécharge-le depuis GitHub Actions → Artifacts."
           to: entrepriseshopia@gmail.com
-          from: ${{ 779xxL.# }}
+          from: entrepriseshopia@gmail.com
           secure: true
