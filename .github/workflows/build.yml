@@ -1,8 +1,7 @@
-
-name: Build Android APK
+name: Build Android APK and notify
 
 on:
-  workflow_dispatch:   # Tu pourras lancer manuellement depuis GitHub Actions
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,16 +17,32 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Install Expo CLI & EAS
+      - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
-      - name: Build APK
+      - name: Authenticate EAS
+        run: eas login --token ${{ LDokhxFc4xBZa8UU9_UiDFJl7H1k5E1iYoGvbYLF }}
+
+      - name: Build Android APK/AAB
         run: eas build --platform android --profile preview --non-interactive
 
-      - name: Upload APK artifact
+      - name: Upload APK/AAB artifact
         uses: actions/upload-artifact@v3
         with:
-          name: shopia-apk
-          path: dist/**/*.apk
+          name: shopnet-build
+          path: dist/**/*.{apk,aab}
+
+      - name: Send email notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ entrepriseshopia@gmail.com }}
+          password: ${{ 779xxL.# }}
+          subject: "Build Android ShopNET terminé"
+          body: "Le build Android (APK/AAB) est terminé. Télécharge-le depuis GitHub Actions → Artifacts."
+          to: entrepriseshopia@gmail.com
+          from: ${{ 779xxL.# }}
+          secure: true
