@@ -26,9 +26,9 @@ jobs:
       - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
-      # 5️⃣ Build APK seulement
+      # 5️⃣ Build APK seulement (grâce au profil preview dans eas.json)
       - name: Build Android APK
-        run: eas build --platform android --profile preview --non-interactive --type apk --output ./dist
+        run: eas build --platform android --profile preview --non-interactive --output ./dist
 
       # 6️⃣ Upload de l’APK comme artifact
       - name: Upload APK artifact
