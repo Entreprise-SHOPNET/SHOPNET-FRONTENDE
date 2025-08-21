@@ -1,33 +1,38 @@
-
 name: Build Android APK
 
 on:
-  workflow_dispatch:   # Tu pourras lancer manuellement depuis GitHub Actions
+  workflow_dispatch:   # Permet de lancer manuellement le build depuis GitHub Actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Récupérer le code du dépôt
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ Installer Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
+      # 3️⃣ Installer les dépendances
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Install Expo CLI & EAS
+      # 4️⃣ Installer Expo CLI et EAS CLI
+      - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
-      - name: Build APK
-        run: eas build --platform android --profile preview --non-interactive
+      # 5️⃣ Build APK seulement (grâce au profil preview dans eas.json)
+      - name: Build Android APK
+        run: eas build --platform android --profile preview --non-interactive --output ./dist
 
+      # 6️⃣ Upload de l’APK comme artifact
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: shopia-apk
+          name: shopnet-apk
           path: dist/**/*.apk
