@@ -41,7 +41,7 @@ const ComingSoonPage = () => {
   }, [countdownTargetDate]);
 
   const handleContactSupport = async () => {
-    const phoneNumber = '243978727791';
+    const phoneNumber = '243896037137';
     const message = "Bonjour, je souhaite avoir plus d'informations sur la fonctionnalité à venir dans SHOPNET.";
     const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
