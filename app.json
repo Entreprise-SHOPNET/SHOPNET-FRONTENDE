@@ -11,8 +11,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff",
-      "photosPermission": "L'application a besoin d'accéder à vos photos pour publier vos produits"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
