@@ -1,7 +1,7 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:   # Tu pourras lancer manuellement depuis GitHub Actions
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,9 +22,13 @@ jobs:
       - name: Install Expo CLI & EAS
         run: npm install -g expo-cli eas-cli
 
+      - name: Set Expo token
+        run: echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Verify Expo login
+        run: expo whoami
+
       - name: Build APK
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}   # <-- Ajout du token Expo
         run: eas build --platform android --profile preview --non-interactive
 
       - name: Upload APK artifact
