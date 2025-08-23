@@ -14,19 +14,18 @@
       "backgroundColor": "#ffffff",
       "photosPermission": "L'application a besoin d'accéder à vos photos pour publier vos produits"
     },
-          "ios": {
-        "supportsTablet": true,
-        "bundleIdentifier": "com.shopai.app"
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.shopai.app"
+    },
+    "android": {
+      "package": "com.shopai.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "android": {
-        "package": "com.shopai.app",
-        "adaptiveIcon": {
-          "foregroundImage": "./assets/images/adaptive-icon.png",
-          "backgroundColor": "#ffffff"
-        },
-        "googleServicesFile": "./google-services.json",
-        "versionCode": 1
-      },
+      "versionCode": 1
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
