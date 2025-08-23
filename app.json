@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SHOPNET",
-    "slug": "shopai",
+    "slug": "shopnet",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -41,8 +41,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "d76b4fe6-afca-420f-8937-577e1eecdc3d"
+        "projectId": "d63fd685-8125-4d03-beed-2fff8ffd6fd4"
       }
-    }
+    },
+    "owner": "matondooo"
   }
 }
