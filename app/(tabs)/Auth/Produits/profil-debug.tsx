@@ -20,7 +20,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5, MaterialIcons, Feather, Entypo } from '@expo/vector-icons';
 
-// Constantes
 const BASE_URL = 'https://shopnet-backend.onrender.com';
 const { width } = Dimensions.get('window');
 
@@ -55,7 +54,6 @@ export default function ProfilVendeurPremium() {
   const [uploading, setUploading] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
 
-  // Chargement token et profil
   const loadTokenAndUser = useCallback(async () => {
     try {
       const savedToken = await AsyncStorage.getItem('userToken');
@@ -73,7 +71,6 @@ export default function ProfilVendeurPremium() {
 
   useEffect(() => { loadTokenAndUser(); }, [loadTokenAndUser]);
 
-  // Récupération profil
   const fetchUserProfile = async (token: string) => {
     try {
       setLoading(true);
@@ -83,7 +80,6 @@ export default function ProfilVendeurPremium() {
     finally { setLoading(false); }
   };
 
-  // Récupération produits
   const fetchProducts = async (token: string, pageNumber: number, refresh = false) => {
     try {
       if (refresh) setRefreshing(true);
@@ -102,14 +98,12 @@ export default function ProfilVendeurPremium() {
   const onRefresh = useCallback(() => { if (token) { fetchUserProfile(token); fetchProducts(token, 1, true); } }, [token]);
   const loadMore = useCallback(() => { if (token && !loading && !loadingMore) fetchProducts(token, page + 1); }, [token, page, loading, loadingMore]);
 
-  // Ouvrir liens
   const openLink = useCallback((type: 'phone' | 'email' | 'website', value?: string) => {
     if (!value) { Alert.alert('Information manquante', `Aucun ${type} disponible`); return; }
     let url = type === 'phone' ? `tel:${value}` : type === 'email' ? `mailto:${value}` : value.startsWith('http') ? value : `https://${value}`;
     Linking.openURL(url).catch(() => Alert.alert('Erreur', `Impossible d'ouvrir le ${type}`));
   }, []);
 
-  // Gestion photo
   const handlePhotoAction = useCallback((type: 'profile' | 'cover') => { setPhotoModalType(type); setPhotoModalVisible(true); }, []);
   const closePhotoModal = useCallback(() => { setPhotoModalVisible(false); setPhotoModalType(null); setViewingPhoto(false); }, []);
   const handleViewPhoto = useCallback(() => {
@@ -207,11 +201,7 @@ export default function ProfilVendeurPremium() {
         {/* Contacts */}
         <View style={styles.contactSection}>
           <Text style={styles.sectionTitle}>Coordonnées</Text>
-          {[
-            { type: 'phone', value: user.phone, icon: 'call' },
-            { type: 'email', value: user.email, icon: 'mail' },
-            { type: 'website', value: user.website, icon: 'globe' },
-          ].map((contact, i) => contact.value && (
+          {[{ type: 'phone', value: user.phone, icon: 'call' }, { type: 'email', value: user.email, icon: 'mail' }, { type: 'website', value: user.website, icon: 'globe' }].map((contact, i) => contact.value && (
             <TouchableOpacity key={i} style={styles.contactItem} onPress={() => openLink(contact.type as any, contact.value)}>
               <Ionicons name={contact.icon} size={20} color="#4CB050" style={styles.contactIcon} />
               <Text style={styles.contactText}>{contact.type === 'website' ? contact.value.replace(/^https?:\/\//, '') : contact.value}</Text>
@@ -242,7 +232,6 @@ export default function ProfilVendeurPremium() {
         </View>
       </ScrollView>
 
-      {/* Modals */}
       <PhotoModal visible={photoModalVisible && !viewingPhoto} type={photoModalType} hasPhoto={!!user?.[photoModalType === 'profile' ? 'profile_photo' : 'cover_photo']} uploading={uploading} onView={handleViewPhoto} onChoose={handleChoosePhoto} onClose={closePhotoModal} />
       <FullscreenPhotoModal visible={viewingPhoto} photoUri={photoModalType === 'profile' ? user.profile_photo : photoModalType === 'cover' ? user.cover_photo : null} onClose={closePhotoModal} />
     </View>
@@ -272,7 +261,7 @@ const FullscreenPhotoModal = ({ visible, photoUri, onClose }: { visible: boolean
   </Modal>
 );
 
-// Styles (inchangés, style sombre + vert)
+// Styles complets
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#202A36' },
   container: { flex: 1 },
@@ -303,7 +292,6 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 14, color: '#A0AEC0' },
   menuContainer: { marginHorizontal: 16, marginBottom: 24, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   menuItem: { width: '48%', flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, marginBottom: 12, borderRadius: 8, backgroundColor: '#2C3A4A', elevation: 2 },
-  menuIcon: { marginRight: 12 },
   menuText: { fontSize: 16, color: '#E2E8F0', fontWeight: '500' },
   contactSection: { marginHorizontal: 16, marginBottom: 24, backgroundColor: '#2C3A4A', borderRadius: 10, padding: 16, elevation: 2 },
   contactItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#3A4A5A' },

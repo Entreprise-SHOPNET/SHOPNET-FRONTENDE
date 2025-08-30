@@ -1,6 +1,7 @@
 
 
 
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { authApi } from '../authService';
@@ -62,11 +63,7 @@ interface Product {
 const API_BASE_URL = 'https://shopnet-backend.onrender.com';
 const PRODUCTS_ENDPOINT = '/api/products';
 
-
 const { width } = Dimensions.get('window');
-
-// Cache pour optimiser les performances
-const requestCache = new Map();
 
 // Composant memoïsé pour les produits
 const ProductItem = memo(({ 
@@ -213,6 +210,9 @@ const ShopApp = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [notificationAnim] = useState(new Animated.Value(-100));
   const [notificationText, setNotificationText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const categories = ['✨ Tendance', '🔥 Promos', '👗 Mode', '📱 Tech', '🏠 Maison', '💄 Beauté'];
 
@@ -233,10 +233,16 @@ const ShopApp = () => {
     ]).start();
   }, [notificationAnim]);
 
-  const getProducts = useCallback(async () => {
+  const getProducts = useCallback(async (page = 1, isRefreshing = false) => {
     try {
-      setLoading(true);
-      setRefreshing(true);
+      if (isRefreshing) {
+        setRefreshing(true);
+        page = 1;
+      } else if (page === 1) {
+        setLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
 
       const token = await AsyncStorage.getItem('userToken');
 
@@ -246,25 +252,15 @@ const ShopApp = () => {
         return;
       }
 
-      // Vérifier le cache avant de faire la requête
-      const cacheKey = `products-${activeCategory}`;
-      if (requestCache.has(cacheKey)) {
-        const cachedData = requestCache.get(cacheKey);
-        if (Date.now() - cachedData.timestamp < 30000) {
-          setProducts(cachedData.data);
-          setLoading(false);
-          setRefreshing(false);
-          return;
-        }
-      }
-
       const response = await axios.get(`${API_BASE_URL}${PRODUCTS_ENDPOINT}`, {
         headers: {
           Authorization: `Bearer ${token}`
         },
         timeout: 15000,
         params: {
-          category: categories[activeCategory].replace(/[^a-zA-Z]/g, '')
+          category: categories[activeCategory].replace(/[^a-zA-Z]/g, ''),
+          page,
+          limit: 10
         }
       });
 
@@ -272,43 +268,44 @@ const ShopApp = () => {
         throw new Error('Réponse API invalide');
       }
 
-const formattedProducts = response.data.products.map((product: any) => ({
-  id: product.id?.toString() ?? '',
-  title: product.title ?? 'Titre non disponible',
-  description: product.description ?? 'Description non disponible',
-  price: Number(product.price) ?? 0,
-  discount: product.original_price
-    ? Math.round((1 - product.price / product.original_price) * 100)
-    : 0,
-  images: Array.isArray(product.image_urls) && product.image_urls.length > 0
-  ? product.image_urls
-  : ['https://via.placeholder.com/400'],
+      const formattedProducts = response.data.products.map((product: any) => ({
+        id: product.id?.toString() ?? '',
+        title: product.title ?? 'Titre non disponible',
+        description: product.description ?? 'Description non disponible',
+        price: Number(product.price) ?? 0,
+        discount: product.original_price
+          ? Math.round((1 - product.price / product.original_price) * 100)
+          : 0,
+        images: Array.isArray(product.image_urls) && product.image_urls.length > 0
+        ? product.image_urls
+        : ['https://via.placeholder.com/400'],
 
-  seller: {
-    id: product.seller.id ?? "1",
-    name: product.seller.name ?? "Vendeur inconnu",
-    avatar: product.seller.avatar
-      ? (product.seller.avatar.startsWith('http')
-          ? product.seller.avatar
-          : `${API_BASE_URL}${product.seller.avatar}`)
-      : 'https://via.placeholder.com/40',
-  },
+        seller: {
+          id: product.seller.id ?? "1",
+          name: product.seller.name ?? "Vendeur inconnu",
+          avatar: product.seller.avatar
+            ? (product.seller.avatar.startsWith('http')
+                ? product.seller.avatar
+                : `${API_BASE_URL}${product.seller.avatar}`)
+            : 'https://via.placeholder.com/40',
+        },
 
-  rating: product.rating ?? 0,
-  comments: product.comments ?? 0,
-  likes: product.likes ?? 0,
-  isLiked: product.isLiked ?? false,
-  shares: product.shares ?? 0,
-  location: product.location ?? 'Lubumbashi',
-}));
+        rating: product.rating ?? 0,
+        comments: product.comments ?? 0,
+        likes: product.likes ?? 0,
+        isLiked: product.isLiked ?? false,
+        shares: product.shares ?? 0,
+        location: product.location ?? 'Lubumbashi',
+      }));
 
-      // Mettre à jour le cache
-      requestCache.set(cacheKey, {
-        data: formattedProducts,
-        timestamp: Date.now()
-      });
+      if (page === 1) {
+        setProducts(formattedProducts);
+      } else {
+        setProducts(prev => [...prev, ...formattedProducts]);
+      }
 
-      setProducts(formattedProducts);
+      setCurrentPage(page);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error: any) {
       console.error('Erreur de chargement des produits :', error);
       
@@ -331,11 +328,12 @@ const formattedProducts = response.data.products.map((product: any) => ({
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setIsLoadingMore(false);
     }
   }, [showNotification, activeCategory]);
 
   useEffect(() => {
-    getProducts();
+    getProducts(1);
   }, [activeCategory]);
 
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -485,50 +483,52 @@ const formattedProducts = response.data.products.map((product: any) => ({
   }, [router]);
 
   const handleShare = useCallback(async (product: Product) => {
-  try {
-    const token = await AsyncStorage.getItem('userToken');
-    if (!token) {
-      showNotification('Authentification requise');
-      return;
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        showNotification('Authentification requise');
+        return;
+      }
+
+      const shareOptions = {
+        title: `Partager ${product.title}`,
+        message: `Découvrez ce produit: ${product.title} - ${product.price}$\n${product.description}`,
+        ...(product.images?.length ? { url: product.images[0] } : {}),
+      };
+
+      const result = await Share.share(shareOptions);
+
+      if (result.action === Share.sharedAction) {
+        await axios.post(
+          `${API_BASE_URL}/api/products/${product.id}/share`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const response = await axios.get(`${API_BASE_URL}/api/products/${product.id}`);
+        const updatedProduct = response.data;
+
+        setProducts(prevProducts =>
+          prevProducts.map(p =>
+            p.id === updatedProduct.id ? updatedProduct : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Erreur lors du partage :", error);
+      showNotification("Produit partagé");
     }
-
-    const shareOptions = {
-      title: `Partager ${product.title}`,
-      message: `Découvrez ce produit: ${product.title} - ${product.price}$\n${product.description}`,
-      ...(product.images?.length ? { url: product.images[0] } : {}),
-    };
-
-    const result = await Share.share(shareOptions);
-
-    if (result.action === Share.sharedAction) {
-      // Envoie l'action de partage au backend
-      await axios.post(
-        `${API_BASE_URL}/api/products/${product.id}/share`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Recharge uniquement ce produit depuis le backend
-      const response = await axios.get(`${API_BASE_URL}/api/products/${product.id}`);
-      const updatedProduct = response.data;
-
-      // Met à jour localement ce produit uniquement
-      setProducts(prevProducts =>
-        prevProducts.map(p =>
-          p.id === updatedProduct.id ? updatedProduct : p
-        )
-      );
-    }
-  } catch (error) {
-    console.error("Erreur lors du partage :", error);
-    showNotification("Produit partagé");
-  }
-}, [showNotification]);
+  }, [showNotification]);
 
   const handleRefresh = useCallback(() => {
-    requestCache.delete(`products-${activeCategory}`);
-    getProducts();
-  }, [getProducts, activeCategory]);
+    getProducts(1, true);
+  }, [getProducts]);
+
+  const handleLoadMore = useCallback(() => {
+    if (currentPage < totalPages && !isLoadingMore && !loading) {
+      getProducts(currentPage + 1);
+    }
+  }, [currentPage, totalPages, isLoadingMore, loading, getProducts]);
 
   const handleCategoryPress = useCallback((index: number) => {
     setActiveCategory(index);
@@ -561,6 +561,16 @@ const formattedProducts = response.data.products.map((product: any) => ({
       router={router}
     />
   ), [memoizedHandleLike, memoizedHandleComment, memoizedHandleShare, memoizedHandleAddToCart, router]);
+
+  const renderFooter = useCallback(() => {
+    if (!isLoadingMore) return null;
+    
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
+    );
+  }, [isLoadingMore]);
 
   if (loading) {
     return (
@@ -645,17 +655,20 @@ const formattedProducts = response.data.products.map((product: any) => ({
           />
         }
         contentContainerStyle={styles.listContent}
-        initialNumToRender={6} // Optimisé pour le chargement initial
-        maxToRenderPerBatch={8} // Rend plus d'éléments par lot
-        windowSize={11} // Taille de la fenêtre de rendu
-        updateCellsBatchingPeriod={100} // Regroupe les mises à jour
-        removeClippedSubviews={true} // Supprime les éléments hors écran
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        windowSize={11}
+        updateCellsBatchingPeriod={100}
+        removeClippedSubviews={true}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Aucun produit disponible</Text>
             <TouchableOpacity 
               style={styles.retryButton}
-              onPress={getProducts}
+              onPress={() => getProducts(1)}
             >
               <Text style={styles.retryButtonText}>Réessayer</Text>
             </TouchableOpacity>
@@ -712,7 +725,7 @@ const formattedProducts = response.data.products.map((product: any) => ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa'
+    backgroundColor: '#f0f2f5'
   },
   loadingContainer: {
     flex: 1,
@@ -742,6 +755,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold'
   },
+  footerLoader: {
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
   notification: {
     position: 'absolute',
     top: 0,
@@ -763,7 +781,7 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee'
+    borderBottomColor: '#e0e0e0'
   },
   logo: {
     fontSize: 22,
@@ -785,7 +803,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee'
+    borderBottomColor: '#e0e0e0'
   },
   categoriesContainer: {
     paddingHorizontal: 15
@@ -795,7 +813,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 10,
-    backgroundColor: '#f5f5f5'
+    backgroundColor: '#f0f2f5'
   },
   activeCategoryPill: {
     backgroundColor: '#4CAF50'
@@ -809,22 +827,17 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 80,
-    paddingTop: 10
   },
   productCard: {
     backgroundColor: '#fff',
-    marginBottom: 15,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginHorizontal: 15,
-    elevation: 2
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0'
   },
   productHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5'
+    padding: 12,
   },
   avatar: {
     width: 40,
@@ -849,12 +862,12 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: width - 30,
+    height: width,
     backgroundColor: '#eee'
   },
   priceContainer: {
     position: 'absolute',
-    top: width - 50,
+    bottom: 10,
     left: 10,
     backgroundColor: 'rgba(0,0,0,0.7)',
     paddingHorizontal: 10,
@@ -871,8 +884,8 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   productInfo: {
-    paddingHorizontal: 10,
-    marginTop: 10
+    paddingHorizontal: 12,
+    paddingVertical: 10
   },
   productTitle: {
     fontSize: 16,
@@ -880,30 +893,30 @@ const styles = StyleSheet.create({
   },
   productDescription: {
     color: '#666',
-    marginVertical: 5,
+    marginTop: 4,
     fontSize: 14
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     marginBottom: 10
   },
   starsContainer: {
     flexDirection: 'row',
     marginRight: 5
   },
-  reviewsText: {
-    color: '#666',
-    fontSize: 12
+  socialCount: {
+    fontSize: 12,
+    color: '#666'
   },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 10,
+    padding: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f5f5f5'
+    borderTopColor: '#f0f2f5'
   },
   socialActions: {
     flexDirection: 'row',
@@ -914,10 +927,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5
-  },
-  socialCount: {
-    fontSize: 12,
-    color: '#666'
   },
   cartButton: {
     backgroundColor: '#4CAF50',
@@ -935,18 +944,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#e0e0e0',
     paddingVertical: 10,
     paddingHorizontal: 5,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5
   },
   navButton: {
     alignItems: 'center',
