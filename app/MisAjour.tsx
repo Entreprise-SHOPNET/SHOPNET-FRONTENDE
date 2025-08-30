@@ -40,14 +40,23 @@ const ComingSoonPage = () => {
     return () => clearInterval(timer);
   }, [countdownTargetDate]);
 
+  // ✅ Version corrigée pour WhatsApp
   const handleContactSupport = async () => {
-    const phoneNumber = '243978727791';
+    const phoneNumber = "243978727791"; // numéro complet sans "+"
     const message = "Bonjour, je souhaite avoir plus d'informations sur la fonctionnalité à venir dans SHOPNET.";
-    const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+
+    // Utilisation du schéma natif WhatsApp (fiable en APK)
+    const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
 
     const supported = await Linking.canOpenURL(url);
-    if (supported) await Linking.openURL(url);
-    else Alert.alert('Erreur', 'Impossible d’ouvrir WhatsApp. Veuillez vérifier que vous avez WhatsApp installé.');
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert(
+        "Erreur",
+        "Impossible d’ouvrir WhatsApp. Veuillez vérifier que vous avez WhatsApp installé."
+      );
+    }
   };
 
   return (
