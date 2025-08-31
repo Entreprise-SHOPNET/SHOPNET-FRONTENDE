@@ -1,7 +1,6 @@
 
 
 
-
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -24,7 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'https://shopnet-backend.onrender.com/api/products';
 const COMMAND_API_URL = 'https://shopnet-backend.onrender.com/api/commandes';
-const PANIER_API_URL = 'https://shopnet-backend.onrender.com/api/panier';
+const PANIER_API_URL = 'https://shopnet-backend.onrender.com/api/cart';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - 40) / 2;
@@ -173,30 +172,46 @@ export default function DetailId() {
       alert("Erreur réseau ou serveur.");
     }
   };
+const ajouterAuPanier = async () => {
+  try {
+    const token = await getValidToken();
+    if (!token) return alert('Veuillez vous connecter pour ajouter au panier.');
 
-  const ajouterAuPanier = async () => {
-    try {
-      const token = await getValidToken();
-      if (!token) return alert('Veuillez vous connecter pour ajouter au panier.');
+    const body = {
+      product_id: product.id,
+      title: product.title,
+      description: product.description || '',
+      price: product.price,
+      original_price: product.original_price || product.price,
+      category: product.category || '',
+      condition: product.condition || 'new',
+      quantity: 1,
+      stock: product.stock || 0,
+      location: product.location || '',
+      delivery_options: product.delivery_options || {},
+      images: product.image_urls || [],
+      seller_id: product.seller?.id || '',
+      seller_name: product.seller?.name || '',
+      seller_rating: product.seller?.rating || 0
+    };
 
-      const body = { produit_id: product.id, quantite: 1 };
+    const res = await fetch(PANIER_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body)
+    });
 
-      const res = await fetch(PANIER_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
+    const data = await res.json();
 
-      if (data.success) {
-        showNotification("Produit ajouté au panier !");
-      } else {
-        alert(data.error || 'Erreur inconnue');
-      }
-    } catch {
-      alert("Erreur réseau ou serveur.");
+    if (data.success) {
+      showNotification("Produit ajouté au panier !");
+    } else {
+      alert(data.message || data.error || 'Erreur inconnue');
     }
-  };
+  } catch (err) {
+    alert("Erreur réseau ou serveur.");
+  }
+};
 
   const showImage = (url: string) => {
     setSelectedImage(url);
