@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -54,19 +53,15 @@ export default function ProfilVendeurPremium() {
   const [uploading, setUploading] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
 
+  // Charger token et profil
   const loadTokenAndUser = useCallback(async () => {
     try {
       const savedToken = await AsyncStorage.getItem('userToken');
-      if (!savedToken) {
-        router.push('/login');
-        return;
-      }
+      if (!savedToken) { router.push('/login'); return; }
       setToken(savedToken);
       await fetchUserProfile(savedToken);
       await fetchProducts(savedToken, 1, true);
-    } catch {
-      Alert.alert('Erreur', "Impossible de récupérer l'utilisateur.");
-    }
+    } catch { Alert.alert('Erreur', "Impossible de récupérer l'utilisateur."); }
   }, [router]);
 
   useEffect(() => { loadTokenAndUser(); }, [loadTokenAndUser]);
@@ -104,6 +99,7 @@ export default function ProfilVendeurPremium() {
     Linking.openURL(url).catch(() => Alert.alert('Erreur', `Impossible d'ouvrir le ${type}`));
   }, []);
 
+  // Photos profil / couverture
   const handlePhotoAction = useCallback((type: 'profile' | 'cover') => { setPhotoModalType(type); setPhotoModalVisible(true); }, []);
   const closePhotoModal = useCallback(() => { setPhotoModalVisible(false); setPhotoModalType(null); setViewingPhoto(false); }, []);
   const handleViewPhoto = useCallback(() => {
@@ -120,7 +116,12 @@ export default function ProfilVendeurPremium() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') throw new Error('Permission refusée');
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: photoModalType === 'profile' ? [1, 1] : [16, 9], quality: 0.7 });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: photoModalType === 'profile' ? [1, 1] : [16, 9],
+        quality: 0.7,
+      });
       if (result.canceled) return;
       const asset = result.assets[0];
       if (!asset?.uri) throw new Error('Aucune image sélectionnée');
@@ -140,7 +141,7 @@ export default function ProfilVendeurPremium() {
 
   const renderProductItem = useCallback((item: Product) => (
     <TouchableOpacity key={item.id.toString()} style={styles.productCard} onPress={() => router.push(`/product/${item.id}`)} activeOpacity={0.8}>
-      <Image source={{ uri: item.photo ? `${BASE_URL}${item.photo}` : 'https://via.placeholder.com/150' }} style={styles.productImage} resizeMode="cover" />
+      <Image source={{ uri: item.photo?.startsWith('http') ? item.photo : `${BASE_URL}${item.photo}` || 'https://via.placeholder.com/150' }} style={styles.productImage} resizeMode="cover" />
       <View style={styles.productInfoContainer}>
         <Text numberOfLines={2} style={styles.productTitle}>{item.title}</Text>
         <Text style={styles.productPrice}>{item.price.toFixed(2)} €</Text>
@@ -156,14 +157,16 @@ export default function ProfilVendeurPremium() {
       <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CB050']} tintColor="#4CB050" />} contentContainerStyle={styles.scrollContent}>
         {/* Couverture */}
         <TouchableOpacity activeOpacity={0.8} onPress={() => handlePhotoAction('cover')} style={styles.coverPhotoContainer}>
-          {user.cover_photo ? <Image source={{ uri: `${BASE_URL}${user.cover_photo}` }} style={styles.coverPhoto} /> : <View style={[styles.coverPhoto, styles.coverPlaceholder]}><Ionicons name="camera" size={40} color="#666" /></View>}
+          {user.cover_photo ? <Image source={{ uri: user.cover_photo.startsWith('http') ? user.cover_photo : `${BASE_URL}${user.cover_photo}` }} style={styles.coverPhoto} /> :
+            <View style={[styles.coverPhoto, styles.coverPlaceholder]}><Ionicons name="camera" size={40} color="#666" /></View>}
           <View style={styles.coverOverlay} />
         </TouchableOpacity>
 
         {/* Profil */}
         <View style={styles.profileSection}>
           <TouchableOpacity activeOpacity={0.8} onPress={() => handlePhotoAction('profile')} style={styles.profilePhotoContainer}>
-            {user.profile_photo ? <Image source={{ uri: `${BASE_URL}${user.profile_photo}` }} style={styles.profilePhoto} /> : <View style={[styles.profilePhoto, styles.profilePlaceholder]}><FontAwesome5 name="user-alt" size={60} color="#aaa" /></View>}
+            {user.profile_photo ? <Image source={{ uri: user.profile_photo.startsWith('http') ? user.profile_photo : `${BASE_URL}${user.profile_photo}` }} style={styles.profilePhoto} /> :
+              <View style={[styles.profilePhoto, styles.profilePlaceholder]}><FontAwesome5 name="user-alt" size={60} color="#aaa" /></View>}
           </TouchableOpacity>
           <View style={styles.userInfoContainer}>
             <Text style={styles.userName}>{user.fullName}</Text>
@@ -238,7 +241,7 @@ export default function ProfilVendeurPremium() {
   );
 }
 
-// Modaux
+// Modaux Photo
 const PhotoModal = ({ visible, type, hasPhoto, uploading, onView, onChoose, onClose }: { visible: boolean; type: 'profile' | 'cover' | null; hasPhoto: boolean; uploading: boolean; onView: () => void; onChoose: () => void; onClose: () => void; }) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <View style={styles.modalOverlay}>
@@ -256,12 +259,12 @@ const FullscreenPhotoModal = ({ visible, photoUri, onClose }: { visible: boolean
   <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={onClose}>
     <View style={styles.fullscreenPhotoContainer}>
       <TouchableOpacity style={styles.closePhotoButton} onPress={onClose}><Ionicons name="close" size={30} color="#fff" /></TouchableOpacity>
-      {photoUri && <Image source={{ uri: `${BASE_URL}${photoUri}` }} style={styles.fullscreenPhoto} resizeMode={photoUri.includes('cover') ? 'cover' : 'contain'} />}
+      {photoUri && <Image source={{ uri: photoUri.startsWith('http') ? photoUri : `${BASE_URL}${photoUri}` }} style={styles.fullscreenPhoto} resizeMode={photoUri.includes('cover') ? 'cover' : 'contain'} />}
     </View>
   </Modal>
 );
 
-// Styles complets
+// Styles
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#202A36' },
   container: { flex: 1 },

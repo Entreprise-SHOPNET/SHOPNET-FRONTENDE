@@ -42,8 +42,8 @@ const ComingSoonPage = () => {
 
   // ✅ Version corrigée pour WhatsApp
   const handleContactSupport = async () => {
-    const phoneNumber = "243978727791"; // numéro complet sans "+"
-    const message = "Bonjour, je souhaite avoir plus d'informations sur la fonctionnalité à venir dans SHOPNET.";
+    const phoneNumber = "243896037137"; // numéro complet sans "+"
+    const message = "Bonjour Mm Mellisa, je souhaite avoir plus d'informations sur la fonctionnalité à venir dans SHOPNET.";
 
     // Utilisation du schéma natif WhatsApp (fiable en APK)
     const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
