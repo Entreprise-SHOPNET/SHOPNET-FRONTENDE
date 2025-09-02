@@ -1,10 +1,9 @@
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Animated, Dimensions, Platform } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Animated, Dimensions, Platform } from 'react-native';
 import { FontAwesome5, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Couleurs de ShopNet
 const SHOPNET_BLUE = '#00182A';
 const SHOPNET_GREEN = '#4DB14E';
 const { width, height } = Dimensions.get('window');
@@ -13,15 +12,12 @@ export default function CreerBoutique() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccount, setHasAccount] = useState(false);
-  
-  // Références pour les animations
+
   const scrollY = useRef(new Animated.Value(0)).current;
   const titleScale = useRef(new Animated.Value(1)).current;
   const titleTranslateX = useRef(new Animated.Value(0)).current;
   const titleTranslateY = useRef(new Animated.Value(0)).current;
-  const headerOpacity = useRef(new Animated.Value(1)).current;
 
-  // Configuration des animations basée sur le scroll
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 100],
     outputRange: [180, 100],
@@ -46,13 +42,6 @@ export default function CreerBoutique() {
     extrapolate: 'clamp',
   });
 
-  const fixedTitleOpacity = scrollY.interpolate({
-    inputRange: [60, 100],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
-  // Animation du titre au chargement
   useEffect(() => {
     Animated.parallel([
       Animated.spring(titleScale, {
@@ -66,11 +55,10 @@ export default function CreerBoutique() {
         speed: 10,
         bounciness: 8,
         useNativeDriver: true,
-      })
+      }),
     ]).start();
   }, []);
 
-  // Vérification réelle si l'utilisateur a déjà une boutique
   useEffect(() => {
     const checkUserAccount = async () => {
       try {
@@ -89,12 +77,7 @@ export default function CreerBoutique() {
         });
 
         const data = await response.json();
-
-        if (response.ok && data.hasBoutique) {
-          setHasAccount(true);
-        } else {
-          setHasAccount(false);
-        }
+        setHasAccount(response.ok && data.hasBoutique);
       } catch (error) {
         console.error('Erreur vérification boutique:', error);
         setHasAccount(false);
@@ -125,7 +108,6 @@ export default function CreerBoutique() {
         'Pas de mise en avant des produits'
       ],
       color: SHOPNET_GREEN,
-      route: '/Boutique/Standard'
     },
     {
       type: 'Premium',
@@ -146,7 +128,6 @@ export default function CreerBoutique() {
         'Pas de recommandations IA'
       ],
       color: '#FFA726',
-      route: '/Boutique/Premium'
     },
     {
       type: 'Pro',
@@ -166,13 +147,11 @@ export default function CreerBoutique() {
       ],
       limitations: [],
       color: '#42A5F5',
-      route: '/Boutique/Pro'
     }
   ];
 
-  // Si l'utilisateur a déjà une boutique → redirection
   if (hasAccount) {
-    router.replace('/MaBoutique');
+    router.replace('/splash');
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={SHOPNET_GREEN} />
@@ -181,7 +160,6 @@ export default function CreerBoutique() {
     );
   }
 
-  // Pendant le chargement
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
@@ -193,28 +171,12 @@ export default function CreerBoutique() {
 
   return (
     <View style={styles.container}>
-      {/* Header animé */}
       <Animated.View style={[styles.header, { height: headerHeight }]}>
         <Animated.View style={[styles.titleContainer, { marginTop: titleMarginTop }]}>
-          <Animated.Text 
-            style={[
-              styles.title, 
-              { 
-                fontSize: titleFontSize,
-              }
-            ]}
-          >
+          <Animated.Text style={[styles.title, { fontSize: titleFontSize }]}>
             Créez Votre Boutique
           </Animated.Text>
-          
-          <Animated.Text 
-            style={[
-              styles.subtitle, 
-              { 
-                opacity: subtitleOpacity,
-              }
-            ]}
-          >
+          <Animated.Text style={[styles.subtitle, { opacity: subtitleOpacity }]}>
             Choisissez la formule qui correspond à vos ambitions commerciales
           </Animated.Text>
         </Animated.View>
@@ -233,13 +195,9 @@ export default function CreerBoutique() {
           <View key={index} style={[styles.card, { borderLeftColor: boutique.color }]}>
             <View style={styles.cardHeader}>
               <View style={styles.iconTitleContainer}>
-                <View style={styles.iconContainer}>
-                  {boutique.iconComponent}
-                </View>
+                <View style={styles.iconContainer}>{boutique.iconComponent}</View>
                 <View>
-                  <Text style={[styles.boutiqueType, { color: boutique.color }]}>
-                    {boutique.type}
-                  </Text>
+                  <Text style={[styles.boutiqueType, { color: boutique.color }]}>{boutique.type}</Text>
                   <Text style={styles.price}>{boutique.price}</Text>
                 </View>
               </View>
@@ -270,7 +228,11 @@ export default function CreerBoutique() {
 
             <TouchableOpacity
               style={[styles.button, { backgroundColor: boutique.color }]}
-              onPress={() => router.push(boutique.route)}
+              onPress={() => {
+                if (boutique.type === 'Standard') router.push('/MisAjour');
+                if (boutique.type === 'Premium') router.push('/MisAjour');
+                if (boutique.type === 'Pro') router.push('/MisAjour');
+              }}
             >
               <Text style={styles.buttonText}>Choisir {boutique.type}</Text>
               <FontAwesome5 name="arrow-right" size={16} color="#fff" style={styles.buttonIcon} />
