@@ -1,5 +1,4 @@
 
-
 // app/_layout.tsx
 
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -66,31 +65,32 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <>
-        {/* Navigation principale */}
-        <Stack initialRouteName="index">
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="splash" options={{ headerShown: false }} />
-          <Stack.Screen name="Auth/Produits/Fil" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-          <Stack.Screen
-            name="Auth/Questionnaire"
-            options={{
-              title: 'Questionnaire',
-              presentation: 'card',
-              headerBackTitle: 'Retour',
-            }}
-          />
-          <Stack.Screen
-            name="Auth"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
-        </Stack>
-      </>
+      <Stack
+        initialRouteName="index"
+        screenOptions={{
+          headerShown: false, // 🔥 supprime tous les headers automatiques
+        }}
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="splash" />
+        <Stack.Screen name="Auth/Produits/Fil" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen
+          name="Auth/Questionnaire"
+          options={{
+            title: 'Questionnaire',
+            presentation: 'card',
+            headerBackTitle: 'Retour',
+          }}
+        />
+        <Stack.Screen
+          name="Auth"
+          options={{
+            presentation: 'modal',
+          }}
+        />
+      </Stack>
     </ThemeProvider>
   );
 }
