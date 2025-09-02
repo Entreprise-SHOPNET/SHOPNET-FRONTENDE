@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK & AAB
 
 on:
   workflow_dispatch:
@@ -7,34 +7,52 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_BUILD_AUTOMATIC_KEYSTORE: 1
+
     steps:
+      # 1️⃣ Récupérer le code
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ Installer Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
+      # 3️⃣ Installer les dépendances
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Install Expo CLI & EAS
+      # 4️⃣ Installer Expo CLI et EAS CLI
+      - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
+      # 5️⃣ Configurer le token Expo et EAS non interactif
       - name: Set Expo token and EAS non-interactive
         run: |
           echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV
           echo "EAS_BUILD_AUTOMATIC_KEYSTORE=1" >> $GITHUB_ENV
 
+      # 6️⃣ Vérifier connexion Expo
       - name: Verify Expo login
         run: eas whoami
 
+      # 7️⃣ Construire l'APK (profil preview)
       - name: Build APK
         run: eas build --platform android --profile preview --non-interactive
 
-      - name: Upload APK artifact
+      # 8️⃣ Construire l'AAB (profil production)
+      - name: Build AAB
+        run: eas build --platform android --profile production --non-interactive
+
+      # 9️⃣ Upload des artefacts (APK + AAB)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shopnet-apk
-          path: dist/**/*.apk
+          name: shopnet-android-builds
+          path: |
+            **/*.apk
+            **/*.aab
