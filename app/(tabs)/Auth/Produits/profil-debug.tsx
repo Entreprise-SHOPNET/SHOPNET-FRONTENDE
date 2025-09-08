@@ -220,7 +220,7 @@ export default function ProfilVendeurPremium() {
       {/* Bouton trois points en haut à droite - Seul élément cliquable */}
       <TouchableOpacity 
         style={styles.menuButton}
-        onPress={() => router.push(`/product/edit/${item.id}`)}
+        onPress={() => router.push(``)}
       >
         <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
       </TouchableOpacity>
