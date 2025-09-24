@@ -215,17 +215,12 @@ export default function ProfilVendeurPremium() {
     } 
   }, []);
 
-  const renderProductItem = useCallback(({ item }: { item: Product }) => (
+  
+const renderProductItem = useCallback(
+  ({ item }: { item: Product }) => (
     <View style={styles.productCard}>
-      {/* Bouton trois points en haut à droite - Seul élément cliquable */}
-      <TouchableOpacity 
-        style={styles.menuButton}
-        onPress={() => router.push(`/(tabs)/Auth/trois-points-profil/[id]`)}
-      >
-        <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
-      </TouchableOpacity>
       
-      {/* Image du produit - Non cliquable */}
+      {/* Image du produit */}
       <Image 
         source={{ 
           uri: item.images && item.images.length > 0 
@@ -235,15 +230,35 @@ export default function ProfilVendeurPremium() {
         style={styles.productImage} 
         resizeMode="cover" 
       />
-      
-      {/* Info produit sans fond - style Marketplace */}
+
+      {/* Info produit */}
       <View style={styles.productInfoContainer}>
         <Text numberOfLines={2} style={styles.productTitle}>{item.title}</Text>
         <Text style={styles.productPrice}>{Number(item.price).toFixed(2)} $</Text>
       </View>
-    </View>
-  ), [router]);
 
+      {/* Bouton trois points */}
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={() =>
+          router.push({
+            pathname: "/(tabs)/Auth/trois-points-profil/[id]",
+            params: {
+              id: item.id,
+              title: item.title,
+              price: item.price,
+              imageUrl: item.images && item.images.length > 0 ? item.images[0] : '',
+            },
+          })
+        }
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
+      </TouchableOpacity>
+
+    </View>
+  ),
+  [router]
+);
   if (!user && loading) {
     return (
       <View style={styles.centered}>

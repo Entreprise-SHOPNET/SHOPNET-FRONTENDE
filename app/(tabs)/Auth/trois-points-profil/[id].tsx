@@ -1,33 +1,84 @@
 
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  Image,
+  Animated,
+  Dimensions,
   Share,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 
+const { width, height } = Dimensions.get("window");
+
 const TroisPointsProfil = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { id, title } = params as { id: string; title?: string };
+  const { id, title, price, imageUrl } = params as {
+    id: string;
+    title?: string;
+    price?: string;
+    imageUrl?: string;
+  };
 
-  const menuItems = [
-    { label: "Modifier", icon: "edit", action: "modify", color: "#4CB050" },
-    { label: "Supprimer", icon: "trash", action: "delete", color: "#E53935" },
-    { label: "Masquer / Désactiver", icon: "eye-slash", action: "hide", color: "#999" },
-    { label: "Mettre en promotion", icon: "tag", action: "promotion", color: "#4CB050" },
-    { label: "Booster / Mettre en avant", icon: "rocket", action: "boost", color: "#4CB050" },
-    { label: "Partager", icon: "share-alt", action: "share", color: "#4CB050" },
-    { label: "Dupliquer", icon: "copy", action: "duplicate", color: "#4CB050" },
-    { label: "Voir statistiques", icon: "bar-chart", action: "stats", color: "#4CB050" },
-  ];
+  const [confirmAction, setConfirmAction] = useState<null | string>(null);
+  const [toastMessage, setToastMessage] = useState("");
+
+  // Animation scale et opacity
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  const showConfirmation = () => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 5,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const hideConfirmation = () => {
+    Animated.parallel([
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0.5,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setConfirmAction(null));
+  };
+
+  const handleConfirmAction = (action: string) => {
+    switch (action) {
+      case "delete":
+        setToastMessage(`Produit "${title}" supprimé !`);
+        break;
+      case "hide":
+        setToastMessage(`Produit "${title}" masqué / désactivé !`);
+        break;
+      case "duplicate":
+        setToastMessage(`Produit "${title}" dupliqué !`);
+        break;
+    }
+    hideConfirmation();
+    setTimeout(() => setToastMessage(""), 2000);
+  };
 
   const handleAction = async (action: string) => {
     switch (action) {
@@ -35,116 +86,149 @@ const TroisPointsProfil = () => {
         router.push(`/product/edit/${id}`);
         break;
       case "delete":
-        Alert.alert("Confirmation", "Voulez-vous vraiment supprimer ce produit ?", [
-          { text: "Annuler", style: "cancel" },
-          { text: "Supprimer", style: "destructive", onPress: () => router.push(`/product/delete/${id}`) },
-        ]);
-        break;
       case "hide":
-        Alert.alert("Confirmation", "Masquer ce produit ?", [
-          { text: "Non", style: "cancel" },
-          { text: "Oui", onPress: () => router.push(`/product/hide/${id}`) },
-        ]);
+      case "duplicate":
+        setConfirmAction(action);
+        showConfirmation();
+        break;
+      case "promotion":
+        router.push(`/product/promotion/${id}`);
+        break;
+      case "boost":
+        router.push(`/product/boost/${id}`);
         break;
       case "share":
         await Share.share({
-          message: `Découvrez ce produit ShopNet : https://shopnet.com/products/${id}`,
+          message: `Découvrez ce produit ShopNet : ${title} - ${price}$ https://shopnet.com/products/${id}`,
         });
         break;
+      case "stats":
+        router.push(`/product/stats/${id}`);
+        break;
       default:
-        router.push(`/product/${action}/${id}`);
         break;
     }
   };
 
+  const menuItems = [
+    { label: "Modifier", icon: "edit", action: "modify" },
+    { label: "Supprimer", icon: "trash", action: "delete" },
+    { label: "Masquer / Désactiver", icon: "eye-slash", action: "hide" },
+    { label: "Mettre en promotion", icon: "tag", action: "promotion" },
+    { label: "Booster / Mettre en avant", icon: "rocket", action: "boost" },
+    { label: "Partager", icon: "share-alt", action: "share" },
+    { label: "Dupliquer", icon: "copy", action: "duplicate" },
+    { label: "Voir statistiques", icon: "bar-chart", action: "stats" },
+  ];
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Bouton retour */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <FontAwesome name="arrow-left" size={20} color="#fff" />
-        <Text style={styles.backText}>Retour</Text>
-      </TouchableOpacity>
+    <View style={styles.container}>
+      {imageUrl && (
+        <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="cover" />
+      )}
 
-      {/* Titre principal */}
-      <Text style={styles.header}>Actions sur le produit</Text>
-
-      {/* Sous-titre optionnel */}
-      <Text style={styles.subTitle}>{title || `Produit #${id}`}</Text>
-
-      {/* Liste des actions */}
-      <View style={styles.menuContainer}>
-        {menuItems.map((item) => (
-          <TouchableOpacity
-            key={item.action}
-            style={styles.menuRow}
-            onPress={() => handleAction(item.action)}
-            activeOpacity={0.7}
-          >
-            <FontAwesome
-              name={item.icon as any}
-              size={22}
-              color={item.color}
-              style={styles.menuIcon}
-            />
-            <Text style={styles.menuLabel}>{item.label}</Text>
-          </TouchableOpacity>
-        ))}
+      {/* Bouton retour fixe */}
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <FontAwesome name="arrow-left" size={20} color="#fff" />
+          <Text style={styles.backText}>Retour</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.infoContainer}>
+          <Text style={styles.title}>{title || `Produit #${id}`}</Text>
+          {price && <Text style={styles.price}>{Number(price).toFixed(2)} $</Text>}
+          <Text style={styles.idText}>ID : {id}</Text>
+        </View>
+
+        <View style={styles.menuContainer}>
+          {menuItems.map((item) => (
+            <TouchableOpacity
+              key={item.action}
+              style={styles.menuRow}
+              onPress={() => handleAction(item.action)}
+              activeOpacity={0.7}
+            >
+              <FontAwesome name={item.icon as any} size={22} color="#fff" style={styles.menuIcon} />
+              <Text style={styles.menuLabel}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Confirmation animée au milieu */}
+      {confirmAction && (
+        <View style={styles.confirmOverlay}>
+          <Animated.View
+            style={[
+              styles.confirmContainer,
+              { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
+            ]}
+          >
+            <Text style={styles.confirmText}>
+              {confirmAction === "delete" && `Voulez-vous supprimer "${title}" ?`}
+              {confirmAction === "hide" && `Voulez-vous masquer "${title}" ?`}
+              {confirmAction === "duplicate" && `Voulez-vous dupliquer "${title}" ?`}
+            </Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={[styles.confirmButton, { backgroundColor: "#4CB050" }]}
+                onPress={() => handleConfirmAction(confirmAction)}
+              >
+                <Text style={styles.confirmButtonText}>Oui</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, { backgroundColor: "#E53935" }]}
+                onPress={() => hideConfirmation()}
+              >
+                <Text style={styles.confirmButtonText}>Non</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      )}
+
+      {/* Message toast */}
+      {toastMessage !== "" && (
+        <View style={styles.toastContainer}>
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </View>
+      )}
+    </View>
   );
 };
 
 export default TroisPointsProfil;
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: "#202A36",
-    paddingTop: 40,
-  },
+  container: { flex: 1, backgroundColor: "#202A36" },
+  scrollContainer: { paddingBottom: 20 },
+  productImage: { width, height: 250 },
+  backButtonContainer: { position: "absolute", top: 40, left: 15, zIndex: 10 },
   backButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: 15,
-    marginBottom: 15,
+    backgroundColor: "#FA7921",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  backText: {
-    color: "#fff",
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 5,
-  },
-  subTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#aaa",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  menuContainer: {
-    borderTopWidth: 1,
-    borderTopColor: "#333",
-  },
-  menuRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  menuIcon: {
-    marginRight: 15,
-  },
-  menuLabel: {
-    fontSize: 16,
-    color: "#fff",
-    fontWeight: "500",
-  },
+  backText: { color: "#fff", fontSize: 16, marginLeft: 8, fontWeight: "600" },
+  infoContainer: { paddingHorizontal: 20, marginTop: 10, marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: "700", color: "#fff", marginBottom: 8 },
+  price: { fontSize: 20, fontWeight: "600", color: "#fff", marginBottom: 4 },
+  idText: { fontSize: 14, color: "#fff" },
+  menuContainer: { borderTopWidth: 1, borderTopColor: "#333" },
+  menuRow: { flexDirection: "row", alignItems: "center", paddingVertical: 18, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#333" },
+  menuIcon: { marginRight: 15 },
+  menuLabel: { fontSize: 16, color: "#fff", fontWeight: "500" },
+  confirmOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", zIndex: 20 },
+  confirmContainer: { backgroundColor: "#202A36", padding: 20, borderRadius: 12, width: width - 60, alignItems: "center" },
+  confirmText: { color: "#fff", fontSize: 18, textAlign: "center", marginBottom: 16 },
+  confirmButtons: { flexDirection: "row", justifyContent: "space-between", width: "100%" },
+  confirmButton: { flex: 1, paddingVertical: 12, marginHorizontal: 5, borderRadius: 8, alignItems: "center" },
+  confirmButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  toastContainer: { position: "absolute", bottom: 40, left: 20, right: 20, backgroundColor: "#FA7921", padding: 12, borderRadius: 10, alignItems: "center" },
+  toastText: { color: "#fff", fontWeight: "500", fontSize: 14, textAlign: "center" },
 });
