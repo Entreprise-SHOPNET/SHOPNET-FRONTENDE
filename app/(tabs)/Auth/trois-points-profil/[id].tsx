@@ -87,39 +87,48 @@ const TroisPointsProfil = () => {
         break;
     }
   };
+const handleAction = async (action: string) => {
+  switch (action) {
+    case "modify":
+      // <-- Changement ici : on envoie l'id via params
+      router.push({
+        pathname: "/(tabs)/Auth/Profiles/EditProduct",
+        params: { id },
+      });
+      break;
 
-  const handleAction = async (action: string) => {
-    switch (action) {
-      case "modify":
-        router.push(`/product/edit/${id}`);
-        break;
-      case "delete":
-      case "hide":
-      case "duplicate":
-        setConfirmAction(action);
-        showConfirmation();
-        break;
-      case "promotion":
-        router.push(`/product/promotion/${id}`);
-        break;
-      case "boost":
-        router.push({
-          pathname: "/(tabs)/Auth/Profiles/booste",
-          params: { id, title, price, imageUrl },
-        });
-        break;
-      case "share":
-        await Share.share({
-          message: `Découvrez ce produit ShopNet : ${title} - ${price}$ https://shopnet.com/products/${id}`,
-        });
-        break;
-      case "stats":
-        router.push(`/product/stats/${id}`);
-        break;
-      default:
-        break;
-    }
-  };
+    case "delete":
+    case "hide":
+    case "duplicate":
+      setConfirmAction(action);
+      showConfirmation();
+      break;
+
+    case "promotion":
+      router.push(`/product/promotion/${id}`);
+      break;
+
+    case "boost":
+      router.push({
+        pathname: "/(tabs)/Auth/Profiles/booste",
+        params: { id, title, price, imageUrl },
+      });
+      break;
+
+    case "share":
+      await Share.share({
+        message: `Découvrez ce produit ShopNet : ${title} - ${price}$ https://shopnet.com/products/${id}`,
+      });
+      break;
+
+    case "stats":
+      router.push(`/product/stats/${id}`);
+      break;
+
+    default:
+      break;
+  }
+};
 
   const menuItems = [
     { label: "Modifier", icon: "edit", action: "modify" },
