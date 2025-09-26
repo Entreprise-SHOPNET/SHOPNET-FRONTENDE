@@ -1,6 +1,6 @@
 
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,9 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
+import { authApi, getValidToken } from '.././authService'; // <-- import authApi
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 const TroisPointsProfil = () => {
   const router = useRouter();
@@ -30,54 +31,61 @@ const TroisPointsProfil = () => {
   const [confirmAction, setConfirmAction] = useState<null | string>(null);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Animation scale et opacity
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   const showConfirmation = () => {
     Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 5,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 5, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
   };
 
   const hideConfirmation = () => {
     Animated.parallel([
-      Animated.timing(opacityAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 0.5,
-        duration: 200,
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 0.5, duration: 200, useNativeDriver: true }),
     ]).start(() => setConfirmAction(null));
+  };
+
+  const deleteProduct = async () => {
+    try {
+      const token = await getValidToken(); // Récupère automatiquement un token valide
+      if (!token) {
+        setToastMessage("Utilisateur non connecté");
+        setTimeout(() => setToastMessage(""), 2000);
+        return;
+      }
+
+      const response = await authApi.delete(`/products/${id}`);
+      setToastMessage(`Produit "${title}" supprimé !`);
+      hideConfirmation();
+      setTimeout(() => {
+        setToastMessage("");
+        router.back();
+      }, 1500);
+
+    } catch (err: any) {
+      console.error(err);
+      setToastMessage(err.response?.data?.message || "Erreur lors de la suppression");
+      setTimeout(() => setToastMessage(""), 2000);
+    }
   };
 
   const handleConfirmAction = (action: string) => {
     switch (action) {
       case "delete":
-        setToastMessage(`Produit "${title}" supprimé !`);
+        deleteProduct();
         break;
       case "hide":
         setToastMessage(`Produit "${title}" masqué / désactivé !`);
+        hideConfirmation();
         break;
       case "duplicate":
         setToastMessage(`Produit "${title}" dupliqué !`);
+        hideConfirmation();
         break;
     }
-    hideConfirmation();
-    setTimeout(() => setToastMessage(""), 2000);
   };
 
   const handleAction = async (action: string) => {
@@ -93,18 +101,13 @@ const TroisPointsProfil = () => {
         break;
       case "promotion":
         router.push(`/product/promotion/${id}`);
-        case "boost":
-    router.push({
-        pathname: "/(tabs)/Auth/Profiles/booste",
-        params: {
-            id,
-            title,
-            price,
-            imageUrl
-        }
-    });
-    break;
-
+        break;
+      case "boost":
+        router.push({
+          pathname: "/(tabs)/Auth/Profiles/booste",
+          params: { id, title, price, imageUrl },
+        });
+        break;
       case "share":
         await Share.share({
           message: `Découvrez ce produit ShopNet : ${title} - ${price}$ https://shopnet.com/products/${id}`,
@@ -131,11 +134,8 @@ const TroisPointsProfil = () => {
 
   return (
     <View style={styles.container}>
-      {imageUrl && (
-        <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="cover" />
-      )}
+      {imageUrl && <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="cover" />}
 
-      {/* Bouton retour fixe */}
       <View style={styles.backButtonContainer}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <FontAwesome name="arrow-left" size={20} color="#fff" />
@@ -165,31 +165,19 @@ const TroisPointsProfil = () => {
         </View>
       </ScrollView>
 
-      {/* Confirmation animée au milieu */}
       {confirmAction && (
         <View style={styles.confirmOverlay}>
-          <Animated.View
-            style={[
-              styles.confirmContainer,
-              { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
-            ]}
-          >
+          <Animated.View style={[styles.confirmContainer, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
             <Text style={styles.confirmText}>
               {confirmAction === "delete" && `Voulez-vous supprimer "${title}" ?`}
               {confirmAction === "hide" && `Voulez-vous masquer "${title}" ?`}
               {confirmAction === "duplicate" && `Voulez-vous dupliquer "${title}" ?`}
             </Text>
             <View style={styles.confirmButtons}>
-              <TouchableOpacity
-                style={[styles.confirmButton, { backgroundColor: "#4CB050" }]}
-                onPress={() => handleConfirmAction(confirmAction)}
-              >
+              <TouchableOpacity style={[styles.confirmButton, { backgroundColor: "#4CB050" }]} onPress={() => handleConfirmAction(confirmAction)}>
                 <Text style={styles.confirmButtonText}>Oui</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmButton, { backgroundColor: "#E53935" }]}
-                onPress={() => hideConfirmation()}
-              >
+              <TouchableOpacity style={[styles.confirmButton, { backgroundColor: "#E53935" }]} onPress={() => hideConfirmation()}>
                 <Text style={styles.confirmButtonText}>Non</Text>
               </TouchableOpacity>
             </View>
@@ -197,7 +185,6 @@ const TroisPointsProfil = () => {
         </View>
       )}
 
-      {/* Message toast */}
       {toastMessage !== "" && (
         <View style={styles.toastContainer}>
           <Text style={styles.toastText}>{toastMessage}</Text>
@@ -209,19 +196,13 @@ const TroisPointsProfil = () => {
 
 export default TroisPointsProfil;
 
+// Styles inchangés
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#202A36" },
   scrollContainer: { paddingBottom: 20 },
   productImage: { width, height: 250 },
   backButtonContainer: { position: "absolute", top: 40, left: 15, zIndex: 10 },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FA7921",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
+  backButton: { flexDirection: "row", alignItems: "center", backgroundColor: "#FA7921", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   backText: { color: "#fff", fontSize: 16, marginLeft: 8, fontWeight: "600" },
   infoContainer: { paddingHorizontal: 20, marginTop: 10, marginBottom: 20 },
   title: { fontSize: 24, fontWeight: "700", color: "#fff", marginBottom: 8 },
