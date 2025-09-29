@@ -103,10 +103,12 @@ const handleAction = async (action: string) => {
       setConfirmAction(action);
       showConfirmation();
       break;
-
-    case "promotion":
-      router.push(`/product/promotion/${id}`);
-      break;
+      case "promotion":
+  router.push({
+    pathname: "/(tabs)/Auth/Profiles/confirmation",
+    params: { id, title, price },
+  });
+  break;
 
     case "boost":
       router.push({
@@ -122,7 +124,7 @@ const handleAction = async (action: string) => {
       break;
 
     case "stats":
-      router.push(`/product/stats/${id}`);
+      router.push(`/(tabs)/Auth/Profiles/ProductStats`);
       break;
 
     default:
