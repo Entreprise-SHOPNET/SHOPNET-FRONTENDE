@@ -1,5 +1,6 @@
 
 // app/_layout.tsx
+// app/_layout.tsx
 
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -12,6 +13,8 @@ import { useColorScheme } from '../components/useColorScheme';
 
 // ✅ Import du service de notification socket.io
 import { notificationService } from './notificationService'; // ajuste si besoin
+// ✅ Import SharePrompt
+import SharePrompt from '../SharePrompt'; // ajuste le chemin si nécessaire
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -49,10 +52,8 @@ function RootLayoutNav() {
 
   // ✅ Initialisation du socket + liaison globale pour les notifications
   useEffect(() => {
-    // Initialise socket notification
     notificationService.initSocket();
 
-    // Fonction globale appelée depuis le service
     globalThis.triggerBanner = (msg: string) => {
       setNotifMessage(msg);
       setNotifVisible(true);
@@ -65,10 +66,13 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      {/* 👇 SharePrompt sera monté sur toutes les pages */}
+      <SharePrompt />
+
       <Stack
         initialRouteName="index"
         screenOptions={{
-          headerShown: false, // 🔥 supprime tous les headers automatiques
+          headerShown: false,
         }}
       >
         <Stack.Screen name="index" />
