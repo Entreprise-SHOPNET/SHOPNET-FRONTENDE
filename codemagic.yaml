@@ -1,19 +1,28 @@
+
+
 workflows:
   android:
-    name: Build Android APK
+    name: Build Android APK & AAB
     environment:
       vars:
-        EXPO_TOKEN: "Y-39ShqJWGt4w1WgdlZe0amzC_0XTm0VY5EDxj1N"
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         ANDROID_KEYSTORE_PATH: "@shopia__shopai.jks"
-        ANDROID_KEYSTORE_PASSWORD: "823c916b5933495a94b83bdd07aacb3b"
-        ANDROID_KEY_ALIAS: "c912d60ee44b7b143187a4a9e9e84d07"
-        ANDROID_KEY_PASSWORD: "4a18a087078d873a6ffbed838fa09eb1"
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     scripts:
       - name: Install dependencies
         script: npm ci
+
       - name: Prebuild Expo
         script: npx expo prebuild --no-install
+
       - name: Build APK
-        script: npx eas build --platform android --non-interactive
+        script: npx eas build --platform android --profile production-apk --non-interactive
+
+      - name: Build AAB
+        script: npx eas build --platform android --profile production-aab --non-interactive
+
     artifacts:
       - build/**/*.apk
+      - build/**/*.aab
