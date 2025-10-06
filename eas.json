@@ -2,20 +2,34 @@
 
 {
   "cli": {
-    "version": ">= 16.17.4",
+    "version": ">=16.17.4",
     "appVersionSource": "remote"
   },
   "build": {
     "production-apk": {
+      "type": "apk",
+      "distribution": "store",
       "autoIncrement": true,
-      "type": "apk"
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
     },
     "production-aab": {
+      "type": "aab",
+      "distribution": "store",
       "autoIncrement": true,
-      "type": "aab"
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json"
+      }
+    }
   }
 }
