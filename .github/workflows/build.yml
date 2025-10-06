@@ -10,42 +10,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Récupérer le code
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2. Installer Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
+      # 3. Installer les dépendances
       - name: Install dependencies
         run: npm ci
 
+      # 4. Installer Expo CLI et EAS CLI
       - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
+      # 5. Configurer le token Expo et le keystore automatique
       - name: Set Expo token and automatic keystore
         run: |
           echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV
           echo "EAS_BUILD_AUTOMATIC_KEYSTORE=1" >> $GITHUB_ENV
 
+      # 6. Vérifier la connexion à Expo
       - name: Verify Expo login
         run: eas whoami
 
+      # 7. Build APK
       - name: Build APK
-        run: eas build --platform android --profile production-apk --non-interactive --output-dir ./build/apk
+        run: eas build --platform android --profile production-apk --non-interactive
 
+      # 8. Build AAB
       - name: Build AAB
-        run: eas build --platform android --profile production-aab --non-interactive --output-dir ./build/aab
+        run: eas build --platform android --profile production-aab --non-interactive
 
+      # 9. Upload APK artifact
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-apk
-          path: build/apk/**/*.apk
+          path: '**/*.apk'   # récupère tous les APK générés par EAS
 
+      # 10. Upload AAB artifact
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-aab
-          path: build/aab/**/*.aab
+          path: '**/*.aab'   # récupère tous les AAB générés par EAS
