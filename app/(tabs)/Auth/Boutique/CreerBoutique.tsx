@@ -1,3 +1,5 @@
+
+
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Animated, Dimensions, Platform } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesome5, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -94,7 +96,7 @@ export default function CreerBoutique() {
       type: 'Standard',
       iconComponent: <FontAwesome5 name="store" size={32} color={SHOPNET_GREEN} />,
       description: 'Parfait pour commencer à vendre en ligne',
-      price: 'Gratuit',
+      price: 'Gratuit / $0',
       features: [
         'Publier et gérer jusqu\'à 50 produits',
         'Gérer les commandes (confirmation, expédition)',
@@ -113,7 +115,7 @@ export default function CreerBoutique() {
       type: 'Premium',
       iconComponent: <MaterialCommunityIcons name="crown" size={32} color="#FFA726" />,
       description: 'Solution avancée pour développer votre business',
-      price: '$32.99/mois',
+      price: '$9.99/mois',
       features: [
         'Toutes les fonctionnalités Standard',
         'Modifier photo de profil et couverture',
@@ -130,10 +132,10 @@ export default function CreerBoutique() {
       color: '#FFA726',
     },
     {
-      type: 'Pro',
+      type: 'Pro VIP',
       iconComponent: <Ionicons name="rocket" size={32} color="#42A5F5" />,
       description: 'Solution complète avec marketing et IA',
-      price: '$87.99/mois',
+      price: '$24.99/mois',
       features: [
         'Toutes les fonctionnalités Premium',
         'Mise en avant des produits (top listing)',
@@ -229,9 +231,9 @@ export default function CreerBoutique() {
             <TouchableOpacity
               style={[styles.button, { backgroundColor: boutique.color }]}
               onPress={() => {
-                if (boutique.type === 'Standard') router.push('/MisAjour');
+                if (boutique.type === 'Standard') router.push('/(tabs)/Auth/Boutique/FormulaireStandard');
                 if (boutique.type === 'Premium') router.push('/MisAjour');
-                if (boutique.type === 'Pro') router.push('/MisAjour');
+                if (boutique.type === 'Pro VIP') router.push('/MisAjour');
               }}
             >
               <Text style={styles.buttonText}>Choisir {boutique.type}</Text>
@@ -257,7 +259,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     padding: 20,
-    paddingTop: 180, // Ajusté pour correspondre à la hauteur du header
+    paddingTop: 180,
   },
   centerContent: {
     justifyContent: 'center',
@@ -290,9 +292,7 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  titleContainer: {
-    alignItems: 'center',
-  },
+  titleContainer: { alignItems: 'center' },
   title: {
     fontWeight: '800',
     color: '#fff',
@@ -313,106 +313,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderLeftWidth: 4,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+      android: { elevation: 3 },
     }),
   },
-  cardHeader: {
-    marginBottom: 20,
-  },
-  iconTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  iconContainer: {
-    marginRight: 12,
-  },
-  boutiqueType: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  price: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  description: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 22,
-  },
-  featuresContainer: {
-    marginBottom: 20,
-  },
-  limitationsContainer: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  limitationItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  featureText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 20,
-  },
-  limitationText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 20,
-    textDecorationLine: 'line-through',
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginRight: 8,
-  },
-  buttonIcon: {
-    marginTop: 2,
-  },
-  footer: {
-    marginTop: 10,
-    padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 8,
-  },
-  footerText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    textAlign: 'center',
-  },
+  cardHeader: { marginBottom: 20 },
+  iconTitleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  iconContainer: { marginRight: 12 },
+  boutiqueType: { fontSize: 22, fontWeight: '800', marginBottom: 4 },
+  price: { fontSize: 18, fontWeight: '700', color: '#fff' },
+  description: { fontSize: 16, color: 'rgba(255, 255, 255, 0.8)', lineHeight: 22 },
+  featuresContainer: { marginBottom: 20 },
+  limitationsContainer: { marginBottom: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 12 },
+  featureItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  limitationItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  featureText: { fontSize: 15, color: 'rgba(255, 255, 255, 0.9)', marginLeft: 10, flex: 1, lineHeight: 20 },
+  limitationText: { fontSize: 15, color: 'rgba(255, 255, 255, 0.6)', marginLeft: 10, flex: 1, lineHeight: 20, textDecorationLine: 'line-through' },
+  button: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 8 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700', marginRight: 8 },
+  buttonIcon: { marginTop: 2 },
+  footer: { marginTop: 10, padding: 15, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 8 },
+  footerText: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 14, textAlign: 'center' },
 });
