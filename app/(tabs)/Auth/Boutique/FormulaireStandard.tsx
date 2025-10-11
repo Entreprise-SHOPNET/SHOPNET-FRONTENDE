@@ -109,17 +109,18 @@ export default function FormulaireStandard() {
   }
 
   try {
-    const response = await fetch(
-      "https://shopnet-backend.onrender.com/api/boutiquesGratuit/create",
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...form, type: "Standard" }),
-      }
-    );
+const response = await fetch(
+  "https://shopnet-backend.onrender.com/api/boutiques/create",
+  {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ...form, type: "Standard" }),
+  }
+);
+
 
     const data = await response.json();
     setLoading(false);
