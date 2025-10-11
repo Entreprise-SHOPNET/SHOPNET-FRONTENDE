@@ -400,13 +400,45 @@ const renderProductItem = useCallback(
 
         {/* Menu actions */}
         <View style={styles.menuContainer}>
-          <TouchableOpacity 
-            style={styles.menuItem} 
-            onPress={() => router.push('/(tabs)/Auth/Boutique/CreerBoutique')}
-          >
-            <MaterialIcons name="store" size={24} color="#4CB050" />
-            <Text style={styles.menuText}>Ma boutique</Text>
-          </TouchableOpacity>
+
+          <TouchableOpacity
+  style={styles.menuItem}
+  onPress={async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        router.push('/splash'); // utilisateur non connecté
+        return;
+      }
+
+      const response = await fetch('https://shopnet-backend.onrender.com/api/boutiques/check', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Boutique existante → redirige vers MaBoutique
+        router.push('/(tabs)/Auth/Boutique/MaBoutique');
+      } else {
+        // Pas de boutique → redirige vers création
+        router.push('/(tabs)/Auth/Boutique/CreerBoutique');
+      }
+    } catch (error) {
+      console.error('Erreur vérification boutique:', error);
+      Alert.alert('Erreur', 'Impossible de vérifier votre boutique. Réessayez plus tard.');
+    }
+  }}
+>
+  <MaterialIcons name="store" size={24} color="#4CB050" />
+  <Text style={styles.menuText}>Ma boutique</Text>
+</TouchableOpacity>
+
+
           <TouchableOpacity 
             style={styles.menuItem} 
             onPress={() => router.push('/(tabs)/Auth/Produits/Produit')}
