@@ -118,14 +118,17 @@ export default function Inscription() {
         }
 
         // Redirection vers la page CodeConfirmation avec les paramètres nécessaires
-        router.push({
-          pathname: '/Auth/Inscription/CodeConfirmation',
-          params: {
-            email,
-            phone,
-            registrationId,
-          },
-        });
+        // Redirection vers la page CodeConfirmation avec OTP reçu du backend
+      router.push({
+        pathname: '/Auth/Inscription/CodeConfirmation',
+        params: {
+          email,
+          phone,
+          registrationId: response.data.userId.toString(),
+          otp: response.data.otp, // <-- on envoie le code OTP ici
+        },
+      });
+
       } else {
         setErrorMessage(response.data.message || 'Erreur inconnue');
         Vibration.vibrate(500);

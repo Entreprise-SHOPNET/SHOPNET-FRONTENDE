@@ -1,8 +1,6 @@
 
 
-
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -11,7 +9,9 @@ import {
   StyleSheet, 
   Vibration,
   ActivityIndicator,
-  Alert
+  Modal,
+  Animated,
+  Easing
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
@@ -24,12 +24,41 @@ export default function CodeConfirmation() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const email = typeof params.email === 'string' ? params.email : '';
+  const phone = typeof params.phone === 'string' ? params.phone : '';
   const registrationId = typeof params.registrationId === 'string' ? params.registrationId : '';
-  
+  const initialOtp = typeof params.otp === 'string' ? params.otp : '';
+
   const [code, setCode] = useState('');
+  const [otp, setOtp] = useState(initialOtp); // OTP reçu du backend
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Pré-remplir et lancer animation après 2,5 secondes
+  useEffect(() => {
+    if (otp) {
+      const timer = setTimeout(() => {
+        setCode(otp);
+        setShowOtpModal(true);
+        Animated.parallel([
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 800,
+            easing: Easing.out(Easing.back(1)),
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [otp]);
 
   const handleVerifyCode = async () => {
     if (!/^\d{6}$/.test(code)) {
@@ -48,18 +77,15 @@ export default function CodeConfirmation() {
       });
 
       if (response.data.success && response.data.token) {
-        // Sauvegarde du token et des infos utilisateur
-        await Promise.all([
-          saveToken(response.data.token),
-          AsyncStorage.setItem('user', JSON.stringify(response.data.user))
-        ]);
+        await saveToken(response.data.token);
 
-        console.log('[AUTH] Token saved, user data:', response.data.user);
-        
-        // Redirection vers le questionnaire
+        if (response.data.user) {
+          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+
         router.replace('/(tabs)/Auth/Inscription/Questionaire');
       } else {
-        throw new Error(response.data.message || 'Validation failed');
+        throw new Error(response.data.message || 'Validation échouée');
       }
     } catch (error: any) {
       console.error('[VERIFICATION ERROR]', error);
@@ -70,8 +96,28 @@ export default function CodeConfirmation() {
     }
   };
 
-  const handleResendCode = async () => {
-    Alert.alert('Code renvoyé', 'Un nouveau code a été envoyé à votre email');
+  const handleShowOtp = () => {
+    if (otp) {
+      setShowOtpModal(true);
+      scaleAnim.setValue(0);
+      opacityAnim.setValue(0);
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.out(Easing.back(1)),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      setError('OTP non disponible pour le moment');
+      Vibration.vibrate(500);
+    }
   };
 
   return (
@@ -79,8 +125,7 @@ export default function CodeConfirmation() {
       <Text style={styles.title}>Confirmation du Compte</Text>
       
       <Text style={styles.subtitle}>
-        Entrez le code envoyé à {' '}
-        <Text style={styles.highlight}>{email}</Text>
+        Entrez le code envoyé à <Text style={styles.highlight}>{phone}</Text>
       </Text>
 
       <TextInput
@@ -110,78 +155,57 @@ export default function CodeConfirmation() {
 
       <TouchableOpacity 
         style={styles.resendContainer} 
-        onPress={handleResendCode}
+        onPress={handleShowOtp}
         disabled={isLoading}
       >
         <Text style={styles.resendText}>Vous n'avez pas reçu de code ? </Text>
-        <Text style={styles.resendLink}>Renvoyer</Text>
+        <Text style={styles.resendLink}>Afficher le code</Text>
       </TouchableOpacity>
+
+      {/* Modal avec animation */}
+      <Modal
+        visible={showOtpModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowOtpModal(false)}
+      >
+        <View style={styles.modalBackground}>
+          <Animated.View style={[styles.modalContainer, {
+            transform: [{ scale: scaleAnim }],
+            opacity: opacityAnim
+          }]}>
+            <Text style={styles.modalTitle}>Votre code de Confirmation SHOPNET est :</Text>
+            <Text style={styles.modalCode}>{otp}</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowOtpModal(false)}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#202A36',
-    padding: 24,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#BCCCDC',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  highlight: {
-    color: '#4CB050',
-    fontWeight: '600',
-  },
-  input: {
-    backgroundColor: '#3A526A',
-    color: '#FFFFFF',
-    borderRadius: 10,
-    padding: 16,
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  errorText: {
-    color: '#FF5252',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#4CB050',
-    borderRadius: 10,
-    padding: 16,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  resendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  resendText: {
-    color: '#BCCCDC',
-  },
-  resendLink: {
-    color: '#4CB050',
-    fontWeight: 'bold',
-  },
+  container: { flex: 1, backgroundColor: '#202A36', padding: 24, justifyContent: 'center' },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#FFFFFF', textAlign: 'center', marginBottom: 16 },
+  subtitle: { fontSize: 16, color: '#BCCCDC', textAlign: 'center', marginBottom: 16 },
+  highlight: { color: '#4CB050', fontWeight: '600' },
+  input: { backgroundColor: '#3A526A', color: '#FFFFFF', borderRadius: 10, padding: 16, fontSize: 18, textAlign: 'center', marginBottom: 24 },
+  errorText: { color: '#FF5252', textAlign: 'center', marginBottom: 16 },
+  button: { backgroundColor: '#4CB050', borderRadius: 10, padding: 16, alignItems: 'center' },
+  disabledButton: { opacity: 0.7 },
+  buttonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16 },
+  resendContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  resendText: { color: '#BCCCDC' },
+  resendLink: { color: '#4CB050', fontWeight: 'bold' },
+  modalBackground: { flex:1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent:'center', alignItems:'center' },
+  modalContainer: { width: '80%', backgroundColor:'#fff', borderRadius:10, padding:20, alignItems:'center' },
+  modalTitle: { fontSize:20, fontWeight:'bold', marginBottom:10 },
+  modalCode: { fontSize:24, fontWeight:'bold', color:'#4CB050', marginBottom:20 },
+  modalButton: { backgroundColor:'#4CB050', paddingVertical:10, paddingHorizontal:20, borderRadius:10 },
+  modalButtonText: { color:'#fff', fontWeight:'bold', fontSize:16 },
 });
