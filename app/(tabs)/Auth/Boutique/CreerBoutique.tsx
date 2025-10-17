@@ -1,5 +1,6 @@
 
 
+
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Animated, Dimensions, Platform } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesome5, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -336,3 +337,4 @@ const styles = StyleSheet.create({
   footer: { marginTop: 10, padding: 15, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 8 },
   footerText: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 14, textAlign: 'center' },
 });
+
