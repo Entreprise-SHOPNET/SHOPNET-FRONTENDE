@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -12,11 +10,16 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
-  Alert
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { MaterialCommunityIcons, MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import {
+  MaterialCommunityIcons,
+  MaterialIcons,
+  FontAwesome5,
+  Ionicons,
+} from "@expo/vector-icons";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SHOPNET_BLUE = "#00182A";
@@ -38,19 +41,33 @@ export default function PayerPremium() {
           return;
         }
 
-        const res = await fetch("https://shopnet-backend.onrender.com/api/boutiques/check", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(
+          "https://shopnet-backend.onrender.com/api/boutiques/check",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         const data = await res.json();
         setBoutique(data.boutique || null);
 
         Animated.parallel([
-          Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-          Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
         ]).start();
       } catch (err) {
         console.warn("Erreur boutique:", err);
-        Alert.alert("Erreur", "Impossible de charger les informations de la boutique");
+        Alert.alert(
+          "Erreur",
+          "Impossible de charger les informations de la boutique",
+        );
       } finally {
         setLoading(false);
       }
@@ -61,50 +78,50 @@ export default function PayerPremium() {
 
   const handlePayment = () => {
     // Rediriger vers la page de paiement
-    router.push("/(tabs)/Auth/Boutique/Premium/BoutiquePremium");
+    router.push("/MisAjour");
   };
 
   const premiumFeatures = [
     {
       icon: "analytics",
       title: "Analytics Avancés",
-      description: "Statistiques détaillées de vos ventes et performances"
+      description: "Statistiques détaillées de vos ventes et performances",
     },
     {
       icon: "trending-up",
       title: "Produits en Vedette",
-      description: "Mettez vos produits en avant dans les recherches"
+      description: "Mettez vos produits en avant dans les recherches",
     },
     {
       icon: "people",
       title: "Gestion Clients",
-      description: "Base de données clients et historique des achats"
+      description: "Base de données clients et historique des achats",
     },
     {
       icon: "support-agent",
       title: "Support Prioritaire",
-      description: "Réponse garantie sous 2 heures"
+      description: "Réponse garantie sous 2 heures",
     },
     {
       icon: "inventory",
       title: "200 Produits",
-      description: "Jusqu'à 200 produits dans votre boutique"
+      description: "Jusqu'à 200 produits dans votre boutique",
     },
     {
       icon: "local-offer",
       title: "Promotions Avancées",
-      description: "Créez des coupons et réductions personnalisées"
+      description: "Créez des coupons et réductions personnalisées",
     },
     {
       icon: "bar-chart",
       title: "Rapports Détaillés",
-      description: "Rapports de vente et analyses de tendances"
+      description: "Rapports de vente et analyses de tendances",
     },
     {
       icon: "visibility",
       title: "Visibilité Accrue",
-      description: "Positionnement amélioré dans les résultats"
-    }
+      description: "Positionnement amélioré dans les résultats",
+    },
   ];
 
   if (loading) {
@@ -119,24 +136,28 @@ export default function PayerPremium() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={SHOPNET_BLUE} />
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.heroSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <View style={styles.crownContainer}>
-            <MaterialCommunityIcons name="crown" size={60} color={PREMIUM_GOLD} />
+            <MaterialCommunityIcons
+              name="crown"
+              size={60}
+              color={PREMIUM_GOLD}
+            />
           </View>
           <Text style={styles.heroTitle}>Passer au Premium</Text>
           <Text style={styles.heroSubtitle}>
@@ -147,18 +168,20 @@ export default function PayerPremium() {
             <Text style={styles.price}>$9.99</Text>
             <Text style={styles.pricePeriod}>/ mois</Text>
           </View>
-          <Text style={styles.priceNote}>Facturation mensuelle • Annulation à tout moment</Text>
+          <Text style={styles.priceNote}>
+            Facturation mensuelle • Annulation à tout moment
+          </Text>
         </Animated.View>
 
         {/* Boutique Info */}
         {boutique && (
-          <Animated.View 
+          <Animated.View
             style={[
               styles.boutiqueCard,
-              { 
+              {
                 opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+                transform: [{ translateY: slideAnim }],
+              },
             ]}
           >
             <View style={styles.boutiqueHeader}>
@@ -172,42 +195,48 @@ export default function PayerPremium() {
         )}
 
         {/* Features Grid */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.featuresSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <Text style={styles.sectionTitle}>Fonctionnalités Premium</Text>
-          
+
           <View style={styles.featuresGrid}>
             {premiumFeatures.map((feature, index) => (
               <View key={index} style={styles.featureCard}>
                 <View style={styles.featureIcon}>
-                  <MaterialIcons name={feature.icon as any} size={24} color={PREMIUM_GOLD} />
+                  <MaterialIcons
+                    name={feature.icon as any}
+                    size={24}
+                    color={PREMIUM_GOLD}
+                  />
                 </View>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureDescription}>{feature.description}</Text>
+                <Text style={styles.featureDescription}>
+                  {feature.description}
+                </Text>
               </View>
             ))}
           </View>
         </Animated.View>
 
         {/* Comparison Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.comparisonSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <Text style={styles.sectionTitle}>Standard vs Premium</Text>
-          
+
           <View style={styles.comparisonTable}>
             <View style={styles.comparisonRow}>
               <Text style={styles.featureName}>Nombre de produits</Text>
@@ -216,7 +245,7 @@ export default function PayerPremium() {
                 <Text style={styles.premiumValue}>200</Text>
               </View>
             </View>
-            
+
             <View style={styles.comparisonRow}>
               <Text style={styles.featureName}>Analytics</Text>
               <View style={styles.comparisonValues}>
@@ -224,7 +253,7 @@ export default function PayerPremium() {
                 <Text style={styles.premiumValue}>Avancé</Text>
               </View>
             </View>
-            
+
             <View style={styles.comparisonRow}>
               <Text style={styles.featureName}>Support</Text>
               <View style={styles.comparisonValues}>
@@ -232,7 +261,7 @@ export default function PayerPremium() {
                 <Text style={styles.premiumValue}>Prioritaire</Text>
               </View>
             </View>
-            
+
             <View style={styles.comparisonRow}>
               <Text style={styles.featureName}>Promotions</Text>
               <View style={styles.comparisonValues}>
@@ -244,16 +273,16 @@ export default function PayerPremium() {
         </Animated.View>
 
         {/* CTA Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.ctaSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.paymentButton}
             onPress={handlePayment}
           >
@@ -261,7 +290,7 @@ export default function PayerPremium() {
             <Text style={styles.paymentButtonText}>Débloquer le Premium</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => router.back()}
           >
@@ -269,7 +298,11 @@ export default function PayerPremium() {
           </TouchableOpacity>
 
           <View style={styles.securityBadge}>
-            <MaterialIcons name="security" size={16} color="rgba(255,255,255,0.6)" />
+            <MaterialIcons
+              name="security"
+              size={16}
+              color="rgba(255,255,255,0.6)"
+            />
             <Text style={styles.securityText}>Paiement 100% sécurisé</Text>
           </View>
         </Animated.View>
@@ -279,9 +312,9 @@ export default function PayerPremium() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: SHOPNET_BLUE 
+  container: {
+    flex: 1,
+    backgroundColor: SHOPNET_BLUE,
   },
   scrollView: {
     flex: 1,

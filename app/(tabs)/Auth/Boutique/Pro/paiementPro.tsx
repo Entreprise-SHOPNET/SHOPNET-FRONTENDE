@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -12,11 +10,16 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
-  Alert
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { MaterialCommunityIcons, MaterialIcons, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import {
+  MaterialCommunityIcons,
+  MaterialIcons,
+  FontAwesome5,
+  Ionicons,
+} from "@expo/vector-icons";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SHOPNET_BLUE = "#00182A";
@@ -38,19 +41,33 @@ export default function PayerPro() {
           return;
         }
 
-        const res = await fetch("https://shopnet-backend.onrender.com/api/boutiques/check", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(
+          "https://shopnet-backend.onrender.com/api/boutiques/check",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         const data = await res.json();
         setBoutique(data.boutique || null);
 
         Animated.parallel([
-          Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-          Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
         ]).start();
       } catch (err) {
         console.warn("Erreur boutique:", err);
-        Alert.alert("Erreur", "Impossible de charger les informations de la boutique");
+        Alert.alert(
+          "Erreur",
+          "Impossible de charger les informations de la boutique",
+        );
       } finally {
         setLoading(false);
       }
@@ -60,70 +77,70 @@ export default function PayerPro() {
   }, []);
 
   const handlePayment = () => {
-    router.push("/(tabs)/Auth/Boutique/Pro/BoutiquePro");
+    router.push("/MisAjour");
   };
 
   const proFeatures = [
     {
       icon: "rocket",
       title: "Produits Illimités",
-      description: "Publiez autant de produits que vous voulez"
+      description: "Publiez autant de produits que vous voulez",
     },
     {
       icon: "ai",
       title: "Recommandations IA",
-      description: "Système d'intelligence artificielle intégré"
+      description: "Système d'intelligence artificielle intégré",
     },
     {
       icon: "trending-up",
       title: "Marketing Avancé",
-      description: "Outils marketing et publicités intégrés"
+      description: "Outils marketing et publicités intégrés",
     },
     {
       icon: "analytics",
       title: "Analytics Pro",
-      description: "Statistiques avancées et prédictions"
+      description: "Statistiques avancées et prédictions",
     },
     {
       icon: "support-agent",
       title: "Support 24/7",
-      description: "Support prioritaire 24 heures sur 24"
+      description: "Support prioritaire 24 heures sur 24",
     },
     {
       icon: "star",
       title: "Mise en Avant",
-      description: "Positionnement premium dans les résultats"
+      description: "Positionnement premium dans les résultats",
     },
     {
       icon: "dashboard",
       title: "Tableau de Bord Pro",
-      description: "Interface de gestion professionnelle"
+      description: "Interface de gestion professionnelle",
     },
     {
       icon: "bolt",
       title: "Performances Max",
-      description: "Vitesse et performances optimisées"
+      description: "Vitesse et performances optimisées",
     },
     {
       icon: "security",
       title: "Sécurité Renforcée",
-      description: "Protection avancée des données"
+      description: "Protection avancée des données",
     },
     {
       icon: "group",
       title: "Gestion d'Équipe",
-      description: "Ajoutez des collaborateurs à votre boutique"
+      description: "Ajoutez des collaborateurs à votre boutique",
     },
     {
       icon: "inventory",
       title: "Gestion de Stock",
-      description: "Système de stock avancé avec alertes"
+      description: "Système de stock avancé avec alertes",
     },
     {
       icon: "payments",
       title: "Paiements Multiples",
-      description: "Tous les moyens de paiement acceptés"
-    }
+      description: "Tous les moyens de paiement acceptés",
+    },
   ];
 
   if (loading) {
@@ -138,20 +155,20 @@ export default function PayerPro() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={SHOPNET_BLUE} />
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.heroSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <View style={styles.rocketContainer}>
@@ -166,7 +183,9 @@ export default function PayerPro() {
             <Text style={styles.price}>$24.99</Text>
             <Text style={styles.pricePeriod}>/ mois</Text>
           </View>
-          <Text style={styles.priceNote}>Facturation mensuelle • Annulation à tout moment</Text>
+          <Text style={styles.priceNote}>
+            Facturation mensuelle • Annulation à tout moment
+          </Text>
 
           <View style={styles.badgePro}>
             <Ionicons name="star" size={14} color="#fff" />
@@ -176,13 +195,13 @@ export default function PayerPro() {
 
         {/* Boutique Info */}
         {boutique && (
-          <Animated.View 
+          <Animated.View
             style={[
               styles.boutiqueCard,
-              { 
+              {
                 opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
-              }
+                transform: [{ translateY: slideAnim }],
+              },
             ]}
           >
             <View style={styles.boutiqueHeader}>
@@ -190,38 +209,66 @@ export default function PayerPro() {
               <Text style={styles.boutiqueName}>{boutique.nom}</Text>
             </View>
             <Text style={styles.boutiqueText}>
-              Votre boutique sera mise à niveau vers le plan Pro avec toutes les fonctionnalités avancées
+              Votre boutique sera mise à niveau vers le plan Pro avec toutes les
+              fonctionnalités avancées
             </Text>
           </Animated.View>
         )}
 
         {/* Comparison Table */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.comparisonSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <Text style={styles.sectionTitle}>Comparez les Formules</Text>
-          
+
           <View style={styles.comparisonTable}>
             <View style={styles.comparisonHeader}>
               <Text style={styles.comparisonHeaderText}>Fonctionnalités</Text>
               <Text style={styles.comparisonHeaderText}>Standard</Text>
               <Text style={styles.comparisonHeaderText}>Premium</Text>
-              <Text style={[styles.comparisonHeaderText, styles.proHeader]}>Pro</Text>
+              <Text style={[styles.comparisonHeaderText, styles.proHeader]}>
+                Pro
+              </Text>
             </View>
-            
+
             {[
-              { feature: "Produits", standard: "10", premium: "200", pro: "Illimité" },
-              { feature: "Analytics", standard: "Basique", premium: "Avancé", pro: "Professionnel" },
-              { feature: "Support", standard: "Email", premium: "Prioritaire", pro: "24/7" },
+              {
+                feature: "Produits",
+                standard: "10",
+                premium: "200",
+                pro: "Illimité",
+              },
+              {
+                feature: "Analytics",
+                standard: "Basique",
+                premium: "Avancé",
+                pro: "Professionnel",
+              },
+              {
+                feature: "Support",
+                standard: "Email",
+                premium: "Prioritaire",
+                pro: "24/7",
+              },
               { feature: "IA", standard: "❌", premium: "❌", pro: "✅" },
-              { feature: "Marketing", standard: "❌", premium: "Basique", pro: "Avancé" },
-              { feature: "Sécurité", standard: "Standard", premium: "Standard", pro: "Renforcée" },
+              {
+                feature: "Marketing",
+                standard: "❌",
+                premium: "Basique",
+                pro: "Avancé",
+              },
+              {
+                feature: "Sécurité",
+                standard: "Standard",
+                premium: "Standard",
+                pro: "Renforcée",
+              },
             ].map((item, index) => (
               <View key={index} style={styles.comparisonRow}>
                 <Text style={styles.featureName}>{item.feature}</Text>
@@ -234,50 +281,62 @@ export default function PayerPro() {
         </Animated.View>
 
         {/* Features Grid */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.featuresSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
-          <Text style={styles.sectionTitle}>Fonctionnalités Pro Exclusives</Text>
-          
+          <Text style={styles.sectionTitle}>
+            Fonctionnalités Pro Exclusives
+          </Text>
+
           <View style={styles.featuresGrid}>
             {proFeatures.map((feature, index) => (
               <View key={index} style={styles.featureCard}>
                 <View style={styles.featureIcon}>
-                  <MaterialIcons name={feature.icon as any} size={24} color={PRO_BLUE} />
+                  <MaterialIcons
+                    name={feature.icon as any}
+                    size={24}
+                    color={PRO_BLUE}
+                  />
                 </View>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureDescription}>{feature.description}</Text>
+                <Text style={styles.featureDescription}>
+                  {feature.description}
+                </Text>
               </View>
             ))}
           </View>
         </Animated.View>
 
         {/* Benefits Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.benefitsSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <Text style={styles.sectionTitle}>Avantages Pro</Text>
-          
+
           <View style={styles.benefitsList}>
             <View style={styles.benefitItem}>
               <Ionicons name="checkmark-circle" size={20} color={PRO_BLUE} />
-              <Text style={styles.benefitText}>Augmentation moyenne de 300% des ventes</Text>
+              <Text style={styles.benefitText}>
+                Augmentation moyenne de 300% des ventes
+              </Text>
             </View>
             <View style={styles.benefitItem}>
               <Ionicons name="checkmark-circle" size={20} color={PRO_BLUE} />
-              <Text style={styles.benefitText}>Gestion professionnelle de votre business</Text>
+              <Text style={styles.benefitText}>
+                Gestion professionnelle de votre business
+              </Text>
             </View>
             <View style={styles.benefitItem}>
               <Ionicons name="checkmark-circle" size={20} color={PRO_BLUE} />
@@ -291,22 +350,25 @@ export default function PayerPro() {
         </Animated.View>
 
         {/* CTA Section */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.ctaSection,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           <View style={styles.ctaCard}>
-            <Text style={styles.ctaTitle}>Prêt à Passer au Niveau Supérieur ?</Text>
+            <Text style={styles.ctaTitle}>
+              Prêt à Passer au Niveau Supérieur ?
+            </Text>
             <Text style={styles.ctaDescription}>
-              Rejoignez les boutiques professionnelles qui multiplient leurs ventes
+              Rejoignez les boutiques professionnelles qui multiplient leurs
+              ventes
             </Text>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.paymentButton}
               onPress={handlePayment}
             >
@@ -316,14 +378,18 @@ export default function PayerPro() {
 
             <View style={styles.guaranteeBadge}>
               <MaterialIcons name="verified" size={16} color={PRO_BLUE} />
-              <Text style={styles.guaranteeText}>Satisfait ou remboursé sous 30 jours</Text>
+              <Text style={styles.guaranteeText}>
+                Satisfait ou remboursé sous 30 jours
+              </Text>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.secondaryButton}
               onPress={() => router.back()}
             >
-              <Text style={styles.secondaryButtonText}>Comparer avec Premium</Text>
+              <Text style={styles.secondaryButtonText}>
+                Comparer avec Premium
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -333,9 +399,9 @@ export default function PayerPro() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: SHOPNET_BLUE 
+  container: {
+    flex: 1,
+    backgroundColor: SHOPNET_BLUE,
   },
   scrollView: {
     flex: 1,
