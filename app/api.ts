@@ -9,11 +9,21 @@
  */
 
 import axios from 'axios';
-import { getAuthToken } from './auth'; // Assure-toi que le chemin est correct
+import { getAuthToken } from './auth';
+
+// Determine the base URL from environment or use default
+const getBaseURL = () => {
+  // For Expo web, we can use process.env
+  if (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  // Default backend URL
+  return 'http://100.64.134.89:5000/api';
+};
 
 // Crée un client axios avec la base URL de ton backend
 const api = axios.create({
-  baseURL: 'http://100.64.134.89:5000/api', // Remplace par l'URL de ton backend
+  baseURL: getBaseURL(),
 });
 
 // Intercepteur qui ajoute le token JWT à chaque requête HTTP si disponible
