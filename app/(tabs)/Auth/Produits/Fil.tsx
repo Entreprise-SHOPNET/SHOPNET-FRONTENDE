@@ -2,6 +2,8 @@
 
 
 
+
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { authApi } from '../authService';
@@ -213,7 +215,7 @@ const ShopApp = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  
+
   const categories = ['✨ Tendance', '🔥 Promos', '👗 Mode', '📱 Tech', '🏠 Maison', '💄 Beauté'];
 
   const showNotification = useCallback((message: string) => {
@@ -308,7 +310,7 @@ const ShopApp = () => {
       setTotalPages(response.data.totalPages || 1);
     } catch (error: any) {
       console.error('Erreur de chargement des produits :', error);
-      
+
       let errorMessage = "Erreur de chargement";
       if (error.response) {
         if (error.response.status === 401) {
@@ -323,7 +325,7 @@ const ShopApp = () => {
       } else if (error.message === 'Réponse API invalide') {
         errorMessage = "Format de données incorrect";
       }
-      
+
       showNotification(errorMessage);
     } finally {
       setLoading(false);
@@ -337,7 +339,7 @@ const ShopApp = () => {
   }, [activeCategory]);
 
   const soundRef = useRef<Audio.Sound | null>(null);
-  
+
   useEffect(() => {
     const loadSound = async () => {
       try {
@@ -398,7 +400,7 @@ const ShopApp = () => {
 
         if (res?.data?.success) {
           showNotification('✅ Produit ajouté avec succès !');
-          
+
           if (soundRef.current) {
             await soundRef.current.replayAsync();
           }
@@ -457,7 +459,7 @@ const ShopApp = () => {
 
     } catch (error) {
       console.error("Erreur like :", error);
-      
+
       setProducts(prevProducts => 
         prevProducts.map(product => {
           if (product.id === productId) {
@@ -470,7 +472,7 @@ const ShopApp = () => {
           return product;
         })
       );
-      
+
       showNotification("Erreur lors de la mise à jour du like");
     }
   }, [showNotification]);
@@ -564,7 +566,7 @@ const ShopApp = () => {
 
   const renderFooter = useCallback(() => {
     if (!isLoadingMore) return null;
-    
+
     return (
       <View style={styles.footerLoader}>
         <ActivityIndicator size="large" color="#4CAF50" />
@@ -583,7 +585,7 @@ const ShopApp = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
-      
+
       <Animated.View 
         style={[
           styles.notification,
@@ -592,7 +594,7 @@ const ShopApp = () => {
       >
         <Text style={styles.notificationText}>{notificationText}</Text>
       </Animated.View>
-      
+
       <View style={styles.header}>
         <Text style={styles.logo}>SHOPNET</Text>
         <View style={styles.headerIcons}>
