@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,20 +13,30 @@ import {
   Modal,
   Dimensions,
   FlatList,
-} from 'react-native';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import { Ionicons, FontAwesome5, MaterialIcons, Feather, Entypo } from '@expo/vector-icons';
+  Animated,
+} from "react-native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import {
+  Ionicons,
+  FontAwesome5,
+  MaterialIcons,
+  Feather,
+  Entypo,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 
-const BASE_URL = 'https://shopnet-backend.onrender.com';
-const { width } = Dimensions.get('window');
+const BASE_URL = "https://shopnet-backend.onrender.com";
+const { width } = Dimensions.get("window");
+const PRO_BLUE = "#42A5F5";
+const SHOPNET_BLUE = "#00182A";
 
-type Product = { 
-  id: number; 
-  title: string; 
-  price: number; 
+type Product = {
+  id: number;
+  title: string;
+  price: number;
   images: string[];
 };
 
@@ -55,69 +64,97 @@ export default function ProfilVendeurPremium() {
   const [refreshing, setRefreshing] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
-  const [photoModalType, setPhotoModalType] = useState<'profile' | 'cover' | null>(null);
+  const [photoModalType, setPhotoModalType] = useState<
+    "profile" | "cover" | null
+  >(null);
   const [uploading, setUploading] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
+
+  // Animations
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(30))[0];
+  const scaleAnim = useState(new Animated.Value(0.9))[0];
 
   // Charger token et profil
   const loadTokenAndUser = useCallback(async () => {
     try {
-      const savedToken = await AsyncStorage.getItem('userToken');
-      if (!savedToken) { 
-        router.push('/splash'); 
-        return; 
+      const savedToken = await AsyncStorage.getItem("userToken");
+      if (!savedToken) {
+        router.push("/splash");
+        return;
       }
       setToken(savedToken);
       await fetchUserProfile(savedToken);
       await fetchProducts(savedToken);
-    } catch (error) { 
-      console.error('Erreur chargement token/profil:', error);
-      Alert.alert('Erreur', "Impossible de récupérer l'utilisateur."); 
+
+      // Lancement des animations
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } catch (error) {
+      console.error("Erreur chargement token/profil:", error);
+      Alert.alert("Erreur", "Impossible de récupérer l'utilisateur.");
     }
   }, [router]);
 
-  useEffect(() => { 
-    loadTokenAndUser(); 
+  useEffect(() => {
+    loadTokenAndUser();
   }, [loadTokenAndUser]);
 
   const fetchUserProfile = async (token: string) => {
     try {
       setLoading(true);
-      const res = await axios.get(`${BASE_URL}/api/user/profile`, { 
-        headers: { Authorization: `Bearer ${token}` } 
+      const res = await axios.get(`${BASE_URL}/api/user/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) setUser(res.data.user);
-    } catch (error) { 
-      console.error('Erreur fetchUserProfile:', error);
-      Alert.alert('Erreur', 'Erreur lors de la récupération du profil'); 
+    } catch (error) {
+      console.error("Erreur fetchUserProfile:", error);
+      Alert.alert("Erreur", "Erreur lors de la récupération du profil");
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   };
 
   const fetchProducts = async (token: string) => {
     try {
       setLoading(true);
       const res = await axios.get(`${BASE_URL}/api/user/my-products`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.data.success) {
-        // Convertir les prix en nombres pour éviter l'erreur toFixed() :cite[1]:cite[6]
-        const productsWithNumericPrices = res.data.products.map((product: any) => ({
-          ...product,
-          price: Number(product.price) || 0
-        }));
+        const productsWithNumericPrices = res.data.products.map(
+          (product: any) => ({
+            ...product,
+            price: Number(product.price) || 0,
+          }),
+        );
         setProducts(productsWithNumericPrices);
       }
     } catch (error: any) {
-      console.error('Erreur fetchProducts:', error);
+      console.error("Erreur fetchProducts:", error);
       if (error.response?.status === 401) {
-        // Token expiré ou invalide
-        Alert.alert('Session expirée', 'Veuillez vous reconnecter');
-        await AsyncStorage.removeItem('userToken');
-        router.push('/splash');
+        Alert.alert("Session expirée", "Veuillez vous reconnecter");
+        await AsyncStorage.removeItem("userToken");
+        router.push("/splash");
       } else {
-        Alert.alert('Erreur', 'Erreur lors du chargement de vos produits');
+        Alert.alert("Erreur", "Erreur lors du chargement de vos produits");
       }
     } finally {
       setLoading(false);
@@ -125,29 +162,32 @@ export default function ProfilVendeurPremium() {
     }
   };
 
-  const onRefresh = useCallback(() => { 
-    if (token) { 
-      fetchUserProfile(token); 
-      fetchProducts(token); 
-    } 
+  const onRefresh = useCallback(() => {
+    if (token) {
+      fetchUserProfile(token);
+      fetchProducts(token);
+    }
   }, [token]);
 
   // Photos profil / couverture
-  const handlePhotoAction = useCallback((type: 'profile' | 'cover') => { 
-    setPhotoModalType(type); 
-    setPhotoModalVisible(true); 
+  const handlePhotoAction = useCallback((type: "profile" | "cover") => {
+    setPhotoModalType(type);
+    setPhotoModalVisible(true);
   }, []);
-  
-  const closePhotoModal = useCallback(() => { 
-    setPhotoModalVisible(false); 
-    setPhotoModalType(null); 
-    setViewingPhoto(false); 
+
+  const closePhotoModal = useCallback(() => {
+    setPhotoModalVisible(false);
+    setPhotoModalType(null);
+    setViewingPhoto(false);
   }, []);
-  
+
   const handleViewPhoto = useCallback(() => {
     if (!photoModalType || !user) return;
-    if (!user[photoModalType === 'profile' ? 'profile_photo' : 'cover_photo']) {
-      Alert.alert('Aucune photo', `Aucune photo de ${photoModalType === 'profile' ? 'profil' : 'couverture'} disponible`);
+    if (!user[photoModalType === "profile" ? "profile_photo" : "cover_photo"]) {
+      Alert.alert(
+        "Aucune photo",
+        `Aucune photo de ${photoModalType === "profile" ? "profil" : "couverture"} disponible`,
+      );
       return;
     }
     setViewingPhoto(true);
@@ -156,117 +196,148 @@ export default function ProfilVendeurPremium() {
   const handleChoosePhoto = useCallback(async () => {
     if (!token || !photoModalType) return;
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') throw new Error('Permission refusée');
-      
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") throw new Error("Permission refusée");
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: photoModalType === 'profile' ? [1, 1] : [16, 9],
+        aspect: photoModalType === "profile" ? [1, 1] : [16, 9],
         quality: 0.7,
       });
-      
+
       if (result.canceled) return;
       const asset = result.assets[0];
-      if (!asset?.uri) throw new Error('Aucune image sélectionnée');
-      
+      if (!asset?.uri) throw new Error("Aucune image sélectionnée");
+
       setUploading(true);
       const formData = new FormData();
-      formData.append(photoModalType === 'profile' ? 'profile_photo' : 'cover_photo', { 
-        uri: asset.uri, 
-        name: `photo_${Date.now()}.jpg`, 
-        type: 'image/jpeg' 
-      } as any);
-      
-      const endpoint = photoModalType === 'profile' 
-        ? `${BASE_URL}/api/user/profile/photo` 
-        : `${BASE_URL}/api/user/cover/photo`;
-        
-      const response = await axios.put(endpoint, formData, { 
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          'Content-Type': 'multipart/form-data' 
-        } 
+      formData.append(
+        photoModalType === "profile" ? "profile_photo" : "cover_photo",
+        {
+          uri: asset.uri,
+          name: `photo_${Date.now()}.jpg`,
+          type: "image/jpeg",
+        } as any,
+      );
+
+      const endpoint =
+        photoModalType === "profile"
+          ? `${BASE_URL}/api/user/profile/photo`
+          : `${BASE_URL}/api/user/cover/photo`;
+
+      const response = await axios.put(endpoint, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
 
-      if (response.data.success) { 
-        await fetchUserProfile(token); 
-        Alert.alert('Succès', `Photo ${photoModalType === 'profile' ? 'de profil' : 'de couverture'} mise à jour`); 
+      if (response.data.success) {
+        await fetchUserProfile(token);
+        Alert.alert(
+          "Succès",
+          `Photo ${photoModalType === "profile" ? "de profil" : "de couverture"} mise à jour`,
+        );
       }
-    } catch (error: any) { 
-      console.error('Erreur upload photo:', error);
-      Alert.alert('Erreur', error.response?.data?.message || error.message || "Échec du téléchargement de l'image"); 
-    }
-    finally { 
-      setUploading(false); 
-      closePhotoModal(); 
+    } catch (error: any) {
+      console.error("Erreur upload photo:", error);
+      Alert.alert(
+        "Erreur",
+        error.response?.data?.message ||
+          error.message ||
+          "Échec du téléchargement de l'image",
+      );
+    } finally {
+      setUploading(false);
+      closePhotoModal();
     }
   }, [token, photoModalType, closePhotoModal, fetchUserProfile]);
 
-  const formatDateFR = useCallback((dateStr: string) => { 
-    try { 
-      return new Date(dateStr).toLocaleDateString('fr-FR', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }); 
-    } catch { 
-      return dateStr; 
-    } 
+  const formatDateFR = useCallback((dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
   }, []);
 
-  
-const renderProductItem = useCallback(
-  ({ item }: { item: Product }) => (
-    <View style={styles.productCard}>
-      
-      {/* Image du produit */}
-      <Image 
-        source={{ 
-          uri: item.images && item.images.length > 0 
-            ? item.images[0] 
-            : 'https://via.placeholder.com/150?text=No+Image' 
-        }} 
-        style={styles.productImage} 
-        resizeMode="cover" 
-      />
-
-      {/* Info produit */}
-      <View style={styles.productInfoContainer}>
-        <Text numberOfLines={2} style={styles.productTitle}>{item.title}</Text>
-        <Text style={styles.productPrice}>{Number(item.price).toFixed(2)} $</Text>
-      </View>
-
-      {/* Bouton trois points */}
-      <TouchableOpacity
-        style={styles.menuButton}
-        onPress={() =>
-          router.push({
-            pathname: "/(tabs)/Auth/trois-points-profil/[id]",
-            params: {
-              id: item.id,
-              title: item.title,
-              price: item.price,
-              imageUrl: item.images && item.images.length > 0 ? item.images[0] : '',
-            },
-          })
-        }
+  const renderProductItem = useCallback(
+    ({ item }: { item: Product }) => (
+      <Animated.View
+        style={[
+          styles.productCard,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
       >
-        <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
-      </TouchableOpacity>
+        {/* Image du produit */}
+        <Image
+          source={{
+            uri:
+              item.images && item.images.length > 0
+                ? item.images[0]
+                : "https://via.placeholder.com/150?text=No+Image",
+          }}
+          style={styles.productImage}
+          resizeMode="cover"
+        />
 
-    </View>
-  ),
-  [router]
-);
+        {/* Badge Pro sur produit */}
+        <View style={styles.productProBadge}>
+          <Ionicons name="rocket" size={10} color="#fff" />
+          <Text style={styles.productProBadgeText}>PRO</Text>
+        </View>
+
+        {/* Info produit */}
+        <View style={styles.productInfoContainer}>
+          <Text numberOfLines={2} style={styles.productTitle}>
+            {item.title}
+          </Text>
+          <Text style={styles.productPrice}>
+            {Number(item.price).toFixed(2)} $
+          </Text>
+        </View>
+
+        {/* Bouton trois points */}
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() =>
+            router.push({
+              pathname: "/(tabs)/Auth/trois-points-profil/[id]",
+              params: {
+                id: item.id,
+                title: item.title,
+                price: item.price,
+                imageUrl:
+                  item.images && item.images.length > 0 ? item.images[0] : "",
+              },
+            })
+          }
+        >
+          <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
+        </TouchableOpacity>
+      </Animated.View>
+    ),
+    [router],
+  );
+
   if (!user && loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4CB050" />
+        <ActivityIndicator size="large" color={PRO_BLUE} />
+        <Text style={styles.loadingText}>Chargement du profil Pro...</Text>
       </View>
     );
   }
-  
+
   if (!user) {
     return (
       <View style={styles.centered}>
@@ -280,224 +351,390 @@ const renderProductItem = useCallback(
 
   return (
     <View style={styles.mainContainer}>
-      <ScrollView 
-        style={styles.container} 
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
-            colors={['#4CB050']} 
-            tintColor="#4CB050" 
-          />
-        } 
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Couverture */}
-        <TouchableOpacity 
-          activeOpacity={0.8} 
-          onPress={() => handlePhotoAction('cover')} 
-          style={styles.coverPhotoContainer}
-        >
-          {user.cover_photo ? (
-            <Image 
-              source={{ 
-                uri: user.cover_photo.startsWith('http') 
-                  ? user.cover_photo 
-                  : `${BASE_URL}${user.cover_photo}` 
-              }} 
-              style={styles.coverPhoto} 
-            />
-          ) : (
-            <View style={[styles.coverPhoto, styles.coverPlaceholder]}>
-              <Ionicons name="camera" size={40} color="#666" />
-            </View>
-          )}
-          <View style={styles.coverOverlay} />
-        </TouchableOpacity>
+      {/* Background Effects */}
+      <View style={styles.backgroundEffects}>
+        <View style={styles.glowCircle1} />
+        <View style={styles.glowCircle2} />
+      </View>
 
-        {/* Profil */}
-        <View style={styles.profileSection}>
-          <TouchableOpacity 
-            activeOpacity={0.8} 
-            onPress={() => handlePhotoAction('profile')} 
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[PRO_BLUE]}
+            tintColor={PRO_BLUE}
+          />
+        }
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Section Couverture VIP */}
+        <Animated.View
+          style={[
+            styles.coverSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => handlePhotoAction("cover")}
+            style={styles.coverPhotoContainer}
+          >
+            {user.cover_photo ? (
+              <Image
+                source={{
+                  uri: user.cover_photo.startsWith("http")
+                    ? user.cover_photo
+                    : `${BASE_URL}${user.cover_photo}`,
+                }}
+                style={styles.coverPhoto}
+              />
+            ) : (
+              <View style={[styles.coverPhoto, styles.coverPlaceholder]}>
+                <MaterialCommunityIcons
+                  name="image-edit"
+                  size={40}
+                  color={PRO_BLUE}
+                />
+                <Text style={styles.coverPlaceholderText}>
+                  Photo de couverture
+                </Text>
+              </View>
+            )}
+            <View style={styles.coverOverlay} />
+
+            {/* Badge VIP sur couverture */}
+            <View style={styles.coverBadge}>
+              <Ionicons name="diamond" size={14} color="#FFD700" />
+              <Text style={styles.coverBadgeText}>PROFIL PRO</Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Section Profil Premium */}
+        <Animated.View
+          style={[
+            styles.profileSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => handlePhotoAction("profile")}
             style={styles.profilePhotoContainer}
           >
             {user.profile_photo ? (
-              <Image 
-                source={{ 
-                  uri: user.profile_photo.startsWith('http') 
-                    ? user.profile_photo 
-                    : `${BASE_URL}${user.profile_photo}` 
-                }} 
-                style={styles.profilePhoto} 
+              <Image
+                source={{
+                  uri: user.profile_photo.startsWith("http")
+                    ? user.profile_photo
+                    : `${BASE_URL}${user.profile_photo}`,
+                }}
+                style={styles.profilePhoto}
               />
             ) : (
               <View style={[styles.profilePhoto, styles.profilePlaceholder]}>
-                <FontAwesome5 name="user-alt" size={60} color="#aaa" />
+                <FontAwesome5 name="user-tie" size={40} color={PRO_BLUE} />
               </View>
             )}
+            {/* Badge édition photo */}
+            <View style={styles.editPhotoBadge}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
           </TouchableOpacity>
+
           <View style={styles.userInfoContainer}>
-            <Text style={styles.userName}>{user.fullName}</Text>
+            <View style={styles.nameContainer}>
+              <Text style={styles.userName}>{user.fullName}</Text>
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={16} color={PRO_BLUE} />
+                <Text style={styles.verifiedText}>Vérifié</Text>
+              </View>
+            </View>
+
             <Text style={styles.memberSince}>
-              Membre depuis {formatDateFR(user.date_inscription)}
+              <Ionicons name="time" size={14} color={PRO_BLUE} /> Membre depuis{" "}
+              {formatDateFR(user.date_inscription)}
             </Text>
+
             {user.description && (
               <Text style={styles.description}>{user.description}</Text>
             )}
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Tableau de bord */}
-        <View style={styles.dashboardContainer}>
-          <Text style={styles.sectionTitle}>Tableau de bord</Text>
+        {/* Statistiques VIP */}
+        <Animated.View
+          style={[
+            styles.statsSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Performance Business</Text>
+          <View style={styles.statsGrid}>
+            {[
+              {
+                value: user.productsCount,
+                label: "Produits",
+                icon: "cube-outline",
+                color: PRO_BLUE,
+              },
+              {
+                value: user.salesCount,
+                label: "Ventes",
+                icon: "trending-up",
+                color: "#4CAF50",
+              },
+              {
+                value: (Number(user.rating) || 0).toFixed(1),
+                label: "Note",
+                icon: "star",
+                color: "#FFA726",
+              },
+              {
+                value: user.ordersCount,
+                label: "Commandes",
+                icon: "cart",
+                color: PRO_BLUE,
+              },
+            ].map((stat, i) => (
+              <View key={i} style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconContainer,
+                    { backgroundColor: `${stat.color}20` },
+                  ]}
+                >
+                  <Ionicons
+                    name={stat.icon as any}
+                    size={20}
+                    color={stat.color}
+                  />
+                </View>
+                <Text style={styles.statNumber}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* Tableau de Bord Pro */}
+        <Animated.View
+          style={[
+            styles.dashboardSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Centre de Commande Pro</Text>
           <View style={styles.dashboardGrid}>
-            <TouchableOpacity 
-              style={styles.dashboardCard} 
-              onPress={() => router.push('/(tabs)/Auth/Profiles/Statistiques')}
+            {[
+              {
+                title: "Statistiques",
+                subtitle: "Analyses détaillées",
+                icon: "bar-chart",
+                color: PRO_BLUE,
+                onPress: () =>
+                  router.push("/(tabs)/Auth/Profiles/Statistiques"),
+              },
+              {
+                title: "Commandes",
+                subtitle: "Gestion des ventes",
+                icon: "shopping-cart",
+                color: "#4CAF50",
+                onPress: () =>
+                  router.push("/(tabs)/Auth/Panier/VendeurNotifications"),
+              },
+              {
+                title: "Messages",
+                subtitle: "Support clients",
+                icon: "message-square",
+                color: "#FFA726",
+                onPress: () => router.push("/MisAjour"),
+              },
+              {
+                title: "Avis",
+                subtitle: "Réputation",
+                icon: "star",
+                color: PRO_BLUE,
+                onPress: () => router.push("/MisAjour"),
+              },
+            ].map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.dashboardCard}
+                onPress={item.onPress}
+              >
+                <View
+                  style={[
+                    styles.dashboardIcon,
+                    { backgroundColor: `${item.color}15` },
+                  ]}
+                >
+                  <Feather
+                    name={item.icon as any}
+                    size={24}
+                    color={item.color}
+                  />
+                </View>
+                <Text style={styles.dashboardTitle}>{item.title}</Text>
+                <Text style={styles.dashboardSubtitle}>{item.subtitle}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* Menu Actions Rapides */}
+        <Animated.View
+          style={[
+            styles.quickActionsSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Actions Rapides</Text>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={async () => {
+                try {
+                  const token = await AsyncStorage.getItem("userToken");
+                  if (!token) {
+                    router.push("/splash");
+                    return;
+                  }
+
+                  const response = await fetch(
+                    "https://shopnet-backend.onrender.com/api/boutiques/check",
+                    {
+                      method: "GET",
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                      },
+                    },
+                  );
+
+                  const data = await response.json();
+
+                  if (response.ok && data.success) {
+                    router.push("/(tabs)/Auth/Boutique/MaBoutique");
+                  } else {
+                    router.push("/(tabs)/Auth/Boutique/CreerBoutique");
+                  }
+                } catch (error) {
+                  console.error("Erreur vérification boutique:", error);
+                  Alert.alert(
+                    "Erreur",
+                    "Impossible de vérifier votre boutique. Réessayez plus tard.",
+                  );
+                }
+              }}
             >
-              <Feather name="bar-chart" size={24} color="#4CB050" />
-              <Text style={styles.dashboardText}>Statistiques</Text>
+              <View
+                style={[
+                  styles.quickActionIcon,
+                  { backgroundColor: `${PRO_BLUE}15` },
+                ]}
+              >
+                <MaterialIcons name="store" size={24} color={PRO_BLUE} />
+              </View>
+              <Text style={styles.quickActionText}>Boutique</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.dashboardCard} 
-              onPress={() => router.push('/(tabs)/Auth/Panier/VendeurNotifications')}
+
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={() => router.push("/(tabs)/Auth/Produits/Produit")}
             >
-              <Entypo name="shopping-cart" size={24} color="#4CB050" />
-              <Text style={styles.dashboardText}>Commandes</Text>
+              <View
+                style={[
+                  styles.quickActionIcon,
+                  { backgroundColor: `${PRO_BLUE}15` },
+                ]}
+              >
+                <Ionicons name="add-circle" size={24} color={PRO_BLUE} />
+              </View>
+              <Text style={styles.quickActionText}>Ajouter</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.dashboardCard} 
-              onPress={() => router.push('/MisAjour')}
+
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={() => router.push("/MisAjour")}
             >
-              <Feather name="message-square" size={24} color="#4CB050" />
-              <Text style={styles.dashboardText}>Messages</Text>
+              <View
+                style={[
+                  styles.quickActionIcon,
+                  { backgroundColor: `${PRO_BLUE}15` },
+                ]}
+              >
+                <MaterialIcons name="local-offer" size={24} color={PRO_BLUE} />
+              </View>
+              <Text style={styles.quickActionText}>Promotions</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.dashboardCard} 
-              onPress={() => router.push('/MisAjour')}
+
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={() => router.push("/Auth/Produits/parametre")}
             >
-              <Ionicons name="star" size={24} color="#4CB050" />
-              <Text style={styles.dashboardText}>Avis</Text>
+              <View
+                style={[
+                  styles.quickActionIcon,
+                  { backgroundColor: `${PRO_BLUE}15` },
+                ]}
+              >
+                <Ionicons name="settings" size={24} color={PRO_BLUE} />
+              </View>
+              <Text style={styles.quickActionText}>Paramètres</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Statistiques */}
-        <View style={styles.statsContainer}>
-          {[
-            { value: user.productsCount, label: 'Produits' }, 
-            { value: user.salesCount, label: 'Ventes' }, 
-            { value: (Number(user.rating) || 0).toFixed(1), label: 'Note' }, 
-            { value: user.ordersCount, label: 'Commandes' }
-          ].map((stat, i) => (
-            <View key={i} style={styles.statItem}>
-              <Text style={styles.statNumber}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Menu actions */}
-        <View style={styles.menuContainer}>
-
-          <TouchableOpacity
-  style={styles.menuItem}
-  onPress={async () => {
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        router.push('/splash'); // utilisateur non connecté
-        return;
-      }
-
-      const response = await fetch('https://shopnet-backend.onrender.com/api/boutiques/check', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // Boutique existante → redirige vers MaBoutique
-        router.push('/(tabs)/Auth/Boutique/MaBoutique');
-      } else {
-        // Pas de boutique → redirige vers création
-        router.push('/(tabs)/Auth/Boutique/CreerBoutique');
-      }
-    } catch (error) {
-      console.error('Erreur vérification boutique:', error);
-      Alert.alert('Erreur', 'Impossible de vérifier votre boutique. Réessayez plus tard.');
-    }
-  }}
->
-  <MaterialIcons name="store" size={24} color="#4CB050" />
-  <Text style={styles.menuText}>Ma boutique</Text>
-</TouchableOpacity>
-
-
-          <TouchableOpacity 
-            style={styles.menuItem} 
-            onPress={() => router.push('/(tabs)/Auth/Produits/Produit')}
-          >
-            <Ionicons name="add-circle" size={24} color="#4CB050" />
-            <Text style={styles.menuText}>Ajouter produit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.menuItem} 
-            onPress={() => router.push('/MisAjour')}
-          >
-            <MaterialIcons name="local-offer" size={24} color="#4CB050" />
-            <Text style={styles.menuText}>Promotions</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.menuItem} 
-            onPress={() => router.push('/Auth/Produits/parametre')}
-          >
-            <Ionicons name="settings" size={24} color="#4CB050" />
-            <Text style={styles.menuText}>Paramètres</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Contacts - Non cliquables */}
-        <View style={styles.contactSection}>
-          <Text style={styles.sectionTitle}>Coordonnées</Text>
-          {[
-            { type: 'phone', value: user.phone, icon: 'call' }, 
-            { type: 'email', value: user.email, icon: 'mail' }, 
-            { type: 'website', value: user.website, icon: 'globe' }
-          ].map((contact, i) => contact.value && (
-            <View key={i} style={styles.contactItem}>
-              <Ionicons 
-                name={contact.icon} 
-                size={20} 
-                color="#4CB050" 
-                style={styles.contactIcon} 
-              />
-              <Text style={styles.contactText}>
-                {contact.type === 'website' 
-                  ? contact.value.replace(/^https?:\/\//, '') 
-                  : contact.value
-                }
+        {/* Section Produits VIP */}
+        <Animated.View
+          style={[
+            styles.productsSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Mes Produits Pro</Text>
+              <Text style={styles.sectionSubtitle}>
+                {products.length} produits en ligne
               </Text>
             </View>
-          ))}
-        </View>
-
-        {/* Produits */}
-        <View style={styles.productsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Produits en vente</Text>
-            <TouchableOpacity onPress={() => router.push('/MisAjour')}>
-              <Text style={styles.seeAll}>Voir tout</Text>
+            <TouchableOpacity
+              style={styles.seeAllButton}
+              onPress={() => router.push("/MisAjour")}
+            >
+              <Text style={styles.seeAllText}>Voir tout</Text>
+              <Ionicons name="arrow-forward" size={16} color={PRO_BLUE} />
             </TouchableOpacity>
           </View>
-          
+
           {loading ? (
-            <ActivityIndicator size="large" color="#4CB050" style={styles.loader} />
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={PRO_BLUE} />
+              <Text style={styles.loadingText}>Chargement des produits...</Text>
+            </View>
           ) : products.length > 0 ? (
             <FlatList
               data={products}
@@ -506,92 +743,114 @@ const renderProductItem = useCallback(
               numColumns={2}
               columnWrapperStyle={styles.productRow}
               scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
             />
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="cube-outline" size={64} color="#A0AEC0" />
-              <Text style={styles.emptyText}>Aucun produit en vente</Text>
-              <TouchableOpacity 
+              <View style={styles.emptyIcon}>
+                <Ionicons name="cube-outline" size={64} color={PRO_BLUE} />
+              </View>
+              <Text style={styles.emptyTitle}>Aucun produit en vente</Text>
+              <Text style={styles.emptySubtitle}>
+                Commencez à vendre dès maintenant
+              </Text>
+              <TouchableOpacity
                 style={styles.addProductButton}
-                onPress={() => router.push('/(tabs)/Auth/Produits/Produit')}
+                onPress={() => router.push("/(tabs)/Auth/Produits/Produit")}
               >
-                <Text style={styles.addProductButtonText}>Ajouter un produit</Text>
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.addProductButtonText}>
+                  Créer un produit
+                </Text>
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </Animated.View>
       </ScrollView>
 
-      <PhotoModal 
-        visible={photoModalVisible && !viewingPhoto} 
-        type={photoModalType} 
-        hasPhoto={!!user?.[photoModalType === 'profile' ? 'profile_photo' : 'cover_photo']} 
-        uploading={uploading} 
-        onView={handleViewPhoto} 
-        onChoose={handleChoosePhoto} 
-        onClose={closePhotoModal} 
+      <PhotoModal
+        visible={photoModalVisible && !viewingPhoto}
+        type={photoModalType}
+        hasPhoto={
+          !!user?.[
+            photoModalType === "profile" ? "profile_photo" : "cover_photo"
+          ]
+        }
+        uploading={uploading}
+        onView={handleViewPhoto}
+        onChoose={handleChoosePhoto}
+        onClose={closePhotoModal}
       />
-      
-      <FullscreenPhotoModal 
-        visible={viewingPhoto} 
+
+      <FullscreenPhotoModal
+        visible={viewingPhoto}
         photoUri={
-          photoModalType === 'profile' 
-            ? user.profile_photo 
-            : photoModalType === 'cover' 
-              ? user.cover_photo 
+          photoModalType === "profile"
+            ? user.profile_photo
+            : photoModalType === "cover"
+              ? user.cover_photo
               : null
-        } 
-        onClose={closePhotoModal} 
+        }
+        onClose={closePhotoModal}
       />
     </View>
   );
 }
 
-// Modaux Photo
-const PhotoModal = ({ 
-  visible, 
-  type, 
-  hasPhoto, 
-  uploading, 
-  onView, 
-  onChoose, 
-  onClose 
-}: { 
-  visible: boolean; 
-  type: 'profile' | 'cover' | null; 
-  hasPhoto: boolean; 
-  uploading: boolean; 
-  onView: () => void; 
-  onChoose: () => void; 
-  onClose: () => void; 
+// Modaux Photo (gardés identiques mais avec styles améliorés)
+const PhotoModal = ({
+  visible,
+  type,
+  hasPhoto,
+  uploading,
+  onView,
+  onChoose,
+  onClose,
+}: {
+  visible: boolean;
+  type: "profile" | "cover" | null;
+  hasPhoto: boolean;
+  uploading: boolean;
+  onView: () => void;
+  onChoose: () => void;
+  onClose: () => void;
 }) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+  <Modal
+    visible={visible}
+    transparent
+    animationType="fade"
+    onRequestClose={onClose}
+  >
     <View style={styles.modalOverlay}>
       <View style={styles.modalContent}>
         <Text style={styles.modalTitle}>
-          {type === 'profile' ? 'Photo de profil' : 'Photo de couverture'}
+          {type === "profile" ? "Photo de profil" : "Photo de couverture"}
         </Text>
-        <TouchableOpacity 
-          style={styles.modalBtn} 
-          onPress={onView} 
+        <TouchableOpacity
+          style={[styles.modalBtn, !hasPhoto && styles.disabledBtn]}
+          onPress={onView}
           disabled={uploading || !hasPhoto}
         >
+          <Ionicons name="eye" size={20} color="#fff" />
           <Text style={styles.modalBtnText}>Voir la photo</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.modalBtn} 
-          onPress={onChoose} 
+        <TouchableOpacity
+          style={styles.modalBtn}
+          onPress={onChoose}
           disabled={uploading}
         >
           {uploading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.modalBtnText}>Choisir une photo</Text>
+            <>
+              <Ionicons name="image" size={20} color="#fff" />
+              <Text style={styles.modalBtnText}>Choisir une photo</Text>
+            </>
           )}
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.modalBtn, styles.cancelBtn]} 
-          onPress={onClose} 
+        <TouchableOpacity
+          style={[styles.modalBtn, styles.cancelBtn]}
+          onPress={onClose}
           disabled={uploading}
         >
           <Text style={styles.modalBtnText}>Annuler</Text>
@@ -601,370 +860,569 @@ const PhotoModal = ({
   </Modal>
 );
 
-const FullscreenPhotoModal = ({ 
-  visible, 
-  photoUri, 
-  onClose 
-}: { 
-  visible: boolean; 
-  photoUri: string | null | undefined; 
-  onClose: () => void; 
+const FullscreenPhotoModal = ({
+  visible,
+  photoUri,
+  onClose,
+}: {
+  visible: boolean;
+  photoUri: string | null | undefined;
+  onClose: () => void;
 }) => (
-  <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={onClose}>
+  <Modal
+    visible={visible}
+    transparent={false}
+    animationType="fade"
+    onRequestClose={onClose}
+  >
     <View style={styles.fullscreenPhotoContainer}>
       <TouchableOpacity style={styles.closePhotoButton} onPress={onClose}>
         <Ionicons name="close" size={30} color="#fff" />
       </TouchableOpacity>
       {photoUri && (
-        <Image 
-          source={{ 
-            uri: photoUri.startsWith('http') 
-              ? photoUri 
-              : `${BASE_URL}${photoUri}` 
-          }} 
-          style={styles.fullscreenPhoto} 
-          resizeMode={photoUri.includes('cover') ? 'cover' : 'contain'} 
+        <Image
+          source={{
+            uri: photoUri.startsWith("http")
+              ? photoUri
+              : `${BASE_URL}${photoUri}`,
+          }}
+          style={styles.fullscreenPhoto}
+          resizeMode={photoUri.includes("cover") ? "cover" : "contain"}
         />
       )}
     </View>
   </Modal>
 );
 
-// Styles
+// Styles VIP Pro
 const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#202A36' },
-  container: { flex: 1 },
-  scrollContent: { paddingBottom: 30 },
-  centered: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#202A36', 
-    padding: 20 
+  mainContainer: {
+    flex: 1,
+    backgroundColor: SHOPNET_BLUE,
   },
-  errorText: { 
-    color: '#fff', 
-    fontSize: 18, 
-    marginBottom: 20, 
-    textAlign: 'center' 
+  container: {
+    flex: 1,
   },
-  retryButton: { 
-    backgroundColor: '#4CB050', 
-    paddingHorizontal: 20, 
-    paddingVertical: 12, 
-    borderRadius: 6, 
-    elevation: 2 
+  scrollContent: {
+    paddingBottom: 40,
   },
-  retryButtonText: { 
-    color: '#fff', 
-    fontSize: 16, 
-    fontWeight: '500' 
+  backgroundEffects: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  coverPhotoContainer: { 
-    height: 200, 
-    backgroundColor: '#2C3A4A', 
-    position: 'relative' 
+  glowCircle1: {
+    position: "absolute",
+    top: "10%",
+    right: "10%",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(66, 165, 245, 0.03)",
   },
-  coverPhoto: { 
-    width: '100%', 
-    height: '100%' 
+  glowCircle2: {
+    position: "absolute",
+    bottom: "20%",
+    left: "5%",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(66, 165, 245, 0.02)",
   },
-  coverOverlay: { 
-    ...StyleSheet.absoluteFillObject, 
-    backgroundColor: 'rgba(0,0,0,0.3)' 
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: SHOPNET_BLUE,
+    padding: 20,
   },
-  coverPlaceholder: { 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#2C3A4A' 
+  loadingText: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    marginTop: 12,
+    fontWeight: "600",
   },
-  profileSection: { 
-    flexDirection: 'row', 
-    alignItems: 'flex-start', 
-    paddingHorizontal: 16, 
-    marginTop: -70, 
-    marginBottom: 16 
+  errorText: {
+    color: "#fff",
+    fontSize: 18,
+    marginBottom: 20,
+    textAlign: "center",
   },
-  profilePhotoContainer: { 
-    width: 140, 
-    height: 140, 
-    borderRadius: 70, 
-    borderWidth: 4, 
-    borderColor: '#202A36', 
-    backgroundColor: '#2C3A4A', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 6, 
-    elevation: 5 
+  retryButton: {
+    backgroundColor: PRO_BLUE,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    elevation: 4,
   },
-  profilePhoto: { 
-    width: '100%', 
-    height: '100%', 
-    borderRadius: 70 
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
-  profilePlaceholder: { 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#2C3A4A' 
+
+  // Cover Section
+  coverSection: {
+    marginBottom: 0,
   },
-  userInfoContainer: { 
-    flex: 1, 
-    marginLeft: 20, 
-    marginTop: 30 
+  coverPhotoContainer: {
+    height: 220,
+    backgroundColor: "#1a2530",
+    position: "relative",
+    overflow: "hidden",
   },
-  userName: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    color: '#fff', 
-    marginBottom: 6 
+  coverPhoto: {
+    width: "100%",
+    height: "100%",
   },
-  memberSince: { 
-    fontSize: 14, 
-    color: '#A0AEC0', 
-    marginBottom: 10 
+  coverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
-  description: { 
-    fontSize: 15, 
-    color: '#E2E8F0', 
-    lineHeight: 22 
+  coverPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#1a2530",
   },
-  dashboardContainer: { 
-    marginHorizontal: 16, 
-    marginBottom: 24 
+  coverPlaceholderText: {
+    color: PRO_BLUE,
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: "500",
   },
-  dashboardGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    justifyContent: 'space-between', 
-    marginTop: 12 
+  coverBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: PRO_BLUE,
   },
-  dashboardCard: { 
-    width: '48%', 
-    backgroundColor: '#2C3A4A', 
-    borderRadius: 10, 
-    padding: 16, 
-    marginBottom: 16, 
-    alignItems: 'center', 
-    elevation: 2 
+  coverBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+    marginLeft: 4,
+    letterSpacing: 0.5,
   },
-  dashboardText: { 
-    color: '#E2E8F0', 
-    fontSize: 15, 
-    fontWeight: '500', 
-    textAlign: 'center' 
-  },
-  statsContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    marginHorizontal: 16, 
-    marginBottom: 24, 
-    paddingVertical: 16, 
-    backgroundColor: '#2C3A4A', 
-    borderRadius: 10, 
-    paddingHorizontal: 20, 
-    elevation: 2 
-  },
-  statItem: { 
-    alignItems: 'center', 
-    flex: 1 
-  },
-  statNumber: { 
-    fontSize: 22, 
-    fontWeight: 'bold', 
-    color: '#4CB050', 
-    marginBottom: 6 
-  },
-  statLabel: { 
-    fontSize: 14, 
-    color: '#A0AEC0' 
-  },
-  menuContainer: { 
-    marginHorizontal: 16, 
-    marginBottom: 24, 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    justifyContent: 'space-between' 
-  },
-  menuItem: { 
-    width: '48%', 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingVertical: 14, 
-    paddingHorizontal: 12, 
-    marginBottom: 12, 
-    borderRadius: 8, 
-    backgroundColor: '#2C3A4A', 
-    elevation: 2 
-  },
-  menuText: { 
-    fontSize: 16, 
-    color: '#E2E8F0', 
-    fontWeight: '500' 
-  },
-  contactSection: { 
-    marginHorizontal: 16, 
-    marginBottom: 24, 
-    backgroundColor: '#2C3A4A', 
-    borderRadius: 10, 
-    padding: 16, 
-    elevation: 2 
-  },
-  contactItem: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingVertical: 12, 
-    borderBottomWidth: 1, 
-    borderColor: '#3A4A5A' 
-  },
-  contactIcon: { 
-    marginRight: 12 
-  },
-  contactText: { 
-    fontSize: 16, 
-    color: '#E2E8F0' 
-  },
-  productsSection: { 
-    marginHorizontal: 0, 
+
+  // Profile Section
+  profileSection: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
+    marginTop: -80,
     marginBottom: 24,
-    backgroundColor: '#2C3A4A', 
-    borderRadius: 0, 
-    padding: 16, 
-    elevation: 2 
   },
-  productsGrid: { 
-    minHeight: 200 
+  profilePhotoContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: SHOPNET_BLUE,
+    backgroundColor: "#1a2530",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+    position: "relative",
   },
-  sectionHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 16,
-    paddingHorizontal: 16,
+  profilePhoto: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 60,
   },
-  sectionTitle: { 
-    fontSize: 20, 
-    fontWeight: 'bold', 
-    color: '#fff' 
+  profilePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#1a2530",
   },
-  seeAll: { 
-    color: '#4CB050', 
-    fontSize: 14, 
-    fontWeight: '500' 
+  editPhotoBadge: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    backgroundColor: PRO_BLUE,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: SHOPNET_BLUE,
   },
-  productRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    marginBottom: 8,
+  userInfoContainer: {
+    flex: 1,
+    marginLeft: 20,
+    marginTop: 20,
+  },
+  nameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#fff",
+    marginRight: 8,
+  },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
     paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  productCard: { 
-    width: '48%', 
-    marginBottom: 16,
+  verifiedText: {
+    color: PRO_BLUE,
+    fontSize: 10,
+    fontWeight: "700",
+    marginLeft: 2,
   },
-  productImage: { 
-    width: '100%', 
-    height: 150, 
-    backgroundColor: '#3A4A5A',
+  memberSince: {
+    fontSize: 14,
+    color: PRO_BLUE,
+    marginBottom: 10,
+    fontWeight: "500",
   },
-  productInfoContainer: { 
-    padding: 8,
+  description: {
+    fontSize: 15,
+    color: "#E2E8F0",
+    lineHeight: 22,
   },
-  productTitle: { 
-    color: '#E2E8F0', 
-    fontSize: 14, 
+
+  // Stats Section
+  statsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  statCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(30, 42, 59, 0.9)",
+    borderRadius: 16,
+    padding: 16,
+    flex: 1,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.1)",
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
     marginBottom: 4,
   },
-  productPrice: { 
-    color: '#4CB050', 
-    fontSize: 16, 
-    fontWeight: 'bold' 
+  statLabel: {
+    fontSize: 12,
+    color: "#A0AEC0",
+    fontWeight: "500",
+  },
+
+  // Dashboard Section
+  dashboardSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  dashboardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  dashboardCard: {
+    width: "48%",
+    backgroundColor: "rgba(30, 42, 59, 0.9)",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.1)",
+  },
+  dashboardIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  dashboardTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  dashboardSubtitle: {
+    color: "#A0AEC0",
+    fontSize: 12,
+    textAlign: "center",
+  },
+
+  // Quick Actions
+  quickActionsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  quickActionsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  quickActionButton: {
+    alignItems: "center",
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  quickActionText: {
+    color: "#E2E8F0",
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+
+  // Products Section
+  productsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.5,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: PRO_BLUE,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  seeAllText: {
+    color: PRO_BLUE,
+    fontSize: 14,
+    fontWeight: "600",
+    marginRight: 4,
+  },
+  productRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  productCard: {
+    width: "48%",
+    backgroundColor: "rgba(30, 42, 59, 0.9)",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.1)",
+    position: "relative",
+  },
+  productImage: {
+    width: "100%",
+    height: 140,
+    backgroundColor: "#2C3A4A",
+  },
+  productProBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PRO_BLUE,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    zIndex: 2,
+  },
+  productProBadgeText: {
+    color: "#fff",
+    fontSize: 8,
+    fontWeight: "800",
+    marginLeft: 2,
+  },
+  productInfoContainer: {
+    padding: 12,
+  },
+  productTitle: {
+    color: "#E2E8F0",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+  productPrice: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    fontWeight: "800",
   },
   menuButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 8,
     right: 8,
     zIndex: 10,
     padding: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderRadius: 12,
   },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 20,
+  loadingContainer: {
+    alignItems: "center",
+    padding: 40,
   },
-  emptyText: { 
-    color: '#A0AEC0', 
-    textAlign: 'center', 
-    marginTop: 20, 
-    fontSize: 16 
+  emptyContainer: {
+    alignItems: "center",
+    padding: 40,
+    backgroundColor: "rgba(30, 42, 59, 0.5)",
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    color: "#A0AEC0",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  emptyText: {
+    color: "#A0AEC0",
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
   },
   addProductButton: {
-    backgroundColor: '#4CB050',
-    padding: 12,
-    borderRadius: 6,
-    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PRO_BLUE,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    elevation: 4,
   },
   addProductButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "700",
+    marginLeft: 6,
   },
-  loader: { 
-    marginVertical: 20 
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.8)",
   },
-  modalOverlay: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(0,0,0,0.7)' 
+  modalContent: {
+    backgroundColor: "#1a2530",
+    borderRadius: 16,
+    padding: 24,
+    width: "80%",
+    borderWidth: 1,
+    borderColor: PRO_BLUE,
   },
-  modalContent: { 
-    backgroundColor: '#2C3A4A', 
-    borderRadius: 12, 
-    padding: 24, 
-    width: '85%' 
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 20,
+    textAlign: "center",
   },
-  modalTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#fff', 
-    marginBottom: 24, 
-    textAlign: 'center' 
+  modalBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PRO_BLUE,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 12,
+    elevation: 4,
   },
-  modalBtn: { 
-    backgroundColor: '#4CB050', 
-    padding: 14, 
-    borderRadius: 8, 
-    alignItems: 'center', 
-    marginBottom: 12, 
-    elevation: 2 
+  disabledBtn: {
+    backgroundColor: "#3A4A5A",
+    opacity: 0.6,
   },
-  cancelBtn: { 
-    backgroundColor: '#3A4A5A' 
+  cancelBtn: {
+    backgroundColor: "#3A4A5A",
   },
-  modalBtnText: { 
-    color: '#fff', 
-    fontSize: 16, 
-    fontWeight: 'bold' 
+  modalBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+    flex: 1,
+    textAlign: "center",
   },
-  fullscreenPhotoContainer: { 
-    flex: 1, 
-    backgroundColor: 'black', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    position: 'relative' 
+  fullscreenPhotoContainer: {
+    flex: 1,
+    backgroundColor: "black",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
   },
-  fullscreenPhoto: { 
-    width: '100%', 
-    height: '100%' 
+  fullscreenPhoto: {
+    width: "100%",
+    height: "100%",
   },
-  closePhotoButton: { 
-    position: 'absolute', 
-    top: 40, 
-    right: 20, 
-    zIndex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    borderRadius: 20, 
-    padding: 5 
+  closePhotoButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 20,
+    padding: 8,
   },
 });
