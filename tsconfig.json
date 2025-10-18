@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "lib": ["ES2015", "DOM"],
     "paths": {
       "@/*": [
         "./*"
@@ -12,6 +13,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-, "index.js"  ]
+    "expo-env.d.ts",
+    "index.js"
+  ]
 }
