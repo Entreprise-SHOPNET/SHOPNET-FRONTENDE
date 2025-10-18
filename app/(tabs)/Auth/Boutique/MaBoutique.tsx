@@ -175,13 +175,13 @@ export default function MaBoutique() {
         <View style={styles.fixedRight}>
           <TouchableOpacity
             style={[styles.upgradeButton, { backgroundColor: "#FFAA00" }]}
-            onPress={() => router.push("/(tabs)/Auth/Boutique/Upgrade?plan=premium")}
+            onPress={() => router.push("/(tabs)/Auth/Boutique/Premium/PayerPremium")}
           >
             <Text style={styles.upgradeText}>Premium</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.upgradeButton, { backgroundColor: "#00CFFF" }]}
-            onPress={() => router.push("/(tabs)/Auth/Boutique/Upgrade?plan=pro")}
+            onPress={() => router.push("/(tabs)/Auth/Boutique/Pro/paiementPro")}
           >
             <Text style={styles.upgradeText}>Pro</Text>
           </TouchableOpacity>
