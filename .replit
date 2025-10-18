@@ -44,3 +44,8 @@ externalPort = 3001
 [[ports]]
 localPort = 44419
 externalPort = 3002
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npx", "serve", "-s", "dist", "-l", "5000"]
+build = ["npx", "expo", "export:web"]
