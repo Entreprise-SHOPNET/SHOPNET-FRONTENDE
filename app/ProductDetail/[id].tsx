@@ -1,6 +1,4 @@
-
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -14,27 +12,40 @@ import {
   FlatList,
   Modal,
   Animated,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
-import { getValidToken } from '../../app/(tabs)/Auth/authService';
+  StatusBar,
+  SafeAreaView,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import { getValidToken } from "../../app/(tabs)/Auth/authService";
 
-const API_URL = 'https://shopnet-backend.onrender.com/api/products';
-const COMMAND_API_URL = 'https://shopnet-backend.onrender.com/api/commandes';
-const PANIER_API_URL = 'https://shopnet-backend.onrender.com/api/cart';
+const API_URL = "https://shopnet-backend.onrender.com/api/products";
+const COMMAND_API_URL = "https://shopnet-backend.onrender.com/api/commandes";
+const PANIER_API_URL = "https://shopnet-backend.onrender.com/api/cart";
 
-const { width } = Dimensions.get('window');
-const ITEM_WIDTH = (width - 40) / 2;
+const { width, height } = Dimensions.get("window");
+
+// Couleurs SHOPNET PRO VIP
+const SHOPNET_BLUE = "#00182A";
+const PRO_BLUE = "#42A5F5";
+const PREMIUM_GOLD = "#FFD700";
+const CARD_BG = "#1E2A3B";
+const TEXT_WHITE = "#FFFFFF";
+const TEXT_SECONDARY = "#A0AEC0";
+const SUCCESS_GREEN = "#4CAF50";
+const ERROR_RED = "#FF6B6B";
+const WARNING_ORANGE = "#FFA726";
+const WHATSAPP_GREEN = "#25D366";
 
 const formatPrice = (price: any) => {
   const n = Number(price);
-  return isNaN(n) ? 'N/A' : n.toFixed(2);
+  return isNaN(n) ? "N/A" : n.toFixed(2);
 };
 
 const formatPhoneNumber = (phone: string) => {
-  let cleaned = phone.trim().replace(/\D/g, '');
-  if (cleaned.startsWith('0')) cleaned = '243' + cleaned.substring(1);
+  let cleaned = phone.trim().replace(/\D/g, "");
+  if (cleaned.startsWith("0")) cleaned = "243" + cleaned.substring(1);
   return cleaned;
 };
 
@@ -48,10 +59,13 @@ export default function ProductDetail() {
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  // Notification animation & sound
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const [notificationVisible, setNotificationVisible] = useState(false);
-  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState("");
   const notificationPosition = useRef(new Animated.Value(-100)).current;
   const soundObject = useRef<Audio.Sound | null>(null);
 
@@ -59,7 +73,7 @@ export default function ProductDetail() {
     const loadSound = async () => {
       try {
         const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/sounds/success-sound.mp3')
+          require("../../assets/sounds/success-sound.mp3"),
         );
         soundObject.current = sound;
       } catch (error) {
@@ -85,14 +99,14 @@ export default function ProductDetail() {
 
     Animated.sequence([
       Animated.timing(notificationPosition, {
-        toValue: 40,
-        duration: 500,
+        toValue: 60,
+        duration: 400,
         useNativeDriver: true,
       }),
       Animated.delay(2000),
       Animated.timing(notificationPosition, {
         toValue: -100,
-        duration: 500,
+        duration: 400,
         useNativeDriver: true,
       }),
     ]).start(() => {
@@ -108,14 +122,15 @@ export default function ProductDetail() {
       const token = await getValidToken();
       const headers: any = {};
       if (token) headers.Authorization = `Bearer ${token}`;
-      console.log('Fetching product:', id);
+
       const res = await fetch(`${API_URL}/${id}`, { headers });
-      console.log('Response status:', res.status);
+
       if (!res.ok) {
         throw new Error(`Erreur HTTP ${res.status}`);
       }
+
       const data = await res.json();
-      console.log('Product data:', data);
+
       if (data.success) {
         const prod = data.product;
         if (!prod.image_urls && prod.images) {
@@ -123,11 +138,25 @@ export default function ProductDetail() {
         }
         setProduct(prod);
         fetchSimilar(prod.category);
+
+        // Déclencher les animations après le chargement
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]).start();
       } else {
-        setError(data.error || 'Produit non trouvé');
+        setError(data.error || "Produit non trouvé");
       }
     } catch (err: any) {
-      setError(err.message || 'Erreur de connexion au serveur');
+      setError(err.message || "Erreur de connexion au serveur");
     } finally {
       setLoading(false);
     }
@@ -154,116 +183,172 @@ export default function ProductDetail() {
   };
 
   const openWhatsApp = () => {
-    const rawPhone = product?.seller?.phone || '';
-    if (!rawPhone) return alert('Numéro WhatsApp du vendeur non disponible.');
+    const rawPhone = product?.seller?.phone || "";
+    if (!rawPhone) {
+      showNotification("Numéro WhatsApp non disponible");
+      return;
+    }
     const phone = formatPhoneNumber(rawPhone);
-    const imageUrl = product.image_urls?.[0] || '';
-    const message = `Bonjour, je suis intéressé par le produit "${product.title}". Voici l'image : ${imageUrl}`;
+    const imageUrl = product.image_urls?.[0] || "";
+    const message = `Bonjour, je suis intéressé par le produit "${product.title}" sur SHOPNET. Prix: $${product.price}. Voici l'image : ${imageUrl}`;
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    Linking.openURL(url).catch(() => alert("Impossible d'ouvrir WhatsApp"));
+    Linking.openURL(url).catch(() =>
+      showNotification("Impossible d'ouvrir WhatsApp"),
+    );
   };
 
   const commanderProduit = async () => {
     try {
       const token = await getValidToken();
-      if (!token) return alert('Veuillez vous connecter pour commander.');
+      if (!token) {
+        showNotification("Veuillez vous connecter pour commander");
+        return;
+      }
       const body = {
         produits: [{ produit_id: product.id, quantite: 1 }],
         adresse_livraison: "Adresse par défaut",
         mode_paiement: "especes",
-        commentaire: "Commande depuis l'application mobile"
+        commentaire: "Commande depuis l'application SHOPNET PRO",
       };
       const res = await fetch(COMMAND_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body)
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (data.success) showNotification("Commande envoyée !");
-      else alert(data.error || 'Erreur inconnue');
+      if (data.success) {
+        showNotification("✅ Commande envoyée avec succès !");
+      } else {
+        showNotification(data.error || "Erreur lors de la commande");
+      }
     } catch {
-      alert("Erreur réseau ou serveur.");
+      showNotification("❌ Erreur réseau ou serveur");
     }
   };
 
-const ajouterAuPanier = async () => {
-  try {
-    const token = await getValidToken();
-    if (!token) {
-      alert('Veuillez vous connecter pour ajouter au panier.');
-      return;
+  const ajouterAuPanier = async () => {
+    try {
+      const token = await getValidToken();
+      if (!token) {
+        showNotification("Veuillez vous connecter pour ajouter au panier");
+        return;
+      }
+
+      const cartItem = {
+        product_id: product.id,
+        title: product.title,
+        description: product.description,
+        price: product.price,
+        original_price: product.discount
+          ? product.price / (1 - product.discount / 100)
+          : product.price,
+        category: product.category,
+        condition: "new",
+        quantity: 1,
+        stock: product.stock || 1,
+        location: product.location || "",
+        delivery_options: { pickup: true, delivery: true },
+        images: product.image_urls || [],
+        seller_id: product.seller?.id,
+        seller_name: product.seller?.name,
+        seller_rating: product.rating || 0,
+      };
+
+      const res = await fetch(PANIER_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(cartItem),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showNotification("🛒 Produit ajouté au panier !");
+      } else {
+        showNotification(data.error || "Erreur lors de l'ajout au panier");
+      }
+    } catch (err) {
+      console.error("Erreur Panier:", err);
+      showNotification("❌ Erreur réseau ou serveur");
     }
+  };
 
-    const cartItem = {
-      product_id: product.id,
-      title: product.title,
-      description: product.description,
-      price: product.price,
-      original_price: product.discount
-        ? product.price / (1 - product.discount / 100)
-        : product.price,
-      category: product.category,
-      condition: 'new',
-      quantity: 1,
-      stock: product.stock || 1,
-      location: product.location || '',
-      delivery_options: { pickup: true, delivery: true },
-      images: product.image_urls || [],
-      seller_id: product.seller?.id,
-      seller_name: product.seller?.name,
-      seller_rating: product.rating || 0,
-    };
-
-    const res = await fetch(PANIER_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(cartItem),
-    });
-
-    const data = await res.json();
-    console.log("Réponse panier:", data);
-
-    if (data.success) {
-      showNotification("Produit ajouté au panier !");
-    } else {
-      alert(data.error || 'Erreur inconnue');
-    }
-  } catch (err) {
-    console.error("Erreur Panier:", err);
-    alert("Erreur réseau ou serveur.");
-  }
-};
-
-  const showImage = (url: string) => {
+  const showImage = (url: string, index: number) => {
     setSelectedImage(url);
+    setActiveImageIndex(index);
     setModalVisible(true);
+  };
+
+  const navigateToImage = (direction: "prev" | "next") => {
+    const images = product.image_urls || [];
+    if (images.length <= 1) return;
+
+    let newIndex;
+    if (direction === "next") {
+      newIndex = (activeImageIndex + 1) % images.length;
+    } else {
+      newIndex = (activeImageIndex - 1 + images.length) % images.length;
+    }
+
+    setActiveImageIndex(newIndex);
+    setSelectedImage(images[newIndex]);
   };
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4CB050" />
-      </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+        <ActivityIndicator size="large" color={PRO_BLUE} />
+        <Text style={styles.loadingText}>Chargement du produit...</Text>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <FontAwesome name="exclamation-triangle" size={50} color="#FF6B6B" />
+      <SafeAreaView style={styles.errorContainer}>
+        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+        <Ionicons name="alert-circle" size={80} color={ERROR_RED} />
+        <Text style={styles.errorTitle}>Erreur</Text>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.8}>
-          <Text style={styles.backText}>Retour</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={20} color={TEXT_WHITE} />
+          <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
     );
   }
 
+  const images = product.image_urls || [];
+
   return (
-    <View style={styles.mainContainer}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={28} color={PRO_BLUE} />
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Détails Produit</Text>
+          <Text style={styles.headerSubtitle}>SHOPNET</Text>
+        </View>
+
+        <View style={styles.headerRight} />
+      </View>
+
       {/* Notification */}
       {notificationVisible && (
         <Animated.View
@@ -271,410 +356,662 @@ const ajouterAuPanier = async () => {
             styles.notificationContainer,
             {
               transform: [{ translateY: notificationPosition }],
-              opacity: notificationPosition.interpolate({
-                inputRange: [-100, 40],
-                outputRange: [0, 1],
-              }),
             },
           ]}
         >
           <View style={styles.notificationContent}>
-            <Ionicons name="checkmark-circle" size={24} color="#4CB050" />
+            <Ionicons name="checkmark-circle" size={24} color={SUCCESS_GREEN} />
             <Text style={styles.notificationText}>{notificationMessage}</Text>
           </View>
         </Animated.View>
       )}
 
-      <ScrollView style={styles.container}>
-        {/* Modal image fullscreen */}
-        <Modal visible={modalVisible} transparent animationType="fade">
-          <View style={styles.modalBackground}>
-            <TouchableOpacity
-              onPress={() => setModalVisible(false)}
-              style={styles.closeBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close" size={30} color="#fff" />
-            </TouchableOpacity>
-            <Image
-              source={{ uri: selectedImage || '' }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
-          </View>
-        </Modal>
-
-        {/* Image principale et miniatures */}
-        <View style={styles.imageGalleryContainer}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Gallery d'images */}
+        <Animated.View
+          style={[
+            styles.imageSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
           <TouchableOpacity
-            onPress={() => showImage(product.image_urls?.[0] || '')}
-            activeOpacity={0.8}
+            onPress={() => showImage(images[0] || "", 0)}
+            activeOpacity={0.9}
           >
             <Image
-              source={{ uri: product.image_urls?.[0] || 'https://via.placeholder.com/300' }}
+              source={{ uri: images[0] || "https://via.placeholder.com/400" }}
               style={styles.mainImage}
               resizeMode="cover"
             />
           </TouchableOpacity>
 
-          <FlatList
-            data={(product.image_urls || []).slice(1, 5)}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => showImage(item)} activeOpacity={0.8}>
-                <Image source={{ uri: item }} style={styles.thumbnail} />
-              </TouchableOpacity>
-            )}
-            keyExtractor={(_, idx) => idx.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.thumbnailsContainer}
-          />
-        </View>
-
-        {/* Détails du produit */}
-        <View style={styles.content}>
-          <Text style={styles.title}>{product.title}</Text>
-          <Text style={styles.category}>{product.category}</Text>
-
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>${formatPrice(product.price)}</Text>
-            {product.original_price && (
-              <Text style={styles.originalPrice}>${formatPrice(product.original_price)}</Text>
-            )}
-          </View>
-
-          <View style={styles.stockBadge}>
-            <Text style={[styles.stockText, product.stock > 0 ? styles.inStock : styles.outOfStock]}>
-              {product.stock > 0 ? 'En stock' : 'Rupture de stock'}
-            </Text>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>
-              {product.description || 'Aucune description fournie.'}
-            </Text>
-          </View>
-
-          {/* Infos vendeur */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vendeur</Text>
-            <View style={styles.sellerCard}>
-              <View style={styles.sellerRow}>
-                <FontAwesome name="user" size={20} color="#4CB050" />
-                <Text style={styles.sellerText}>{product.seller?.name || 'Nom non disponible'}</Text>
-              </View>
-
-              <View style={styles.sellerRow}>
-                <FontAwesome name="phone" size={20} color="#4CB050" />
-                <Text style={styles.sellerText}>{product.seller?.phone || 'Téléphone non disponible'}</Text>
-              </View>
-
-              <View style={styles.sellerRow}>
-                <FontAwesome name="envelope" size={20} color="#4CB050" />
-                <Text style={styles.sellerText}>{product.seller?.email || 'Email non disponible'}</Text>
-              </View>
-
-              <View style={styles.sellerRow}>
-                <FontAwesome name="map-marker" size={20} color="#4CB050" />
-                <Text style={styles.sellerText}>{product.seller?.address || 'Adresse non disponible'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Actions rapides */}
-          <View style={styles.dashboardContainer}>
-            <Text style={styles.sectionTitle}>Actions rapides</Text>
-            <View style={styles.dashboardGrid}>
-              {[
-                { icon: 'whatsapp', text: 'Contacter', action: openWhatsApp, color: '#25D366' },
-                { icon: 'shopping-cart', text: 'Panier', action: ajouterAuPanier, color: '#4CB050' },
-                { icon: 'check', text: 'Commander', action: commanderProduit, color: '#1877F2' },
-              ].map((item, index) => (
+          {images.length > 1 && (
+            <FlatList
+              data={images.slice(1)}
+              renderItem={({ item, index }) => (
                 <TouchableOpacity
-                  key={index}
-                  style={styles.dashboardCard}
-                  onPress={item.action}
+                  onPress={() => showImage(item, index + 1)}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.dashboardIcon, { backgroundColor: `${item.color}20` }]}>
-                    <FontAwesome name={item.icon} size={24} color={item.color} />
-                  </View>
-                  <Text style={styles.dashboardText}>{item.text}</Text>
+                  <Image source={{ uri: item }} style={styles.thumbnail} />
                 </TouchableOpacity>
-              ))}
+              )}
+              keyExtractor={(_, idx) => (idx + 1).toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.thumbnailsContainer}
+            />
+          )}
+        </Animated.View>
+
+        {/* Contenu principal */}
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          {/* Titre et Catégorie */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>{product.title}</Text>
+            <View style={styles.categoryBadge}>
+              <Ionicons name="pricetag" size={16} color={PRO_BLUE} />
+              <Text style={styles.category}>{product.category}</Text>
             </View>
           </View>
 
-          {/* Produits similaires */}
+          {/* Prix et Stock */}
+          <View style={styles.priceStockSection}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.price}>${formatPrice(product.price)}</Text>
+              {product.original_price &&
+                product.original_price > product.price && (
+                  <Text style={styles.originalPrice}>
+                    ${formatPrice(product.original_price)}
+                  </Text>
+                )}
+            </View>
+
+            <View
+              style={[
+                styles.stockBadge,
+                {
+                  backgroundColor:
+                    product.stock > 0 ? SUCCESS_GREEN + "20" : ERROR_RED + "20",
+                },
+              ]}
+            >
+              <Ionicons
+                name={product.stock > 0 ? "checkmark-circle" : "close-circle"}
+                size={16}
+                color={product.stock > 0 ? SUCCESS_GREEN : ERROR_RED}
+              />
+              <Text
+                style={[
+                  styles.stockText,
+                  { color: product.stock > 0 ? SUCCESS_GREEN : ERROR_RED },
+                ]}
+              >
+                {product.stock > 0 ? "En stock" : "Rupture"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Description */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="document-text" size={20} color={PRO_BLUE} />
+              <Text style={styles.sectionTitle}>Description</Text>
+            </View>
+            <Text style={styles.description}>
+              {product.description ||
+                "Aucune description disponible pour ce produit."}
+            </Text>
+          </View>
+
+          {/* Informations Vendeur */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="business" size={20} color={PRO_BLUE} />
+              <Text style={styles.sectionTitle}>Vendeur</Text>
+            </View>
+
+            <View style={styles.sellerCard}>
+              <View style={styles.sellerInfo}>
+                <View style={styles.sellerRow}>
+                  <Ionicons name="person" size={18} color={TEXT_SECONDARY} />
+                  <Text style={styles.sellerText}>
+                    {product.seller?.name || "Vendeur SHOPNET"}
+                  </Text>
+                </View>
+
+                <View style={styles.sellerRow}>
+                  <Ionicons name="call" size={18} color={TEXT_SECONDARY} />
+                  <Text style={styles.sellerText}>
+                    {product.seller?.phone || "Non disponible"}
+                  </Text>
+                </View>
+
+                {product.seller?.email && (
+                  <View style={styles.sellerRow}>
+                    <Ionicons name="mail" size={18} color={TEXT_SECONDARY} />
+                    <Text style={styles.sellerText}>
+                      {product.seller.email}
+                    </Text>
+                  </View>
+                )}
+
+                {product.seller?.address && (
+                  <View style={styles.sellerRow}>
+                    <Ionicons
+                      name="location"
+                      size={18}
+                      color={TEXT_SECONDARY}
+                    />
+                    <Text style={styles.sellerText}>
+                      {product.seller.address}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* Actions Rapides - BOUTONS RESPONSIVES */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="flash" size={20} color={PREMIUM_GOLD} />
+              <Text style={styles.sectionTitle}>Actions Rapides</Text>
+            </View>
+
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.whatsappButton]}
+                onPress={openWhatsApp}
+                activeOpacity={0.8}
+              >
+                <View style={styles.actionIconContainer}>
+                  <Ionicons name="logo-whatsapp" size={22} color={TEXT_WHITE} />
+                </View>
+                <Text style={styles.actionButtonText}>WhatsApp</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.cartButton]}
+                onPress={ajouterAuPanier}
+                activeOpacity={0.8}
+              >
+                <View style={styles.actionIconContainer}>
+                  <Ionicons name="cart" size={22} color={TEXT_WHITE} />
+                </View>
+                <Text style={styles.actionButtonText}>Panier</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.orderButton]}
+                onPress={commanderProduit}
+                activeOpacity={0.8}
+              >
+                <View style={styles.actionIconContainer}>
+                  <Ionicons name="bag-check" size={22} color={TEXT_WHITE} />
+                </View>
+                <Text style={styles.actionButtonText}>Commander</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Produits Similaires */}
           {similarProducts.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Produits similaires</Text>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="layers" size={20} color={PRO_BLUE} />
+                <Text style={styles.sectionTitle}>Produits Similaires</Text>
+              </View>
+
               <FlatList
                 data={similarProducts}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.similarCard}
-                    onPress={() => router.push(`/products/ProductDetail/${item.id}`)}
+                    style={styles.similarProductCard}
+                    onPress={() =>
+                      router.push(`/products/ProductDetail/${item.id}`)
+                    }
                     activeOpacity={0.8}
                   >
                     <Image
-                      source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/150' }}
-                      style={styles.similarImage}
-                      resizeMode="cover"
+                      source={{
+                        uri:
+                          item.image_urls?.[0] ||
+                          "https://via.placeholder.com/150",
+                      }}
+                      style={styles.similarProductImage}
                     />
-                    <Text numberOfLines={1} style={styles.similarTitle}>{item.title}</Text>
-                    <Text style={styles.similarPrice}>${formatPrice(item.price)}</Text>
+                    <View style={styles.similarProductInfo}>
+                      <Text
+                        style={styles.similarProductTitle}
+                        numberOfLines={2}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text style={styles.similarProductPrice}>
+                        ${formatPrice(item.price)}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 )}
-                keyExtractor={item => item.id.toString()}
-                numColumns={2}
-                columnWrapperStyle={styles.similarGrid}
-                scrollEnabled={false}
+                keyExtractor={(item) => item.id.toString()}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.similarProductsContainer}
               />
             </View>
           )}
-        </View>
+        </Animated.View>
       </ScrollView>
-    </View>
+
+      {/* Modal Image Fullscreen */}
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            onPress={() => setModalVisible(false)}
+            style={styles.modalCloseButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={28} color={TEXT_WHITE} />
+          </TouchableOpacity>
+
+          {images.length > 1 && (
+            <>
+              <TouchableOpacity
+                style={[styles.navButton, styles.prevButton]}
+                onPress={() => navigateToImage("prev")}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-back" size={28} color={TEXT_WHITE} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.navButton, styles.nextButton]}
+                onPress={() => navigateToImage("next")}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chevron-forward" size={28} color={TEXT_WHITE} />
+              </TouchableOpacity>
+            </>
+          )}
+
+          <Image
+            source={{ uri: selectedImage || "" }}
+            style={styles.fullScreenImage}
+            resizeMode="contain"
+          />
+
+          <View style={styles.imageCounter}>
+            <Text style={styles.imageCounterText}>
+              {activeImageIndex + 1} / {images.length}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
-
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#202A36',
-  },
   container: {
     flex: 1,
+    backgroundColor: SHOPNET_BLUE,
   },
-  center: {
+  loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#202A36',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: SHOPNET_BLUE,
   },
-  errorText: {
-    color: '#fff',
-    fontSize: 18,
-    margin: 20,
-    textAlign: 'center',
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: SHOPNET_BLUE,
+    padding: 20,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: SHOPNET_BLUE,
   },
   backBtn: {
-    backgroundColor: '#4CB050',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 6,
+    padding: 4,
   },
-  backText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+  headerCenter: {
+    alignItems: "center",
   },
-  imageGalleryContainer: {
-    marginBottom: 20,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: TEXT_WHITE,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: PRO_BLUE,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  headerRight: {
+    width: 28, // Même largeur que le bouton back pour équilibrer
+  },
+  scrollView: {
+    flex: 1,
+  },
+  imageSection: {
+    marginBottom: 0,
   },
   mainImage: {
-    width: '100%',
-    height: 350,
-    backgroundColor: '#2C3A4A',
+    width: "100%",
+    height: 400,
+    backgroundColor: CARD_BG,
   },
   thumbnailsContainer: {
-    padding: 10,
-    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
   },
   thumbnail: {
     width: 80,
     height: 80,
-    marginHorizontal: 5,
-    borderRadius: 8,
-    backgroundColor: '#2C3A4A',
+    borderRadius: 12,
+    backgroundColor: CARD_BG,
   },
   content: {
     padding: 20,
+    backgroundColor: SHOPNET_BLUE,
+  },
+  titleSection: {
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 5,
+    fontWeight: "800",
+    color: TEXT_WHITE,
+    marginBottom: 8,
+    lineHeight: 34,
+  },
+  categoryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
   },
   category: {
-    color: '#4CA4B0',
-    fontSize: 16,
-    marginBottom: 15,
-    fontWeight: '500',
+    color: PRO_BLUE,
+    fontSize: 14,
+    fontWeight: "600",
   },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
+  priceStockSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 12,
   },
   price: {
-    fontSize: 26,
-    color: '#fff',
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: "800",
+    color: PREMIUM_GOLD,
   },
   originalPrice: {
     fontSize: 18,
-    color: '#aaa',
-    textDecorationLine: 'line-through',
-    marginLeft: 14,
+    color: TEXT_SECONDARY,
+    textDecorationLine: "line-through",
+    fontWeight: "500",
   },
   stockBadge: {
-    alignSelf: 'flex-start',
-    marginBottom: 20,
-    backgroundColor: '#2C3A4A',
-    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
-    borderRadius: 20,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
   },
   stockText: {
-    fontWeight: '700',
     fontSize: 14,
-  },
-  inStock: {
-    color: '#4CB050',
-  },
-  outOfStock: {
-    color: '#FF6B6B',
+    fontWeight: "700",
   },
   section: {
-    marginBottom: 25,
+    marginBottom: 28,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 15,
+    fontSize: 20,
+    fontWeight: "700",
+    color: TEXT_WHITE,
   },
   description: {
-    color: '#E2E8F0',
+    color: TEXT_SECONDARY,
     fontSize: 16,
     lineHeight: 24,
+    textAlign: "justify",
   },
   sellerCard: {
-    backgroundColor: '#2C3A4A',
-    borderRadius: 10,
-    padding: 16,
-    elevation: 2,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
+  },
+  sellerInfo: {
+    gap: 12,
   },
   sellerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   sellerText: {
     fontSize: 16,
-    color: '#fff',
-    marginLeft: 12,
-    flexShrink: 1,
+    color: TEXT_WHITE,
+    fontWeight: "500",
+    flex: 1,
   },
-  dashboardContainer: {
-    marginHorizontal: 0,
-    marginBottom: 24,
+  // NOUVEAU STYLE POUR LES BOUTONS ACTIONS RESPONSIVES
+  actionsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
   },
-  dashboardGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 12,
+  actionButton: {
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    minHeight: 80,
   },
-  dashboardCard: {
-    width: '32%',
-    backgroundColor: '#2C3A4A',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-    elevation: 2,
+  actionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
-  dashboardIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
+  whatsappButton: {
+    backgroundColor: WHATSAPP_GREEN,
   },
-  dashboardText: {
-    color: '#E2E8F0',
+  cartButton: {
+    backgroundColor: PRO_BLUE,
+  },
+  orderButton: {
+    backgroundColor: SUCCESS_GREEN,
+  },
+  actionButtonText: {
+    color: TEXT_WHITE,
     fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  similarProductsContainer: {
+    paddingRight: 20,
+    gap: 12,
+  },
+  similarProductCard: {
+    width: 160,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  similarProductImage: {
+    width: "100%",
+    height: 140,
+    backgroundColor: "#2C3A4A",
+  },
+  similarProductInfo: {
+    padding: 12,
+  },
+  similarProductTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: TEXT_WHITE,
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+  similarProductPrice: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: PREMIUM_GOLD,
   },
   notificationContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: CARD_BG,
     borderRadius: 12,
-    padding: 15,
+    padding: 16,
     zIndex: 1000,
-    shadowColor: '#000',
+    borderLeftWidth: 4,
+    borderLeftColor: SUCCESS_GREEN,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   notificationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   notificationText: {
-    marginLeft: 10,
+    marginLeft: 12,
     fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
-  },
-  similarCard: {
-    backgroundColor: '#2C3A4A',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 15,
-    width: ITEM_WIDTH,
-  },
-  similarImage: {
-    width: '100%',
-    height: ITEM_WIDTH,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  similarTitle: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  similarPrice: {
-    color: '#4CB050',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  similarGrid: {
-    justifyContent: 'space-between',
-  },
-  modalBackground: {
+    fontWeight: "600",
+    color: TEXT_WHITE,
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.9)',
   },
-  closeBtn: {
-    position: 'absolute',
-    top: 40,
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCloseButton: {
+    position: "absolute",
+    top: 60,
     right: 20,
     zIndex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 20,
-    padding: 5,
+    padding: 8,
   },
-  fullImage: {
-    width: '100%',
-    height: '80%',
+  navButton: {
+    position: "absolute",
+    top: "50%",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 25,
+    padding: 12,
+    zIndex: 1,
+  },
+  prevButton: {
+    left: 20,
+  },
+  nextButton: {
+    right: 20,
+  },
+  fullScreenImage: {
+    width: "100%",
+    height: "80%",
+  },
+  imageCounter: {
+    position: "absolute",
+    bottom: 60,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  imageCounterText: {
+    color: TEXT_WHITE,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  loadingText: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    marginTop: 12,
+    fontWeight: "500",
+  },
+  errorTitle: {
+    color: ERROR_RED,
+    fontSize: 24,
+    fontWeight: "700",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    color: TEXT_SECONDARY,
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PRO_BLUE,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  backButtonText: {
+    color: TEXT_WHITE,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
