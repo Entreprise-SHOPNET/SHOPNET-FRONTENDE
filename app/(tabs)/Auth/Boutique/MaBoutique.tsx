@@ -455,7 +455,7 @@ export default function MaBoutique() {
 
         <TouchableOpacity
           style={styles.bottomButton}
-          onPress={() => router.push("/(tabs)/Auth/Boutique/Info")}
+          onPress={() => router.push("/(tabs)/Auth/Boutique/InfosBoutique")}
         >
           <Feather name="info" size={26} color="#fff" />
           <Text style={styles.bottomText}>Infos</Text>
