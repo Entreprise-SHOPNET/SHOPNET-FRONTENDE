@@ -24,9 +24,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. Installer Expo CLI & EAS CLI (et jq pour lire les JSON)
-      - name: Install Expo CLI & EAS CLI
-        run: npm install -g expo-cli eas-cli jq
+      # 4. Installer Expo CLI, EAS CLI et jq (depuis apt)
+      - name: Install Expo CLI & EAS CLI & jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          npm install -g expo-cli eas-cli
 
       # 5. Configurer les variables d'environnement
       - name: Set Expo token and automatic keystore
@@ -46,14 +49,14 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile production-apk --non-interactive
 
-      # 8. Télécharger l’APK depuis Expo (Solution 1)
+      # 8. Télécharger l’APK depuis Expo
       - name: Download built APK from Expo
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           echo "⏳ Recherche du dernier build APK..."
           BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json | jq -r '.[0].artifacts.buildUrl')
-          echo "Téléchargement depuis: $BUILD_URL"
+          echo "📦 Téléchargement depuis: $BUILD_URL"
           curl -L -o app.apk "$BUILD_URL"
 
       # 9. Upload APK artifact vers GitHub
@@ -69,14 +72,14 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile production-aab --non-interactive
 
-      # 11. Télécharger l’AAB depuis Expo (Solution 1)
+      # 11. Télécharger l’AAB depuis Expo
       - name: Download built AAB from Expo
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           echo "⏳ Recherche du dernier build AAB..."
           BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json | jq -r '.[0].artifacts.buildUrl')
-          echo "Téléchargement depuis: $BUILD_URL"
+          echo "📦 Téléchargement depuis: $BUILD_URL"
           curl -L -o app.aab "$BUILD_URL"
 
       # 12. Upload AAB artifact vers GitHub
