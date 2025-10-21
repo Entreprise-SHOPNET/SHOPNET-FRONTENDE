@@ -40,28 +40,48 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas whoami
 
-      # 7. Build APK (installable localement) et télécharger le fichier
-      - name: Build APK (installable)
+      # 7. Build APK (installable)
+      - name: Build APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile production-apk --non-interactive --output ./build/apk
+        run: eas build --platform android --profile production-apk --non-interactive
 
-      # 8. Upload APK artifact vers GitHub
+      # 8. Télécharger le dernier APK depuis Expo
+      - name: Download APK from Expo
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "⏳ Récupération du dernier build APK..."
+          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --non-interactive | grep -o 'https://[^ ]*\.apk')
+          echo "📦 Téléchargement depuis : $BUILD_URL"
+          curl -L -o app.apk "$BUILD_URL"
+
+      # 9. Upload APK artifact vers GitHub
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-apk
-          path: build/apk/*.apk
+          path: app.apk
 
-      # 9. Build AAB (pour Google Play Store) et télécharger le fichier
-      - name: Build AAB (Play Store)
+      # 10. Build AAB (Play Store)
+      - name: Build AAB
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile production-aab --non-interactive --output ./build/aab
+        run: eas build --platform android --profile production-aab --non-interactive
 
-      # 10. Upload AAB artifact vers GitHub
+      # 11. Télécharger le dernier AAB depuis Expo
+      - name: Download AAB from Expo
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "⏳ Récupération du dernier build AAB..."
+          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --non-interactive | grep -o 'https://[^ ]*\.aab')
+          echo "📦 Téléchargement depuis : $BUILD_URL"
+          curl -L -o app.aab "$BUILD_URL"
+
+      # 12. Upload AAB artifact vers GitHub
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-aab
-          path: build/aab/*.aab
+          path: app.aab
