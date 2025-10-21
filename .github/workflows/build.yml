@@ -36,15 +36,21 @@ jobs:
 
       # 6. Vérifier la connexion à Expo
       - name: Verify Expo login
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas whoami
 
       # 7. Build APK (installable localement)
       - name: Build APK (installable)
-        run: eas build --platform android --profile production-apk --non-interactive --output-format apk
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile production-apk --non-interactive
 
       # 8. Build AAB (pour Google Play Store)
       - name: Build AAB (Play Store)
-        run: eas build --platform android --profile production-aab --non-interactive --output-format aab
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile production-aab --non-interactive
 
       # 9. Upload APK artifact vers GitHub
       - name: Upload APK artifact
