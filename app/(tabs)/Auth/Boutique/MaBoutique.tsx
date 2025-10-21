@@ -163,7 +163,7 @@ export default function MaBoutique() {
         key={id}
         activeOpacity={0.85}
         style={styles.carouselCard}
-        onPress={() => router.push(`/produit/${id}`)}
+        onPress={() => router.push(`/MisAjour`)}
       >
         <Image source={{ uri }} style={styles.carouselImage} />
         <View style={styles.carouselMeta}>
@@ -413,7 +413,7 @@ export default function MaBoutique() {
                 <TouchableOpacity
                   key={id}
                   style={styles.productCard}
-                  onPress={() => router.push(`/produit/${id}`)}
+                  onPress={() => router.push(`/MisAjour`)}
                 >
                   <Image source={{ uri }} style={styles.productImage} />
                   <Text numberOfLines={1} style={styles.productName}>

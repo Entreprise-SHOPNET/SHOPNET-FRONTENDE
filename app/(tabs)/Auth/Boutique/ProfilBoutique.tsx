@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -16,76 +15,28 @@ export default function ProfilBoutique() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [boutique, setBoutique] = useState<any>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
+
+  // ✅ Ton URL Render ici :
+  const API_BASE_URL = "https://shopnet-backend.onrender.com";
 
   useEffect(() => {
     const fetchBoutique = async () => {
       const token = await AsyncStorage.getItem("userToken");
       try {
-        const res = await fetch(
-          "https://shopnet-backend.onrender.com/api/boutiques/me",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        const res = await fetch(`${API_BASE_URL}/api/boutiques/check`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
-        if (res.ok) setBoutique(data);
+        if (res.ok) setBoutique(data.boutique);
+        else console.log("Erreur :", data.message);
       } catch (e) {
-        console.log("Erreur :", e);
+        console.log("Erreur serveur :", e);
       } finally {
         setLoading(false);
       }
     };
     fetchBoutique();
   }, []);
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    await AsyncStorage.removeItem("userToken");
-    setTimeout(() => {
-      setLoggingOut(false);
-      router.replace("/(tabs)/Auth/Login");
-    }, 1500);
-  };
-
-  const handleDelete = async () => {
-    Alert.alert(
-      "Confirmation",
-      "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: async () => {
-            setDeleting(true);
-            const token = await AsyncStorage.getItem("userToken");
-            try {
-              const res = await fetch(
-                "https://shopnet-backend.onrender.com/api/boutiques/delete",
-                {
-                  method: "DELETE",
-                  headers: { Authorization: `Bearer ${token}` },
-                },
-              );
-              if (res.ok) {
-                await AsyncStorage.removeItem("userToken");
-                Alert.alert("Compte supprimé", "Votre compte a été supprimé.");
-                router.replace("/(tabs)/Auth/Login");
-              } else {
-                Alert.alert("Erreur", "Impossible de supprimer le compte.");
-              }
-            } catch (e) {
-              Alert.alert("Erreur", "Problème de connexion au serveur.");
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
-    );
-  };
 
   if (loading) {
     return (
@@ -110,7 +61,7 @@ export default function ProfilBoutique() {
 
         {/* INFOS */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Informations du compte</Text>
+          <Text style={styles.sectionTitle}>Informations de la boutique</Text>
 
           <View style={styles.infoRow}>
             <Text style={styles.label}>Nom de la boutique :</Text>
@@ -133,42 +84,19 @@ export default function ProfilBoutique() {
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Lieu :</Text>
+            <Text style={styles.label}>Adresse :</Text>
             <Text style={styles.value}>{boutique?.adresse || "—"}</Text>
           </View>
-        </View>
 
-        {/* ACTIONS */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#FF5555" }]}
-            onPress={handleDelete}
-            disabled={deleting}
-          >
-            {deleting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <FontAwesome name="trash" size={18} color="#fff" />
-                <Text style={styles.actionText}>Supprimer le compte</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Catégorie :</Text>
+            <Text style={styles.value}>{boutique?.categorie || "—"}</Text>
+          </View>
 
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#00D68F" }]}
-            onPress={handleLogout}
-            disabled={loggingOut}
-          >
-            {loggingOut ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <FontAwesome name="sign-out" size={18} color="#fff" />
-                <Text style={styles.actionText}>Se déconnecter</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Description :</Text>
+            <Text style={styles.value}>{boutique?.description || "—"}</Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -216,15 +144,4 @@ const styles = StyleSheet.create({
   },
   label: { color: "#ccc", fontSize: 14 },
   value: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  actions: { marginTop: 30, paddingHorizontal: 20 },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-  actionText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });
