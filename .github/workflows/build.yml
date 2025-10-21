@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupérer le code
+      # 1. Récupérer le code source
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 18
 
-      # 3. Installer les dépendances
+      # 3. Installer les dépendances du projet
       - name: Install dependencies
         run: npm ci
 
@@ -28,7 +28,7 @@ jobs:
       - name: Install Expo CLI & EAS CLI
         run: npm install -g expo-cli eas-cli
 
-      # 5. Configurer le token Expo et le keystore automatique
+      # 5. Configurer les variables d'environnement
       - name: Set Expo token and automatic keystore
         run: |
           echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV
@@ -38,24 +38,26 @@ jobs:
       - name: Verify Expo login
         run: eas whoami
 
-      # 7. Build APK
-      - name: Build APK
-        run: eas build --platform android --profile production-apk --non-interactive
+      # 7. Build APK (installable localement)
+      - name: Build APK (installable)
+        run: eas build --platform android --profile production-apk --non-interactive --output-format apk
 
-      # 8. Build AAB
-      - name: Build AAB
-        run: eas build --platform android --profile production-aab --non-interactive
+      # 8. Build AAB (pour Google Play Store)
+      - name: Build AAB (Play Store)
+        run: eas build --platform android --profile production-aab --non-interactive --output-format aab
 
-      # 9. Upload APK artifact
+      # 9. Upload APK artifact vers GitHub
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-apk
           path: '**/*.apk'   # récupère tous les APK générés par EAS
+          if-no-files-found: warn
 
-      # 10. Upload AAB artifact
+      # 10. Upload AAB artifact vers GitHub
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-aab
           path: '**/*.aab'   # récupère tous les AAB générés par EAS
+          if-no-files-found: warn
