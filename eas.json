@@ -2,17 +2,23 @@
 
 {
   "cli": {
-    "version": ">=16.17.4",
+    "version": ">=3.18.0",
     "appVersionSource": "remote"
   },
   "build": {
     "production-apk": {
       "distribution": "store",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production-aab": {
       "distribution": "store",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
