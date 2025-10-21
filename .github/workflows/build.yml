@@ -24,12 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. Installer Expo CLI, EAS CLI et jq (depuis apt)
-      - name: Install Expo CLI & EAS CLI & jq
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-          npm install -g expo-cli eas-cli
+      # 4. Installer Expo CLI et EAS CLI
+      - name: Install Expo CLI & EAS CLI
+        run: npm install -g expo-cli eas-cli
 
       # 5. Configurer les variables d'environnement
       - name: Set Expo token and automatic keystore
@@ -43,48 +40,28 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas whoami
 
-      # 7. Build APK (installable localement)
+      # 7. Build APK (installable localement) et télécharger le fichier
       - name: Build APK (installable)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile production-apk --non-interactive
+        run: eas build --platform android --profile production-apk --non-interactive --output ./build/apk
 
-      # 8. Télécharger l’APK depuis Expo
-      - name: Download built APK from Expo
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          echo "⏳ Recherche du dernier build APK..."
-          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json | jq -r '.[0].artifacts.buildUrl')
-          echo "📦 Téléchargement depuis: $BUILD_URL"
-          curl -L -o app.apk "$BUILD_URL"
-
-      # 9. Upload APK artifact vers GitHub
+      # 8. Upload APK artifact vers GitHub
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-apk
-          path: app.apk
+          path: build/apk/*.apk
 
-      # 10. Build AAB (pour Google Play Store)
+      # 9. Build AAB (pour Google Play Store) et télécharger le fichier
       - name: Build AAB (Play Store)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile production-aab --non-interactive
+        run: eas build --platform android --profile production-aab --non-interactive --output ./build/aab
 
-      # 11. Télécharger l’AAB depuis Expo
-      - name: Download built AAB from Expo
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          echo "⏳ Recherche du dernier build AAB..."
-          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json | jq -r '.[0].artifacts.buildUrl')
-          echo "📦 Téléchargement depuis: $BUILD_URL"
-          curl -L -o app.aab "$BUILD_URL"
-
-      # 12. Upload AAB artifact vers GitHub
+      # 10. Upload AAB artifact vers GitHub
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: shopnet-aab
-          path: app.aab
+          path: build/aab/*.aab
