@@ -17,9 +17,41 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { saveToken } from '../authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 
-const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
+const API_URL = 'http://100.64.134.89:5000/api/auth';
+const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token';
+
+// Fonction pour récupérer et envoyer le token Expo
+const registerExpoToken = async (userId: string) => {
+  try {
+    if (!Device.isDevice) return;
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') return;
+
+    const expoPushToken = (await Notifications.getExpoPushTokenAsync()).data;
+
+    await axios.post(EXPO_TOKEN_URL, {
+      userId,
+      expoPushToken,
+    });
+
+    console.log('✅ Token Expo envoyé avec succès:', expoPushToken);
+  } catch (error) {
+    console.error('❌ Erreur lors de l’envoi du token Expo:', error);
+  }
+};
 
 export default function Connexion() {
   const router = useRouter();
@@ -63,18 +95,23 @@ export default function Connexion() {
 
       if (response.data.success) {
         const token = response.data.token;
+        const user = response.data.user;
 
-        if (token) {
+        if (token && user) {
           await saveToken(token);
+          await AsyncStorage.setItem('user', JSON.stringify(user));
           setSuccessMessage('Connexion réussie !');
+
+          // Envoyer le token Expo pour notifications
+          await registerExpoToken(user.id.toString());
 
           setTimeout(() => {
             router.push({
               pathname: '/(tabs)/Auth/Inscription/Chargement',
               params: {
-                user: JSON.stringify(response.data.user),
-                company: response.data.user.companyName,
-                nif: response.data.user.nif,
+                user: JSON.stringify(user),
+                company: user.companyName,
+                nif: user.nif,
               },
             });
           }, 1000);
@@ -142,13 +179,8 @@ export default function Connexion() {
         )}
       </TouchableOpacity>
 
-      {errorMessage ? (
-        <Text style={styles.errorText}>{errorMessage}</Text>
-      ) : null}
-
-      {successMessage ? (
-        <Text style={styles.successText}>{successMessage}</Text>
-      ) : null}
+      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+      {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
 
       <TouchableOpacity>
         <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>

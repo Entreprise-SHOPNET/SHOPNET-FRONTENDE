@@ -1,8 +1,6 @@
 
 
 
-
-
 import React, { useState } from 'react';
 import {
   View,
@@ -19,8 +17,49 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveToken } from '../authService'; // 🆕 Import du token service
 
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 
-const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
+
+
+const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token';
+
+
+async function registerExpoToken(userId: string) {
+  try {
+    if (!Device.isDevice) return;
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') return;
+
+    const expoToken = (await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId,
+    })).data;
+
+    await fetch(EXPO_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, expoPushToken: expoToken }),
+    });
+
+    console.log(`✅ Token Expo envoyé pour l’utilisateur ${userId}`);
+  } catch (err) {
+    console.error('❌ Erreur lors de l’envoi du token Expo:', err);
+  }
+}
+
+
+
+const API_URL = 'http://100.64.134.89:5000/api/auth';
+
+
 
 export default function Inscription() {
   const router = useRouter();
@@ -83,67 +122,91 @@ export default function Inscription() {
     setErrorMessage('');
     setStep(1);
   };
+const handleRegister = async () => {
+  setErrorMessage('');
+  setSuccessMessage('');
+  setIsLoading(true);
 
-  const handleRegister = async () => {
-    setErrorMessage('');
-    setSuccessMessage('');
-    setIsLoading(true);
+  try {
+    const response = await axios.post(`${API_URL}/register`, {
+      fullName,
+      email,
+      phone,
+      password,
+      companyName: companyName.trim() || null,
+      nif: nif.trim() || null,
+      address: address.trim() || null,
+    });
 
-    try {
-      const response = await axios.post(`${API_URL}/register`, {
-        fullName,
-        email,
-        phone,
-        password,
-        companyName: companyName.trim() || null,
-        nif: nif.trim() || null,
-        address: address.trim() || null,
-      });
+    if (response.data.success) {
+      const registrationId = response.data.userId.toString();
 
-      if (response.data.success) {
-        setSuccessMessage('Compte créé avec succès!');
+      // Stockage user/token local
+      const user = response.data.user || null;
+      const token = response.data.token || null;
+      if (user) await AsyncStorage.setItem('user', JSON.stringify(user));
+      if (token) await saveToken(token);
 
-        // On récupère l'ID de l'utilisateur renvoyé par l'API
-        const registrationId = response.data.userId.toString();
+      // ✅ Envoyer le token Expo automatiquement
+      await registerExpoToken(registrationId);
 
-        // Optionnel : si l'API renvoie user et token, tu peux stocker ici
-        const user = response.data.user || null;
-        const token = response.data.token || null;
-
-        if (user) {
-          await AsyncStorage.setItem('user', JSON.stringify(user));
-        }
-        if (token) {
-          await saveToken(token);
-        }
-
-        // Redirection vers la page CodeConfirmation avec les paramètres nécessaires
-        // Redirection vers la page CodeConfirmation avec OTP reçu du backend
+      // Redirection vers CodeConfirmation
       router.push({
         pathname: '/Auth/Inscription/CodeConfirmation',
         params: {
           email,
           phone,
-          registrationId: response.data.userId.toString(),
-          otp: response.data.otp, // <-- on envoie le code OTP ici
+          registrationId,
+          otp: response.data.otp,
         },
       });
 
-      } else {
-        setErrorMessage(response.data.message || 'Erreur inconnue');
-        Vibration.vibrate(500);
-      }
-    } catch (error: any) {
-      setErrorMessage(
-        error.response?.data?.message ||
-        error.message ||
-        'Erreur lors de l\'inscription'
-      );
+      setSuccessMessage('Compte créé avec succès!');
+    } else {
+      setErrorMessage(response.data.message || 'Erreur inconnue');
       Vibration.vibrate(500);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  } catch (error: any) {
+    setErrorMessage(
+      error.response?.data?.message ||
+      error.message ||
+      'Erreur lors de l\'inscription'
+    );
+    Vibration.vibrate(500);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// ---------------------------
+// Fonction pour envoyer le token Expo au serveur
+const registerExpoToken = async (userId: string) => {
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') return;
+
+    const expoToken = (await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId,
+    })).data;
+
+    if (expoToken) {
+      await axios.post('http://100.64.134.89:5000/api/save-expo-token', {
+        userId,
+        expoPushToken: expoToken,
+      });
+      console.log('✅ Expo Token enregistré pour l’utilisateur', userId);
+    }
+  } catch (err) {
+    console.error('❌ Erreur en envoyant le token Expo:', err);
+  }
+};
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

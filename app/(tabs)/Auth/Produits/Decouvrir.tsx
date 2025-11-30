@@ -1,6 +1,4 @@
-
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,51 +8,100 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  Animated,
+  Modal,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { FontAwesome5, FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'https://shopnet-backend.onrender.com/api/all-products';
-const screenWidth = Dimensions.get('window').width;
+const { width, height } = Dimensions.get('window');
+const LOCAL_API = 'http://100.64.134.89:5000/api';
 
-const categoryIcons: Record<string, React.ReactNode> = {
-  mode: <FontAwesome5 name="tshirt" size={28} color="#4CB050" />,
-  tech: <FontAwesome5 name="microchip" size={28} color="#4CB050" />,
-  electronics: <FontAwesome5 name="laptop" size={28} color="#4CB050" />,
-  electronique: <FontAwesome5 name="tv" size={28} color="#4CB050" />,
-  beauty: <FontAwesome5 name="spa" size={28} color="#4CB050" />,
-  autre: <FontAwesome name="tags" size={28} color="#4CB050" />,
-  default: <FontAwesome5 name="boxes" size={28} color="#4CB050" />,
+// Couleurs SHOPNET PRO Premium
+const SHOPNET_BLUE = "#00182A";
+const PRO_BLUE = "#42A5F5";
+const PREMIUM_GOLD = "#FFD700";
+const CARD_BG = "#1E2A3B";
+const TEXT_WHITE = "#FFFFFF";
+const TEXT_SECONDARY = "#A0AEC0";
+const SUCCESS_GREEN = "#4CAF50";
+const ERROR_RED = "#FF6B6B";
+
+type Product = {
+  id: number;
+  title: string;
+  price: number;
+  original_price?: number;
+  images: string[];
+  category: string;
+  likes_count: number;
+  comments_count: number;
+  shares_count: number;
+  is_promotion?: boolean;
+  promo_price?: number;
+  duration_days?: number;
+  created_at?: string;
+  time_remaining?: string;
 };
 
-// Formater les nombres >1000 en K
-const formatNumber = (num: number) => {
-  if (num >= 1000) return (num / 1000).toFixed(1).replace('.0', '') + 'K';
-  return num.toString();
+type Promotion = {
+  promotionId: number;
+  product_id: number;
+  product_title: string;
+  original_price: number;
+  promo_price: number;
+  description: string;
+  duration_days: number;
+  created_at: string;
+  images: string[];
+  time_remaining?: string;
 };
 
 const DiscoverScreen = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<(Product | Promotion)[]>([]);
   const [token, setToken] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [actionModalVisible, setActionModalVisible] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     loadToken();
+    startEntranceAnimation();
   }, []);
+
+  const startEntranceAnimation = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   const loadToken = async () => {
     try {
       const storedToken = await AsyncStorage.getItem('userToken');
       if (storedToken) {
         setToken(storedToken);
-        fetchProducts(storedToken, 1, true);
+        await fetchMixedProducts(storedToken, 1, true);
       } else {
         console.error('Aucun token trouvé');
         setLoading(false);
@@ -65,199 +112,755 @@ const DiscoverScreen = () => {
     }
   };
 
-  const fetchProducts = async (jwtToken: string, pageNumber = 1, initial = false) => {
+  const fetchMixedProducts = async (jwtToken: string, pageNum = 1, initial = false) => {
     try {
-      if (!initial) setIsLoadingMore(true);
-      const response = await axios.get(API_URL, {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
-        params: { page: pageNumber, limit: 8 },
+      if (!initial) setLoadingMore(true);
+      
+      const limit = 5; // 5 produits par page
+      
+      // Fetch produits réguliers
+      const regularResponse = await axios.get(`${LOCAL_API}/all-products`, {
+        headers: { Authorization: `Bearer ${jwtToken}` },
+        params: { page: pageNum, limit },
       });
 
-      if (response.data.success) {
-        const newProducts = response.data.products;
+      // Fetch promotions
+      const promotionResponse = await axios.get(`${LOCAL_API}/promotions`, {
+        headers: { Authorization: `Bearer ${jwtToken}` },
+      });
 
-        // Trier par tendance: likes, shares, comments, cart, orders, views
-        newProducts.sort((a: any, b: any) => {
-          const scoreA =
-            a.likes + a.shares * 2 + a.comments * 1.5 + a.cart_count * 2 + a.orders_count * 5 + a.views;
-          const scoreB =
-            b.likes + b.shares * 2 + b.comments * 1.5 + b.cart_count * 2 + b.orders_count * 5 + b.views;
-          return scoreB - scoreA;
-        });
+      let regularProducts: Product[] = [];
+      let promotionProducts: Promotion[] = [];
 
-        setProducts((prev) => (initial ? newProducts : [...prev, ...newProducts]));
-
-        // Calcul des catégories
-        const cats: Record<string, number> = {};
-        [...(initial ? newProducts : [...products, ...newProducts])].forEach((p: any) => {
-          cats[p.category] = (cats[p.category] || 0) + 1;
-        });
-        setCategories(Object.entries(cats).map(([cat, count]) => ({ category: cat, count })));
-
-        setPage(pageNumber);
-        setTotalPages(response.data.totalPages);
+      if (regularResponse.data.success) {
+        regularProducts = regularResponse.data.products || [];
       }
+
+      if (promotionResponse.data.success) {
+        promotionProducts = (promotionResponse.data.promotions || []).map((promo: Promotion) => ({
+          ...promo,
+          time_remaining: calculateTimeRemaining(promo.created_at, promo.duration_days)
+        }));
+      }
+
+      // Mélanger les produits réguliers et les promotions
+      const allProducts = [...regularProducts, ...promotionProducts];
+      
+      // Mélanger aléatoirement
+      const shuffledProducts = allProducts.sort(() => Math.random() - 0.5);
+
+      if (initial) {
+        setProducts(shuffledProducts);
+      } else {
+        setProducts(prev => [...prev, ...shuffledProducts]);
+      }
+
+      // Vérifier s'il y a plus de produits à charger
+      setHasMore(regularProducts.length === limit);
+      setPage(pageNum);
+
     } catch (err: any) {
-      console.error('Erreur API:', err.message);
+      console.error('Erreur API produits:', err.message);
     } finally {
       setLoading(false);
-      setIsLoadingMore(false);
+      setLoadingMore(false);
     }
   };
 
-  const handleLoadMore = () => {
-    if (page < totalPages && !isLoadingMore && token) {
-      fetchProducts(token, page + 1);
+  const calculateTimeRemaining = (createdAt: string, durationDays: number): string => {
+    const createdDate = new Date(createdAt);
+    const endDate = new Date(createdDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const diffMs = endDate.getTime() - now.getTime();
+    
+    if (diffMs <= 0) return 'Expirée';
+    
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) return `${days}j ${hours}h`;
+    return `${hours}h`;
+  };
+
+  // Mettre à jour le temps restant toutes les minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProducts(prev => 
+        prev.map(item => 
+          'duration_days' in item && item.created_at
+            ? {
+                ...item,
+                time_remaining: calculateTimeRemaining(item.created_at, item.duration_days)
+              }
+            : item
+        )
+      );
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadMoreProducts = () => {
+    if (!loadingMore && hasMore && token) {
+      fetchMixedProducts(token, page + 1, false);
     }
   };
 
-  const renderProductCard = (product: any) => (
-    <TouchableOpacity
-      key={product.id}
-      style={styles.gridCard}
-      onPress={() =>
-        router.push({
-          pathname: '/(tabs)/Auth/Panier/DetailId',
-          params: { id: product.id.toString() },
-        })
+  const showActionModal = (product: any) => {
+    setSelectedProduct(product);
+    setActionModalVisible(true);
+  };
+
+  const hideActionModal = () => {
+    setActionModalVisible(false);
+    setSelectedProduct(null);
+  };
+
+  const calculateDiscount = (original: number, promo: number) => {
+    return Math.round(((original - promo) / original) * 100);
+  };
+
+  const getProductId = (item: Product | Promotion): number => {
+    return 'product_id' in item ? item.product_id : item.id;
+  };
+
+  const getProductTitle = (item: Product | Promotion): string => {
+    return 'product_title' in item ? item.product_title : item.title;
+  };
+
+  const getProductPrice = (item: Product | Promotion): number => {
+    return 'promo_price' in item ? item.promo_price : item.price;
+  };
+
+  const getProductImages = (item: Product | Promotion): string[] => {
+    if ('images' in item) {
+      if (Array.isArray(item.images)) {
+        return item.images;
+      } else if (typeof item.images === 'string') {
+        try {
+          const parsed = JSON.parse(item.images);
+          return Array.isArray(parsed) ? parsed : [item.images];
+        } catch {
+          return [item.images];
+        }
       }
-      activeOpacity={0.8}
+    }
+    return item.images || [];
+  };
+
+  const isPromotion = (item: Product | Promotion): boolean => {
+    return 'promotionId' in item;
+  };
+
+  // Composant de produit unique
+  const renderProductItem = ({ item, index }: { item: Product | Promotion; index: number }) => {
+    const productId = getProductId(item);
+    const productTitle = getProductTitle(item);
+    const productPrice = getProductPrice(item);
+    const images = getProductImages(item);
+    const isPromo = isPromotion(item);
+    const promotionItem = item as Promotion;
+
+    const discount = isPromo ? 
+      calculateDiscount(Number(promotionItem.original_price), Number(promotionItem.promo_price)) : 0;
+    
+    const isExpired = isPromo && promotionItem.time_remaining === 'Expirée';
+    const imageUrl = images.length > 0 ? images[0] : null;
+
+    return (
+      <Animated.View
+        style={[
+          styles.productCard,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: '/(tabs)/Auth/Panier/DetailId',
+              params: { id: productId.toString() },
+            })
+          }
+          activeOpacity={0.9}
+        >
+          <View style={styles.imageContainer}>
+            {imageUrl ? (
+              <Image 
+                source={{ uri: imageUrl }} 
+                style={styles.productImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="cube-outline" size={40} color={TEXT_SECONDARY} />
+                <Text style={styles.placeholderText}>Aucune image</Text>
+              </View>
+            )}
+            
+            {/* Header avec badges et bouton */}
+            <View style={styles.imageHeader}>
+              <View style={styles.leftBadges}>
+                {/* Badge Promotion */}
+                {isPromo && (
+                  <View style={styles.promotionBadge}>
+                    <Ionicons name="flash" size={12} color={TEXT_WHITE} />
+                    <Text style={styles.promotionBadgeText}>PROMO</Text>
+                  </View>
+                )}
+                
+                {/* Badge Catégorie */}
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryBadgeText}>
+                    {'category' in item ? item.category : 'Promotion'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Côté droit avec temps et trois points */}
+              <View style={styles.rightActions}>
+                {/* Badge Temps pour les promotions */}
+                {isPromo && (
+                  <View style={[
+                    styles.timeBadge,
+                    isExpired ? styles.timeBadgeExpired : styles.timeBadgeActive
+                  ]}>
+                    <Ionicons 
+                      name={isExpired ? "time-outline" : "timer-outline"} 
+                      size={10} 
+                      color={TEXT_WHITE} 
+                    />
+                    <Text style={styles.timeBadgeText}>
+                      {promotionItem.time_remaining}
+                    </Text>
+                  </View>
+                )}
+                
+                {/* Bouton trois points */}
+                <TouchableOpacity 
+                  style={styles.threeDotsButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    showActionModal(item);
+                  }}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={16} color={TEXT_WHITE} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.cardContent}>
+            <Text style={styles.productTitle} numberOfLines={2}>
+              {productTitle}
+            </Text>
+
+            {/* Prix sur la même ligne */}
+            <View style={styles.priceRow}>
+              {isPromo ? (
+                <>
+                  <View style={styles.promotionPriceContainer}>
+                    <Text style={styles.originalPrice}>
+                      ${Number(promotionItem.original_price).toFixed(2)}
+                    </Text>
+                    <Text style={styles.promoPrice}>
+                      ${Number(productPrice).toFixed(2)}
+                    </Text>
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountText}>-{discount}%</Text>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.regularPrice}>
+                  ${Number(productPrice).toFixed(2)}
+                </Text>
+              )}
+            </View>
+
+            {/* Description promotion */}
+            {isPromo && promotionItem.description && (
+              <Text style={styles.promotionDescription} numberOfLines={2}>
+                {promotionItem.description}
+              </Text>
+            )}
+
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Ionicons name="heart" size={14} color={TEXT_SECONDARY} />
+                <Text style={styles.statsText}>
+                  {'likes_count' in item ? item.likes_count : 0}
+                </Text>
+              </View>
+
+              <View style={styles.statItem}>
+                <Ionicons name="chatbubble-outline" size={14} color={TEXT_SECONDARY} />
+                <Text style={styles.statsText}>
+                  {'comments_count' in item ? item.comments_count : 0}
+                </Text>
+              </View>
+
+              <View style={styles.statItem}>
+                <Ionicons name="share-outline" size={14} color={TEXT_SECONDARY} />
+                <Text style={styles.statsText}>
+                  {'shares_count' in item ? item.shares_count : 0}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderActionModal = () => (
+    <Modal
+      visible={actionModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={hideActionModal}
     >
-      {product.images?.[0] ? (
-        <Image source={{ uri: product.images[0] }} style={styles.gridImage} />
-      ) : (
-        <View style={styles.imagePlaceholder}>
-          <Text style={{ color: '#999' }}>Aucune image</Text>
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={hideActionModal}
+      >
+        <View style={styles.actionModal}>
+          {selectedProduct && (
+            <>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Options Produit</Text>
+                <Text style={styles.modalSubtitle} numberOfLines={1}>
+                  {getProductTitle(selectedProduct)}
+                </Text>
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity 
+                  style={styles.modalAction}
+                  onPress={() => {
+                    hideActionModal();
+                    const productId = getProductId(selectedProduct);
+                    router.push({
+                      pathname: '/(tabs)/Auth/Panier/DetailId',
+                      params: { id: productId.toString() },
+                    });
+                  }}
+                >
+                  <Ionicons name="eye-outline" size={24} color={PRO_BLUE} />
+                  <Text style={styles.modalActionText}>Voir les détails</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.modalAction}
+                  onPress={() => {
+                    hideActionModal();
+                    // Naviguer vers le chat
+                  }}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={24} color={PRO_BLUE} />
+                  <Text style={styles.modalActionText}>Contacter le vendeur</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.modalAction, styles.reportAction]}
+                  onPress={hideActionModal}
+                >
+                  <Ionicons name="share-outline" size={24} color={PRO_BLUE} />
+                  <Text style={styles.modalActionText}>Partager</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.modalCancel}
+                onPress={hideActionModal}
+              >
+                <Text style={styles.modalCancelText}>Annuler</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
-      )}
-      <Text style={styles.productTitle} numberOfLines={1}>
-        {product.title}
-      </Text>
-      <Text style={styles.productPrice}>{product.price} FC</Text>
-      <View style={styles.statsContainer}>
-        <FontAwesome5 name="heart" size={12} color="#E53935" />
-        <Text style={styles.statsText}>{formatNumber(product.likes)}</Text>
-        <FontAwesome5 name="share" size={12} color="#4CB050" style={{ marginLeft: 8 }} />
-        <Text style={styles.statsText}>{formatNumber(product.shares)}</Text>
-        <FontAwesome5 name="comment" size={12} color="#FFB300" style={{ marginLeft: 8 }} />
-        <Text style={styles.statsText}>{formatNumber(product.comments)}</Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 
-  const renderTrendingCategories = () => {
-    if (!categories.length) return null;
+  const renderFooter = () => {
+    if (!loadingMore) return null;
     return (
-      <View style={styles.stickyHeader}>
-        <Text style={styles.sectionTitle}>📊 Tendances par catégorie</Text>
-        <FlatList
-          horizontal
-          data={categories}
-          keyExtractor={(item) => item.category}
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const key = item.category.toLowerCase();
-            const icon = categoryIcons[key] || categoryIcons.default;
-            return (
-              <TouchableOpacity
-                style={styles.categoryCard}
-                onPress={() =>
-                  router.push(`/category/${encodeURIComponent(item.category)}`)
-                }
-                activeOpacity={0.7}
-              >
-                <View style={styles.categoryIconContainer}>{icon}</View>
-                <Text style={styles.categoryText} numberOfLines={1}>
-                  {item.category}
-                </Text>
-                <Text style={styles.categoryCount}>{item.count}</Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={PRO_BLUE} />
+        <Text style={styles.loadingMoreText}>Chargement...</Text>
       </View>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CB050" />
-        <Text style={{ color: '#fff', marginTop: 8 }}>Chargement...</Text>
-      </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+        <View style={styles.loadingContent}>
+          <ActivityIndicator size="large" color={PRO_BLUE} />
+          <Text style={styles.loadingText}>Chargement des produits...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#202A36' }}>
-      {renderTrendingCategories()}
+    <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="cube-outline" size={28} color={PRO_BLUE} />
+          <Text style={styles.headerTitle}>Découvrir</Text>
+        </View>
+        <TouchableOpacity style={styles.filterButton}>
+          <Ionicons name="options-outline" size={24} color={PRO_BLUE} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Liste des produits mélangés */}
       <FlatList
         data={products}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) => 
+          `product-${getProductId(item)}-${index}`
+        }
+        renderItem={renderProductItem}
         numColumns={2}
-        columnWrapperStyle={{ justifyContent: 'space-between' }}
-        renderItem={({ item }) => renderProductCard(item)}
-        onEndReached={handleLoadMore}
+        columnWrapperStyle={styles.columnWrapper}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        onEndReached={loadMoreProducts}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={isLoadingMore ? <ActivityIndicator color="#4CB050" /> : null}
-        contentContainerStyle={{ paddingTop: 130, paddingHorizontal: 12, paddingBottom: 20 }}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons name="cube-outline" size={64} color={TEXT_SECONDARY} />
+            <Text style={styles.emptyStateTitle}>Aucun produit disponible</Text>
+            <Text style={styles.emptyStateText}>
+              Les produits apparaîtront ici lorsqu'ils seront ajoutés
+            </Text>
+          </View>
+        }
       />
-    </View>
+
+      {renderActionModal()}
+    </SafeAreaView>
   );
 };
 
-export default DiscoverScreen;
-
 const styles = StyleSheet.create({
-  gridCard: {
-    backgroundColor: '#2F3C4A',
-    width: (screenWidth - 36) / 2,
-    marginBottom: 16,
-    borderRadius: 10,
-    padding: 10,
+  container: {
+    flex: 1,
+    backgroundColor: SHOPNET_BLUE,
   },
-  gridImage: { width: '100%', height: 120, borderRadius: 8 },
-  imagePlaceholder: {
-    height: 120,
-    backgroundColor: '#555',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  productTitle: { color: '#fff', marginTop: 8, fontSize: 15 },
-  productPrice: { color: '#4CB050', fontWeight: 'bold', fontSize: 13, marginTop: 4 },
-  statsContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  statsText: { color: '#fff', fontSize: 11, marginLeft: 2 },
-  stickyHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#202A36',
-    paddingTop: 20,
-    paddingBottom: 10,
-    zIndex: 10,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 10, paddingHorizontal: 12 },
-  categoryCard: {
-    backgroundColor: '#2E3A49',
-    width: 80,
-    height: 100,
-    borderRadius: 10,
-    marginRight: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  categoryIconContainer: { marginBottom: 8 },
-  categoryText: { color: '#fff', fontWeight: '600', fontSize: 13, textAlign: 'center' },
-  categoryCount: { color: '#4CB050', fontWeight: '700', fontSize: 11, marginTop: 4 },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#202A36',
+    backgroundColor: SHOPNET_BLUE,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingContent: {
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: SHOPNET_BLUE,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: TEXT_WHITE,
+    marginLeft: 12,
+  },
+  filterButton: {
+    padding: 8,
+  },
+  listContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 20,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  productCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    width: (width - 36) / 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  productImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#2C3A4A',
+  },
+  imagePlaceholder: {
+    height: 150,
+    backgroundColor: '#2C3A4A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    marginTop: 8,
+  },
+  // Header de l'image avec badges
+  imageHeader: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    zIndex: 2,
+  },
+  leftBadges: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  rightActions: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  promotionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PREMIUM_GOLD,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  promotionBadgeText: {
+    color: SHOPNET_BLUE,
+    fontSize: 10,
+    fontWeight: '800',
+    marginLeft: 2,
+  },
+  timeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  timeBadgeActive: {
+    backgroundColor: ERROR_RED,
+  },
+  timeBadgeExpired: {
+    backgroundColor: TEXT_SECONDARY,
+  },
+  timeBadgeText: {
+    color: TEXT_WHITE,
+    fontSize: 9,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  categoryBadge: {
+    backgroundColor: "rgba(66, 165, 245, 0.9)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  categoryBadgeText: {
+    color: TEXT_WHITE,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  threeDotsButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardContent: {
+    padding: 12,
+  },
+  productTitle: {
+    color: TEXT_WHITE,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  priceRow: {
+    marginBottom: 8,
+  },
+  regularPrice: {
+    color: PRO_BLUE,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  promotionPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  originalPrice: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'line-through',
+  },
+  promoPrice: {
+    color: PREMIUM_GOLD,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  discountBadge: {
+    backgroundColor: SUCCESS_GREEN,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  discountText: {
+    color: TEXT_WHITE,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  promotionDescription: {
+    color: TEXT_SECONDARY,
+    fontSize: 11,
+    lineHeight: 14,
+    marginBottom: 8,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statsText: {
+    color: TEXT_SECONDARY,
+    fontSize: 11,
+    marginLeft: 2,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyStateTitle: {
+    color: TEXT_WHITE,
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    color: TEXT_SECONDARY,
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  footerLoader: {
+    padding: 20,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingMoreText: {
+    color: PRO_BLUE,
+    fontSize: 14,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  actionModal: {
+    backgroundColor: CARD_BG,
+    margin: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(66, 165, 245, 0.1)",
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: TEXT_WHITE,
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: TEXT_SECONDARY,
+    textAlign: 'center',
+  },
+  modalActions: {
+    paddingVertical: 8,
+  },
+  modalAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  modalActionText: {
+    fontSize: 16,
+    color: TEXT_WHITE,
+    marginLeft: 12,
+  },
+  reportAction: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(66, 165, 245, 0.1)",
+  },
+  modalCancel: {
+    padding: 16,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: "rgba(66, 165, 245, 0.1)",
+  },
+  modalCancelText: {
+    fontSize: 17,
+    fontWeight: '600',0.
+    
+    color: PRO_BLUE,
+  },
 });
+
+export default DiscoverScreen;

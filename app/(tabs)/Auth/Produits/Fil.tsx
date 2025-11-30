@@ -1,9 +1,7 @@
 
 
 
-
-
-
+import { getApiUrl } from './apiUtils'; // ajuste le chemin si nécessaire
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import { authApi } from '../authService';
@@ -26,7 +24,6 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-
 type RootStackParamList = {
   Home: undefined;
   SellerProfile: { sellerId: string };
@@ -62,7 +59,8 @@ interface Product {
   shares: number;
 }
 
-const API_BASE_URL = 'https://shopnet-backend.onrender.com';
+const API_BASE_URL = 'http://100.64.134.89:5000';
+const RENDER_API = 'http://100.64.134.89:5000/api';
 const PRODUCTS_ENDPOINT = '/api/products';
 
 const { width } = Dimensions.get('window');
@@ -215,7 +213,7 @@ const ShopApp = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-
+  const [feedType, setFeedType] = useState<'latest' | 'popular' | 'feed' | 'all'>('all');
   const categories = ['✨ Tendance', '🔥 Promos', '👗 Mode', '📱 Tech', '🏠 Maison', '💄 Beauté'];
 
   const showNotification = useCallback((message: string) => {
@@ -246,21 +244,21 @@ const ShopApp = () => {
         setIsLoadingMore(true);
       }
 
-      const token = await AsyncStorage.getItem('userToken');
+          // Récupérer le token JWT de l'utilisateur
+          const token = await AsyncStorage.getItem('userToken');
 
-      if (!token) {
-        console.warn('Token JWT manquant !');
-        showNotification("Veuillez vous connecter");
-        return;
-      }
+          if (!token) {
+            console.warn('Token JWT manquant !');
+            showNotification("Veuillez vous connecter");
+            return;
+          }
 
-      const response = await axios.get(`${API_BASE_URL}${PRODUCTS_ENDPOINT}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        timeout: 15000,
+      const apiUrl = getApiUrl(feedType);
+
+      const response = await axios.get(apiUrl, {
+        headers: { Authorization: `Bearer ${token}` },
         params: {
-          category: categories[activeCategory].replace(/[^a-zA-Z]/g, ''),
+          category: categories[activeCategory]?.replace(/[^a-zA-Z]/g, '') || '',
           page,
           limit: 10
         }
@@ -415,67 +413,73 @@ const ShopApp = () => {
     [activeCategory, categories, showNotification]
   );
 
-  const handleLike = useCallback(async (productId: string) => {
-    let previousLikeState = false;
-    let previousLikesCount = 0;
+const handleLike = useCallback(async (productId: string) => {
+  let previousLikeState = false;
+  let previousLikesCount = 0;
 
-    try {
-      setProducts(prevProducts => {
-        return prevProducts.map(product => {
-          if (product.id === productId) {
-            previousLikeState = product.isLiked;
-            previousLikesCount = product.likes ?? 0;
+  try {
+    console.log('🔹 Début handleLike pour productId:', productId);
 
-            const newLikeState = !product.isLiked;
-            const newLikesCount = newLikeState
-              ? previousLikesCount + 1
-              : Math.max(0, previousLikesCount - 1);
+    // Mise à jour immédiate de l’UI (optimistic update)
+    setProducts(prevProducts =>
+      prevProducts.map(product => {
+        if (product.id === productId) {
+          previousLikeState = product.isLiked;
+          previousLikesCount = product.likes ?? 0;
 
-            return {
-              ...product,
-              isLiked: newLikeState,
-              likes: newLikesCount,
-            };
-          }
-          return product;
-        });
-      });
+          const newLikeState = !product.isLiked;
+          const newLikesCount = newLikeState
+            ? previousLikesCount + 1
+            : Math.max(0, previousLikesCount - 1);
 
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        showNotification('Authentification requise');
-        return;
-      }
-
-      await authApi.post( 
-        `/products/${productId}/like`, 
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          return { ...product, isLiked: newLikeState, likes: newLikesCount };
         }
-      );
+        return product;
+      })
+    );
 
-    } catch (error) {
-      console.error("Erreur like :", error);
-
-      setProducts(prevProducts => 
-        prevProducts.map(product => {
-          if (product.id === productId) {
-            return {
-              ...product,
-              isLiked: previousLikeState,
-              likes: previousLikesCount,
-            };
-          }
-          return product;
-        })
-      );
-
-      showNotification("Erreur lors de la mise à jour du like");
+    // Récupération du token utilisateur
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      showNotification('Authentification requise');
+      console.warn('⚠️ Aucun token trouvé.');
+      return;
     }
-  }, [showNotification]);
+
+    console.log('➡️ Envoi du like au serveur Render...');
+
+    // Envoi au serveur Render (en ligne)
+    const response = await axios.post(
+      `https://shopnet-backend.onrender.com/api/interactions/${productId}/like`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+    );
+
+    console.log('✅ Réponse du serveur Render:', response.data);
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Erreur lors du like');
+    }
+
+    console.log(`🔹 Like effectué avec succès: liked=${response.data.liked}`);
+
+  } catch (error: any) {
+    console.error('❌ Erreur handleLike :', error);
+
+    // Restauration de l’état précédent en cas d’erreur
+    setProducts(prevProducts =>
+      prevProducts.map(product =>
+        product.id === productId
+          ? { ...product, isLiked: previousLikeState, likes: previousLikesCount }
+          : product
+      )
+    );
+
+    showNotification(error.message || 'Erreur lors de la mise à jour du like');
+  }
+
+  console.log('🔹 Fin handleLike pour productId:', productId);
+}, [showNotification]);
 
   const handleComment = useCallback((productId: string) => {
     router.push({
@@ -606,7 +610,7 @@ const ShopApp = () => {
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={() => router.push('/MisAjour')}
+            onPress={() => router.push('/(tabs)/Auth/Notification/NotificationsUser')}
           >
             <FontAwesome name="bell" size={20} color="#333" />
           </TouchableOpacity>

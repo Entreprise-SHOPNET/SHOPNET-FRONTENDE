@@ -1,3 +1,6 @@
+
+
+
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
@@ -27,8 +30,9 @@ import {
   Entypo,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
+ 
 
-const BASE_URL = "https://shopnet-backend.onrender.com";
+const BASE_URL = "http://100.64.134.89:5000";
 const { width } = Dimensions.get("window");
 const PRO_BLUE = "#42A5F5";
 const SHOPNET_BLUE = "#00182A";
