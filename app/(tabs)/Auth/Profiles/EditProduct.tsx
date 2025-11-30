@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -9,251 +10,740 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  Dimensions,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { FontAwesome } from "@expo/vector-icons";
-import { authApi, getValidToken } from "../authService"; // <-- adapte le chemin
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { authApi, getValidToken } from "../authService";
 
-const categories = ["Tendance", "Mode", "Tech", "Maison", "Beauté"];
+const { width, height } = Dimensions.get("window");
+
+// Couleurs SHOPNET PRO Premium
+const SHOPNET_BLUE = "#00182A";
+const PRO_BLUE = "#42A5F5";
+const PREMIUM_GOLD = "#FFD700";
+const CARD_BG = "#1E2A3B";
+const TEXT_WHITE = "#FFFFFF";
+const TEXT_SECONDARY = "#A0AEC0";
+const SUCCESS_GREEN = "#4CAF50";
+const ERROR_RED = "#FF6B6B";
+const WARNING_ORANGE = "#FFA726";
+
+const categories = [
+  { name: "Tendance", icon: "trending-up" },
+  { name: "Mode", icon: "shirt-outline" },
+  { name: "Tech", icon: "phone-portrait-outline" },
+  { name: "Maison", icon: "home-outline" },
+  { name: "Beauté", icon: "sparkles-outline" },
+  { name: "Sport", icon: "basketball-outline" },
+  { name: "Auto", icon: "car-sport-outline" },
+  { name: "Autre", icon: "grid-outline" },
+];
 
 const EditProduct = () => {
   const router = useRouter();
-  const { id } = useLocalSearchParams(); // ID du produit
+  const { id } = useLocalSearchParams();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    price: "",
+    category: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Notification state
-  const [message, setMessage] = useState("");
-  const scaleAnim = useRef(new Animated.Value(0.5)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const toastAnim = useRef(new Animated.Value(-100)).current;
 
-  const showNotification = (msg: string) => {
-    setMessage(msg);
+  // États notification
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastType, setToastType] = useState<"success" | "error">("success");
+
+  // Charger les données du produit
+  useEffect(() => {
+    loadProductData();
+  }, [id]);
+
+  const startEntranceAnimation = () => {
     Animated.parallel([
-      Animated.spring(scaleAnim, { toValue: 1, friction: 5, useNativeDriver: true }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
     ]).start();
-
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 0.5, duration: 200, useNativeDriver: true }),
-      ]).start(() => setMessage(""));
-    }, 2000); // durée affichage 2s
   };
 
-  const handleSave = async () => {
+  const loadProductData = async () => {
     try {
       setLoading(true);
       const token = await getValidToken();
       if (!token) {
-        showNotification("Utilisateur non connecté");
-        setLoading(false);
+        showToast("🔐 Utilisateur non connecté", "error");
+        router.back();
         return;
       }
 
-      await authApi.put(
-        `/products/${id}`,
-        {
-          title,
-          description,
-          price: Number(price),
-          category,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      showNotification("Produit modifié avec succès !");
-      setTimeout(() => router.back(), 2000); // retourne après notification
+      const response = await authApi.get(`/products/${id}`);
+      
+      if (response.data.success) {
+        const product = response.data.product;
+        
+        setFormData({
+          title: product.title || "",
+          description: product.description || "",
+          price: product.price ? String(product.price) : "",
+          category: product.category || "",
+        });
+        
+        // Démarrer l'animation après le chargement des données
+        setTimeout(() => {
+          startEntranceAnimation();
+        }, 100);
+      }
     } catch (error: any) {
-      console.error(error);
-      showNotification(error.response?.data?.message || "Impossible de modifier le produit");
+      console.error("Erreur chargement produit:", error);
+      showToast("❌ Erreur lors du chargement du produit", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+
+    Animated.sequence([
+      Animated.timing(toastAnim, {
+        toValue: 50,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2000),
+      Animated.timing(toastAnim, {
+        toValue: -100,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setToastVisible(false);
+    });
+  };
+
+  const handleSave = async () => {
+    // Validation
+    if (!formData.title.trim()) {
+      showToast("📝 Le titre est requis", "error");
+      return;
+    }
+    if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+      showToast("💰 Prix invalide", "error");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const token = await getValidToken();
+      if (!token) {
+        showToast("🔐 Utilisateur non connecté", "error");
+        return;
+      }
+
+      await authApi.put(`/products/edit/${id}`, {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        price: Number(formData.price),
+        category: formData.category,
+      });
+
+      showToast("✅ Produit modifié avec succès !", "success");
+      
+      setTimeout(() => {
+        router.back();
+      }, 1500);
+    } catch (error: any) {
+      console.error("Erreur modification produit:", error);
+      showToast(
+        error.response?.data?.message || "❌ Impossible de modifier le produit",
+        "error"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateField = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCancel = () => {
+    Alert.alert(
+      "Annuler les modifications",
+      "Voulez-vous vraiment annuler ? Toutes les modifications seront perdues.",
+      [
+        { text: "Non", style: "cancel" },
+        { text: "Oui", onPress: () => router.back() }
+      ]
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+        <View style={styles.loadingContent}>
+          <ActivityIndicator size="large" color={PRO_BLUE} />
+          <Text style={styles.loadingText}>Chargement du produit...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <FontAwesome name="arrow-left" size={18} color="#fff" />
-            <Text style={styles.backText}>Retour</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Modifier le produit</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+
+      {/* Header Premium */}
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleCancel}
+        >
+          <Ionicons name="arrow-back" size={24} color={PRO_BLUE} />
+          <Text style={styles.backText}>Retour</Text>
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Modifier Produit</Text>
+          <Text style={styles.headerSubtitle}>ID: {id}</Text>
         </View>
 
-        {/* Formulaire */}
-        <View style={styles.form}>
-          <Text style={styles.label}>Titre</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Titre du produit"
-            placeholderTextColor="#aaa"
-          />
+        <View style={styles.headerRight}>
+          <Ionicons name="cube-outline" size={24} color={PRO_BLUE} />
+        </View>
+      </Animated.View>
 
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Description du produit"
-            placeholderTextColor="#aaa"
-            multiline
-          />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Section Informations Produit */}
+        <Animated.View
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle" size={24} color={PRO_BLUE} />
+            <Text style={styles.sectionTitle}>Informations Produit</Text>
+          </View>
 
-          <Text style={styles.label}>Prix ($)</Text>
-          <TextInput
-            style={styles.input}
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="numeric"
-            placeholder="Ex: 25.99"
-            placeholderTextColor="#aaa"
-          />
+          <View style={styles.formContainer}>
+            {/* Titre */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Titre du produit <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="text" size={20} color={PRO_BLUE} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={formData.title}
+                  onChangeText={(value) => updateField("title", value)}
+                  placeholder="Nom de votre produit"
+                  placeholderTextColor={TEXT_SECONDARY}
+                  maxLength={100}
+                />
+                <Text style={styles.charCount}>
+                  {formData.title.length}/100
+                </Text>
+              </View>
+            </View>
 
-          <Text style={styles.label}>Catégorie</Text>
-          <View style={styles.categoryContainer}>
+            {/* Description */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
+              <View style={styles.textAreaContainer}>
+                <Ionicons 
+                  name="document-text" 
+                  size={20} 
+                  color={PRO_BLUE} 
+                  style={styles.textAreaIcon} 
+                />
+                <TextInput
+                  style={styles.textArea}
+                  value={formData.description}
+                  onChangeText={(value) => updateField("description", value)}
+                  placeholder="Décrivez votre produit en détail..."
+                  placeholderTextColor={TEXT_SECONDARY}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  maxLength={500}
+                />
+                <View style={styles.charCountContainer}>
+                  <Text style={styles.charCount}>
+                    {formData.description.length}/500
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Prix */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Prix ($) <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="pricetag" size={20} color={PRO_BLUE} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={formData.price}
+                  onChangeText={(value) => updateField("price", value)}
+                  placeholder="0.00"
+                  placeholderTextColor={TEXT_SECONDARY}
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.currency}>$</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Section Catégorie */}
+        <Animated.View
+          style={[
+            styles.section,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Ionicons name="apps" size={24} color={PRO_BLUE} />
+            <Text style={styles.sectionTitle}>Catégorie</Text>
+          </View>
+
+          <View style={styles.categoriesGrid}>
             {categories.map((cat) => (
               <TouchableOpacity
-                key={cat}
+                key={cat.name}
                 style={[
-                  styles.categoryButton,
-                  category === cat && styles.categorySelected,
+                  styles.categoryCard,
+                  formData.category === cat.name && styles.categoryCardSelected,
                 ]}
-                onPress={() => setCategory(cat)}
+                onPress={() => updateField("category", cat.name)}
               >
+                <View
+                  style={[
+                    styles.categoryIcon,
+                    formData.category === cat.name && styles.categoryIconSelected,
+                  ]}
+                >
+                  <Ionicons
+                    name={cat.icon as any}
+                    size={20}
+                    color={formData.category === cat.name ? TEXT_WHITE : PRO_BLUE}
+                  />
+                </View>
                 <Text
                   style={[
                     styles.categoryText,
-                    category === cat && styles.categoryTextSelected,
+                    formData.category === cat.name && styles.categoryTextSelected,
                   ]}
                 >
-                  {cat}
+                  {cat.name}
                 </Text>
+                {formData.category === cat.name && (
+                  <View style={styles.selectedIndicator}>
+                    <Ionicons name="checkmark" size={16} color={TEXT_WHITE} />
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Bouton Enregistrer */}
-        <TouchableOpacity
-          style={[styles.saveBtn, loading && { opacity: 0.6 }]}
-          onPress={handleSave}
-          disabled={loading}
+        {/* Boutons d'Action */}
+        <Animated.View
+          style={[
+            styles.actionsSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
         >
-          <FontAwesome name="save" size={20} color="#fff" />
-          <Text style={styles.saveText}>
-            {loading ? "Enregistrement..." : "Enregistrer les modifications"}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.cancelButton, saving && styles.buttonDisabled]}
+            onPress={handleCancel}
+            disabled={saving}
+          >
+            <Ionicons name="close-circle" size={20} color={TEXT_SECONDARY} />
+            <Text style={styles.cancelButtonText}>Annuler</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.buttonDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={TEXT_WHITE} />
+            ) : (
+              <Ionicons name="save" size={20} color={TEXT_WHITE} />
+            )}
+            <Text style={styles.saveButtonText}>
+              {saving ? "Enregistrement..." : "Enregistrer"}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Espace en bas pour le scroll */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Notification style WhatsApp */}
-      {message !== "" && (
-        <View style={styles.notificationWrapper}>
-          <Animated.View
-            style={[
-              styles.notification,
-              { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
-            ]}
-          >
-            <Text style={styles.notificationText}>{message}</Text>
-          </Animated.View>
-        </View>
+      {/* Toast Notification */}
+      {toastVisible && (
+        <Animated.View
+          style={[
+            styles.toastContainer,
+            { 
+              transform: [{ translateY: toastAnim }],
+              backgroundColor: toastType === "success" ? SUCCESS_GREEN : ERROR_RED,
+            },
+          ]}
+        >
+          <View style={styles.toastContent}>
+            <Ionicons 
+              name={toastType === "success" ? "checkmark-circle" : "alert-circle"} 
+              size={24} 
+              color={TEXT_WHITE} 
+            />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        </Animated.View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
-export default EditProduct;
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#202A36" },
+  container: {
+    flex: 1,
+    backgroundColor: SHOPNET_BLUE,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: SHOPNET_BLUE,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingContent: {
+    alignItems: "center",
+  },
+  loadingText: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 12,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2b3645",
-    padding: 15,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: SHOPNET_BLUE,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(66, 165, 245, 0.1)",
   },
-  backBtn: { flexDirection: "row", alignItems: "center", marginRight: 15 },
-  backText: { color: "#fff", marginLeft: 6, fontWeight: "600" },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  form: { padding: 20 },
-  label: { color: "#fff", marginBottom: 6, fontWeight: "600" },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+  },
+  backText: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  headerCenter: {
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: TEXT_WHITE,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+    marginTop: 2,
+  },
+  headerRight: {
+    width: 40,
+    alignItems: "flex-end",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContainer: {
+    paddingBottom: 40,
+  },
+  section: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: TEXT_WHITE,
+    marginLeft: 12,
+  },
+  formContainer: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.1)",
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: TEXT_WHITE,
+    marginBottom: 8,
+  },
+  required: {
+    color: ERROR_RED,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(30, 42, 59, 0.8)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.2)",
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
   input: {
-    backgroundColor: "#2b3645",
-    color: "#fff",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 15,
+    flex: 1,
+    color: TEXT_WHITE,
+    fontSize: 16,
+    paddingVertical: 14,
   },
-  textArea: { height: 80, textAlignVertical: "top" },
-  categoryContainer: {
+  currency: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  charCount: {
+    color: TEXT_SECONDARY,
+    fontSize: 12,
+  },
+  charCountContainer: {
+    position: "absolute",
+    bottom: 8,
+    right: 12,
+  },
+  textAreaContainer: {
+    backgroundColor: "rgba(30, 42, 59, 0.8)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.2)",
+    position: "relative",
+    minHeight: 120,
+  },
+  textAreaIcon: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    zIndex: 1,
+  },
+  textArea: {
+    color: TEXT_WHITE,
+    fontSize: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingLeft: 48,
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
+  categoriesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginTop: 8,
+    justifyContent: "space-between",
   },
-  categoryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#2b3645",
-    borderRadius: 8,
-    marginRight: 10,
-    marginBottom: 10,
+  categoryCard: {
+    width: "48%",
+    backgroundColor: CARD_BG,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.1)",
+    position: "relative",
   },
-  categorySelected: {
-    backgroundColor: "#4CB050",
+  categoryCardSelected: {
+    backgroundColor: PRO_BLUE,
+    borderColor: PRO_BLUE,
+  },
+  categoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  categoryIconSelected: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   categoryText: {
-    color: "#fff",
-    fontWeight: "500",
+    color: TEXT_SECONDARY,
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
   },
   categoryTextSelected: {
-    color: "#fff",
-    fontWeight: "700",
+    color: TEXT_WHITE,
   },
-  saveBtn: {
+  selectedIndicator: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: SUCCESS_GREEN,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  actionsSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginHorizontal: 20,
+    marginTop: 8,
+  },
+  cancelButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4CB050",
-    padding: 15,
-    borderRadius: 10,
-    margin: 20,
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: PRO_BLUE,
+    flex: 1,
+    marginRight: 8,
   },
-  saveText: { color: "#fff", marginLeft: 10, fontWeight: "700" },
-  notificationWrapper: {
-    position: "absolute",
-    top: "40%",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 100,
-  },
-  notification: {
-    backgroundColor: "#25D366",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    minWidth: "60%",
+  saveButton: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: PRO_BLUE,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    flex: 1,
+    marginLeft: 8,
+    elevation: 4,
+    shadowColor: PRO_BLUE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  notificationText: {
-    color: "#fff",
-    fontWeight: "600",
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  cancelButtonText: {
+    color: TEXT_SECONDARY,
     fontSize: 16,
-    textAlign: "center",
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  saveButtonText: {
+    color: TEXT_WHITE,
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  bottomSpacer: {
+    height: 20,
+  },
+  toastContainer: {
+    position: "absolute",
+    top: 0,
+    left: 20,
+    right: 20,
+    backgroundColor: SUCCESS_GREEN,
+    borderRadius: 12,
+    padding: 16,
+    zIndex: 1001,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  toastContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  toastText: {
+    marginLeft: 12,
+    fontSize: 16,
+    fontWeight: "600",
+    color: TEXT_WHITE,
+    flex: 1,
   },
 });
+
+export default EditProduct;

@@ -18,7 +18,9 @@ import axios from 'axios';
 import { saveToken } from '../authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
+
+const API_URL = 'http://100.64.134.89:5000/api/auth';
+
 
 export default function CodeConfirmation() {
   const router = useRouter();

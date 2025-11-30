@@ -19,7 +19,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
-const API_URL = 'https://shopnet-backend.onrender.com/api/products';
+const API_URL = 'http://100.64.134.89:5000/api/products';
+
 
 
 interface ProductFormData {
