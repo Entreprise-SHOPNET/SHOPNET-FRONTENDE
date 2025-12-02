@@ -1,10 +1,9 @@
 
-
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
   StyleSheet,
   Alert,
   Platform,
@@ -14,105 +13,193 @@ import {
   ScrollView,
   Dimensions,
   Image,
-  TextInput
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons, MaterialIcons, FontAwesome, Feather } from '@expo/vector-icons';
-import axios from 'axios';
+  TextInput,
+  Modal,
+  Switch,
+  ActivityIndicator,
+} from "react-native";
+import { useRouter } from "expo-router";
+import {
+  Ionicons,
+  MaterialIcons,
+  FontAwesome,
+  Feather,
+  FontAwesome5,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
-const BASE_URL = 'http://100.64.134.89:5000/api';
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
+const SHOPNET_BLUE = "#00182A";
+const PRO_BLUE = "#42A5F5";
+const PRO_GREEN = "#4CAF50";
+const NOTIFICATION_RED = "#FF3B30";
+const CARD_BG = "rgba(30, 42, 59, 0.9)";
+const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
 
-const settingsSections = [
+const BASE_URL = "http://100.64.134.89:5000";
+
+// Types pour les paramètres
+type SettingsSection = {
+  title: string;
+  items: SettingsItem[];
+};
+
+type SettingsItem = {
+  name: string;
+  route: string;
+  icon: string;
+  badge?: number;
+  iconFamily?: 'ionicons' | 'material' | 'fontawesome' | 'feather';
+};
+
+const initialSettingsSections: SettingsSection[] = [
   {
-    title: "Compte",
+    title: "Compte & Profil",
     items: [
-      { name: 'Mon profil', route: '/profil', icon: 'user' },
-      { name: 'Sécurité', route: '/securite', icon: 'lock' },
-      { name: 'Paiements', route: '/paiement', icon: 'credit-card' },
-      { name: 'Badge Bleu', route: '/badge', icon: 'check-circle' },
-    ]
+      { name: "Mon profil", route: "/Auth/Produits/profil-edit", icon: "person-circle", badge: 0, iconFamily: 'ionicons' },
+      { name: "Sécurité", route: "/Auth/Produits/securite", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
+      { name: "Paiements", route: "/Auth/Produits/paiements", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
+      { name: "Badge Pro", route: "/Auth/Produits/badge-pro", icon: "verified", badge: 0, iconFamily: 'material' },
+    ],
   },
   {
-    title: "Préférences",
+    title: "Notifications & Communications",
     items: [
-      { name: 'Notifications', route: '/notifications', icon: 'bell' },
-      { name: 'Affichage', route: '/affichage', icon: 'desktop' },
-      { name: 'Localisation', route: '/localisation', icon: 'map-marker' },
-      { name: 'Langue', route: '/langue', icon: 'globe' },
-    ]
+      { name: "Notifications", route: "/Auth/Produits/notifications-settings", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
+      { name: "Messages", route: "/Auth/Produits/messages-settings", icon: "chatbubble", badge: 0, iconFamily: 'ionicons' },
+      { name: "Alertes", route: "/Auth/Produits/alertes", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
+      { name: "Son & Vibration", route: "/Auth/Produits/son-vibration", icon: "volume-high", badge: 0, iconFamily: 'ionicons' },
+    ],
   },
   {
-    title: "Votre activité",
+    title: "Apparence & Préférences",
     items: [
-      { name: 'Messages', route: '/messages', icon: 'envelope' },
-      { name: 'Réseau', route: '/reseau', icon: 'users' },
-      { name: 'Publicité', route: '/publicite', icon: 'bullhorn' },
-      { name: 'Historique', route: '/historique', icon: 'history' },
-    ]
+      { name: "Thème", route: "/Auth/Produits/theme", icon: "palette", badge: 0, iconFamily: 'ionicons' },
+      { name: "Langue", route: "/Auth/Produits/langue", icon: "language", badge: 0, iconFamily: 'ionicons' },
+      { name: "Localisation", route: "/Auth/Produits/localisation", icon: "location", badge: 0, iconFamily: 'ionicons' },
+      { name: "Affichage", route: "/Auth/Produits/affichage", icon: "desktop", badge: 0, iconFamily: 'fontawesome' },
+    ],
   },
   {
-    title: "Support",
+    title: "Boutique & Produits",
     items: [
-      { name: 'Aide et support', route: '/support', icon: 'question-circle' },
-      { name: 'Légal', route: '/legaux', icon: 'balance-scale' },
-      { name: 'Équipe', route: '/equipe', icon: 'users' },
-      { name: 'Signaler un problème', route: '../../../MisAjour', icon: 'exclamation-triangle' },
-    ]
+      { name: "Paramètres boutique", route: "/Auth/Boutique/MaBoutique/settings", icon: "store", badge: 0, iconFamily: 'material' },
+      { name: "Gestion produits", route: "/Auth/Produits/Produit", icon: "cube", badge: 0, iconFamily: 'ionicons' },
+      { name: "Livraison", route: "/Auth/Produits/livraison", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
+      { name: "Promotions", route: "/Auth/Produits/promotions", icon: "pricetag", badge: 2, iconFamily: 'ionicons' },
+    ],
   },
   {
-    title: "Boutique",
+    title: "Support & Aide",
     items: [
-      { name: 'Vendeurs', route: '../../../MisAjour', icon: 'store' },
-      { name: 'Acheteurs', route: '../../../MisAjour', icon: 'shopping-cart' },
-      { name: 'Produits', route: '../../../MisAjour', icon: 'box' },
-      { name: 'Livraison', route: '../../../MisAjour', icon: 'truck' },
-    ]
+      { name: "Centre d'aide", route: "/Auth/Produits/centre-aide", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
+      { name: "Signaler un problème", route: "/Auth/Produits/signaler", icon: "warning", badge: 0, iconFamily: 'material' },
+      { name: "Nous contacter", route: "/Auth/Produits/contact", icon: "mail", badge: 0, iconFamily: 'ionicons' },
+      { name: "À propos", route: "/Auth/Produits/about", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
+    ],
+  },
+  {
+    title: "Confidentialité & Sécurité",
+    items: [
+      { name: "Vie privée", route: "/Auth/Produits/privacy", icon: "lock-closed", badge: 0, iconFamily: 'ionicons' },
+      { name: "Sécurité avancée", route: "/Auth/Produits/advanced-security", icon: "shield", badge: 0, iconFamily: 'ionicons' },
+      { name: "Historique", route: "/Auth/Produits/historique", icon: "time", badge: 0, iconFamily: 'ionicons' },
+      { name: "Autorisations", route: "/Auth/Produits/permissions", icon: "key", badge: 0, iconFamily: 'fontawesome' },
+    ],
   },
 ];
 
 const SettingsScreen = () => {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [userData, setUserData] = useState({
-    name: "SHOPNET",
-    email: "Entreprishe SHOPNET",
-    avatar: "https://res.cloudinary.com/dddr7gb6w/image/upload/v1754689052/shopnet/product_1754689050822_5996.jpg"
-  });
-  const [searchText, setSearchText] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
+  const [userData, setUserData] = useState({
+    name: "SHOPNET Pro",
+    email: "entreprise@shopnet.com",
+    role: "Vendeur Premium",
+    avatar: "https://res.cloudinary.com/dddr7gb6w/image/upload/v1754689052/shopnet/product_1754689050822_5996.jpg",
+    boutique: "SHOPNET Official",
+    memberSince: "2023",
+  });
+
+  const [searchText, setSearchText] = useState("");
+  const [searchResults, setSearchResults] = useState<SettingsItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [settingsSections, setSettingsSections] = useState<SettingsSection[]>(initialSettingsSections);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(true);
+  const [locationEnabled, setLocationEnabled] = useState(true);
+  const [advancedSecurityEnabled, setAdvancedSecurityEnabled] = useState(false);
+
+  // Animation au chargement
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setUserData({
-          name: "SHOPNET",
-        email: "Entreprishe SHOPNET",
-        avatar: "https://res.cloudinary.com/dddr7gb6w/image/upload/v1754689052/shopnet/product_1754689050822_5996.jpg"
-            });
-      } catch (error) {
-        console.error("Erreur de chargement des données utilisateur", error);
-      }
-    };
-    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     fetchUserData();
   }, []);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        router.push("/splash");
+        return;
+      }
+
+      const response = await axios.get(`${BASE_URL}/api/user/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.data.success) {
+        const user = response.data.user;
+        setUserData({
+          name: user.fullName || "SHOPNET Pro",
+          email: user.email || "entreprise@shopnet.com",
+          role: "Vendeur Premium",
+          avatar: user.profile_photo || "https://res.cloudinary.com/dddr7gb6w/image/upload/v1754689052/shopnet/product_1754689050822_5996.jpg",
+          boutique: "SHOPNET Official",
+          memberSince: new Date(user.date_inscription).getFullYear().toString(),
+        });
+      }
+    } catch (error) {
+      console.error("Erreur de chargement des données utilisateur", error);
+      Alert.alert("Erreur", "Impossible de charger les données du profil");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (text: string) => {
     setSearchText(text);
     if (text.length > 0) {
       setIsSearching(true);
-      const results: any[] = [];
-      
-      settingsSections.forEach(section => {
-        section.items.forEach(item => {
+      const results: SettingsItem[] = [];
+
+      settingsSections.forEach((section) => {
+        section.items.forEach((item) => {
           if (item.name.toLowerCase().includes(text.toLowerCase())) {
-            results.push({ ...item, sectionTitle: section.title });
+            results.push(item);
           }
         });
       });
-      
+
       setSearchResults(results);
     } else {
       setIsSearching(false);
@@ -122,222 +209,443 @@ const SettingsScreen = () => {
 
   const handleLogout = async () => {
     Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      "Déconnexion",
+      "Êtes-vous sûr de vouloir vous déconnecter ?",
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: "Annuler", style: "cancel" },
         {
-          text: 'Déconnexion',
+          text: "Déconnexion",
           onPress: async () => {
             try {
-              await axios.post(`${BASE_URL}/auth/logout`);
-              router.push('/login');
+              await AsyncStorage.removeItem("userToken");
+              router.push("/splash");
             } catch (error) {
-              Alert.alert('Erreur', 'Échec de la déconnexion');
+              Alert.alert("Erreur", "Échec de la déconnexion");
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, -50],
-    extrapolate: 'clamp',
+  const handleSaveSettings = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem("userToken");
+      
+      // Envoyer les paramètres au backend
+      const settingsData = {
+        notifications_enabled: notificationsEnabled,
+        dark_mode: darkModeEnabled,
+        location_enabled: locationEnabled,
+        advanced_security: advancedSecurityEnabled,
+        updated_at: new Date().toISOString(),
+      };
+
+      await axios.post(
+        `${BASE_URL}/api/user/settings`,
+        settingsData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      Alert.alert("Succès", "Paramètres sauvegardés avec succès");
+    } catch (error) {
+      console.error("Erreur sauvegarde paramètres:", error);
+      Alert.alert("Erreur", "Impossible de sauvegarder les paramètres");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncData = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem("userToken");
+      
+      // Synchroniser les données avec le serveur
+      await axios.post(
+        `${BASE_URL}/api/user/sync`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Recharger les données utilisateur
+      await fetchUserData();
+      
+      Alert.alert("Succès", "Données synchronisées avec succès");
+    } catch (error) {
+      console.error("Erreur synchronisation:", error);
+      Alert.alert("Erreur", "Impossible de synchroniser les données");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderIcon = (item: SettingsItem) => {
+    const size = 22;
+    const color = PRO_BLUE;
+
+    switch (item.iconFamily) {
+      case 'material':
+        return <MaterialIcons name={item.icon as any} size={size} color={color} />;
+      case 'fontawesome':
+        return <FontAwesome name={item.icon as any} size={size} color={color} />;
+      case 'feather':
+        return <Feather name={item.icon as any} size={size} color={color} />;
+      default:
+        return <Ionicons name={item.icon as any} size={size} color={color} />;
+    }
+  };
+
+  const renderSettingsItem = (item: SettingsItem) => (
+    <Animated.View
+      key={item.name}
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }}
+    >
+      <TouchableOpacity
+        style={styles.settingItem}
+        onPress={() => {
+          if (item.route) {
+            router.push(item.route);
+          }
+        }}
+      >
+        <View style={styles.itemLeft}>
+          <View style={styles.itemIconContainer}>
+            {renderIcon(item)}
+          </View>
+          <Text style={styles.itemText}>{item.name}</Text>
+        </View>
+        <View style={styles.itemRight}>
+          {item.badge && item.badge > 0 && (
+            <View style={styles.itemBadge}>
+              <Text style={styles.itemBadgeText}>{item.badge}</Text>
+            </View>
+          )}
+          <Feather name="chevron-right" size={20} color={PRO_BLUE} />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [220, 120],
+    extrapolate: "clamp",
   });
 
-  const renderSettingsItem = (item: any) => (
-    <TouchableOpacity
-      key={item.name}
-      style={styles.settingItem}
-      onPress={() => router.push(item.route)}
-    >
-      <View style={styles.itemLeft}>
-        <FontAwesome name={item.icon} size={18} color="#A0A6B1" style={styles.itemIcon} />
-        <Text style={styles.itemText}>{item.name}</Text>
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.8],
+    extrapolate: "clamp",
+  });
+
+  if (loading && !userData.name) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={PRO_BLUE} />
+        <Text style={styles.loadingText}>Chargement des paramètres...</Text>
       </View>
-      <Feather name="chevron-right" size={18} color="#3D4A5C" />
-    </TouchableOpacity>
-  );
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
-        <Text style={styles.headerTitle}>Paramètres</Text>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#A0A6B1" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher dans les paramètres..."
-            placeholderTextColor="#A0A6B1"
-            value={searchText}
-            onChangeText={handleSearch}
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity 
-              style={styles.clearButton} 
-              onPress={() => {
-                setSearchText('');
-                setIsSearching(false);
-                setSearchResults([]);
-              }}
+      {/* Header avec effet de parallax */}
+      <Animated.View
+        style={[
+          styles.headerContainer,
+          {
+            height: headerHeight,
+            opacity: headerOpacity,
+          },
+        ]}
+      >
+        <View style={styles.headerBackground}>
+          <View style={styles.glowCircle1} />
+          <View style={styles.glowCircle2} />
+        </View>
+
+        <View style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.push("/")}
             >
-              <Ionicons name="close" size={20} color="#A0A6B1" />
+              <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
-          )}
+            <Text style={styles.headerTitle}>Paramètres Pro</Text>
+            <TouchableOpacity
+              style={styles.syncButton}
+              onPress={handleSyncData}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={PRO_BLUE} />
+              ) : (
+                <Ionicons name="sync" size={24} color={PRO_BLUE} />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.userInfoCard}>
+            <TouchableOpacity onPress={() => router.push("/Auth/Produits/profil-edit")}>
+              <Image source={{ uri: userData.avatar }} style={styles.userAvatar} />
+              <View style={styles.editAvatarBadge}>
+                <Ionicons name="camera" size={12} color="#fff" />
+              </View>
+            </TouchableOpacity>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{userData.name}</Text>
+              <Text style={styles.userEmail}>{userData.email}</Text>
+              <View style={styles.userRoleContainer}>
+                <Text style={styles.userRole}>{userData.role}</Text>
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={12} color={PRO_BLUE} />
+                </View>
+              </View>
+              <Text style={styles.userSince}>
+                <Ionicons name="calendar" size={12} color={PRO_BLUE} /> Membre depuis {userData.memberSince}
+              </Text>
+            </View>
+          </View>
         </View>
       </Animated.View>
 
-      <Animated.ScrollView
+      <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Header utilisateur */}
-        <View style={styles.userHeader}>
-          <Image 
-            source={{ uri: userData.avatar }} 
-            style={styles.userAvatar} 
+        {/* Barre de recherche */}
+        <Animated.View
+          style={[
+            styles.searchContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Ionicons name="search" size={20} color={PRO_BLUE} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un paramètre..."
+            placeholderTextColor="#A0AEC0"
+            value={searchText}
+            onChangeText={handleSearch}
           />
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{userData.name}</Text>
-            <Text style={styles.userEmail}>{userData.email}</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => router.push('/MisAjour')}
-          >
-            <Ionicons name="pencil" size={16} color="#4CB050" />
-          </TouchableOpacity>
-        </View>
+          {searchText.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => {
+                setSearchText("");
+                setIsSearching(false);
+                setSearchResults([]);
+              }}
+            >
+              <Ionicons name="close-circle" size={20} color={NOTIFICATION_RED} />
+            </TouchableOpacity>
+          )}
+        </Animated.View>
 
-        {/* Section horizontale */}
-        <View style={styles.horizontalSection}>
-          <TouchableOpacity 
-            style={styles.horizontalItem}
-            onPress={() => router.push('/MisAjour')}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="notifications" size={24} color="#4CB050" />
+        {/* Section des réglages rapides */}
+        <Animated.View
+          style={[
+            styles.quickSettingsSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>Réglages rapides</Text>
+          <View style={styles.quickSettingsGrid}>
+            <View style={styles.quickSettingItem}>
+              <View style={styles.quickSettingHeader}>
+                <Ionicons name="notifications" size={24} color={PRO_BLUE} />
+                <Switch
+                  value={notificationsEnabled}
+                  onValueChange={setNotificationsEnabled}
+                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
+                  thumbColor="#fff"
+                />
+              </View>
+              <Text style={styles.quickSettingText}>Notifications</Text>
+              <Text style={styles.quickSettingSubText}>Activer/Désactiver</Text>
             </View>
-            <Text style={styles.horizontalText}>Notifications</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.horizontalItem}
-            onPress={() => router.push('/MisAjour')}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="lock-closed" size={24} color="#4CB050" />
+
+            <View style={styles.quickSettingItem}>
+              <View style={styles.quickSettingHeader}>
+                <Ionicons name="moon" size={24} color={PRO_BLUE} />
+                <Switch
+                  value={darkModeEnabled}
+                  onValueChange={setDarkModeEnabled}
+                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
+                  thumbColor="#fff"
+                />
+              </View>
+              <Text style={styles.quickSettingText}>Mode sombre</Text>
+              <Text style={styles.quickSettingSubText}>Thème Shopnet</Text>
             </View>
-            <Text style={styles.horizontalText}>Sécurité</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.horizontalItem}
-            onPress={() => router.push('/MisAjour')}
-          >
-            <View style={styles.iconCircle}>
-              <Ionicons name="help-circle" size={24} color="#4CB050" />
+
+            <View style={styles.quickSettingItem}>
+              <View style={styles.quickSettingHeader}>
+                <Ionicons name="location" size={24} color={PRO_BLUE} />
+                <Switch
+                  value={locationEnabled}
+                  onValueChange={setLocationEnabled}
+                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
+                  thumbColor="#fff"
+                />
+              </View>
+              <Text style={styles.quickSettingText}>Localisation</Text>
+              <Text style={styles.quickSettingSubText}>Partager ma position</Text>
             </View>
-            <Text style={styles.horizontalText}>Aide</Text>
+
+            <View style={styles.quickSettingItem}>
+              <View style={styles.quickSettingHeader}>
+                <Ionicons name="shield-checkmark" size={24} color={PRO_BLUE} />
+                <Switch
+                  value={advancedSecurityEnabled}
+                  onValueChange={setAdvancedSecurityEnabled}
+                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
+                  thumbColor="#fff"
+                />
+              </View>
+              <Text style={styles.quickSettingText}>Sécurité avancée</Text>
+              <Text style={styles.quickSettingSubText}>Protection renforcée</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.saveSettingsButton}
+            onPress={handleSaveSettings}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="save" size={20} color="#fff" />
+                <Text style={styles.saveSettingsText}>Sauvegarder les réglages</Text>
+              </>
+            )}
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Résultats de recherche */}
-        {isSearching && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Résultats de recherche</Text>
+        {isSearching ? (
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>
+              Résultats pour "{searchText}"
+            </Text>
             <View style={styles.sectionContent}>
               {searchResults.length > 0 ? (
-                searchResults.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.settingItem}
-                    onPress={() => router.push(item.route)}
-                  >
-                    <View style={styles.itemLeft}>
-                      <FontAwesome name={item.icon} size={18} color="#A0A6B1" style={styles.itemIcon} />
-                      <View>
-                        <Text style={styles.itemText}>{item.name}</Text>
-                        <Text style={styles.sectionSubtitle}>{item.sectionTitle}</Text>
-                      </View>
-                    </View>
-                    <Feather name="chevron-right" size={18} color="#3D4A5C" />
-                  </TouchableOpacity>
-                ))
+                searchResults.map((item, index) => renderSettingsItem(item))
               ) : (
-                <Text style={styles.noResultsText}>Aucun résultat trouvé</Text>
+                <View style={styles.noResultsContainer}>
+                  <Ionicons name="search-outline" size={48} color={PRO_BLUE} />
+                  <Text style={styles.noResultsText}>Aucun paramètre trouvé</Text>
+                  <Text style={styles.noResultsSubText}>
+                    Essayez avec d'autres mots-clés
+                  </Text>
+                </View>
               )}
             </View>
-          </View>
+          </Animated.View>
+        ) : (
+          /* Sections de paramètres */
+          settingsSections.map((section, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.section,
+                {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <View style={styles.sectionContent}>
+                {section.items.map(renderSettingsItem)}
+              </View>
+            </Animated.View>
+          ))
         )}
 
-        {/* Sections verticales (affichées quand pas de recherche) */}
-        {!isSearching && settingsSections.map((section, index) => (
-          <View key={index} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.sectionContent}>
-              {section.items.map(renderSettingsItem)}
+        {/* Section informations */}
+        <Animated.View
+          style={[
+            styles.infoSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.infoItem}>
+            <Ionicons name="information-circle" size={20} color={PRO_BLUE} />
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoTitle}>Version de l'application</Text>
+              <Text style={styles.infoValue}>Shopnet Pro 2.5.1</Text>
             </View>
           </View>
-        ))}
+
+          <View style={styles.infoItem}>
+            <Ionicons name="phone-portrait" size={20} color={PRO_BLUE} />
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoTitle}>Appareil</Text>
+              <Text style={styles.infoValue}>React Native / Expo</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoItem}>
+            <Ionicons name="cloud" size={20} color={PRO_BLUE} />
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoTitle}>Dernière synchronisation</Text>
+              <Text style={styles.infoValue}>À l'instant</Text>
+            </View>
+          </View>
+        </Animated.View>
 
         {/* Bouton déconnexion */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={20} color="#ff6b6b" />
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          disabled={loading}
+        >
+          <MaterialIcons name="logout" size={22} color={NOTIFICATION_RED} />
           <Text style={styles.logoutText}>Déconnexion</Text>
         </TouchableOpacity>
 
-      </Animated.ScrollView>
-
-      {/* Barre de navigation en bas - Agrandie */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => router.push('/')}
-        >
-          <Ionicons name="home" size={24} color="#4CB050" />
-          <Text style={styles.navText}>Accueil</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => router.push('/MisAjour')}
-        >
-          <Ionicons name="compass" size={24} color="#A0A6B1" />
-          <Text style={styles.navText}>Découvrir</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => router.push('/MisAjour')}
-        >
-          <Ionicons name="people" size={24} color="#A0A6B1" />
-          <Text style={styles.navText}>Réseau</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => router.push('/MisAjour')}
-        >
-          <Ionicons name="notifications" size={24} color="#A0A6B1" />
-          <Text style={styles.navText}>Alertes</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => router.push('/MisAjour')}
-        >
-          <Ionicons name="mail" size={24} color="#A0A6B1" />
-          <Text style={styles.navText}>Messages</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>© 2024 Shopnet Pro. Tous droits réservés.</Text>
+          <Text style={styles.footerSubText}>Version 2.5.1 • Build 2412</Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -345,213 +653,373 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#202A36',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: SHOPNET_BLUE,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
-  header: {
-    position: 'absolute',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: SHOPNET_BLUE,
+  },
+  loadingText: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    marginTop: 12,
+    fontWeight: "600",
+  },
+  headerContainer: {
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 100,
-    backgroundColor: '#2A3646',
-    borderBottomWidth: 1,
-    borderBottomColor: '#3D4A5C',
-    paddingTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 60,
-    paddingHorizontal: 15,
+    zIndex: 10,
+    backgroundColor: SHOPNET_BLUE,
+    overflow: "hidden",
+  },
+  headerBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  glowCircle1: {
+    position: "absolute",
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(66, 165, 245, 0.03)",
+  },
+  glowCircle2: {
+    position: "absolute",
+    bottom: -50,
+    left: -50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(66, 165, 245, 0.02)",
+  },
+  headerContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    justifyContent: "space-between",
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 10,
+  },
+  backButton: {
+    padding: 8,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#F0F2F5',
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.5,
   },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E2A3A',
-    borderRadius: 8,
-    marginLeft: 15,
-    paddingHorizontal: 10,
-    height: 36,
+  syncButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: CARD_BG,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#F0F2F5',
-    height: 36,
-    fontSize: 14,
-  },
-  clearButton: {
-    padding: 4,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#202A36',
-  },
-  contentContainer: {
-    paddingTop: 60,
-    paddingBottom: 80, // Augmenté pour la barre de navigation plus grande
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#2A3646',
-    borderBottomWidth: 1,
-    borderBottomColor: '#3D4A5C',
+  userInfoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingBottom: 20,
   },
   userAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 12,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 3,
+    borderColor: PRO_BLUE,
+  },
+  editAvatarBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: PRO_BLUE,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: SHOPNET_BLUE,
   },
   userInfo: {
     flex: 1,
+    marginLeft: 16,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#F0F2F5',
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#fff",
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#A0A6B1',
+    color: PRO_BLUE,
+    marginBottom: 6,
   },
-  editButton: {
-    padding: 6,
+  userRoleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
   },
-  horizontalSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#2A3646',
-    padding: 15,
-    marginBottom: 10,
+  userRole: {
+    fontSize: 13,
+    color: "#A0AEC0",
+    fontWeight: "600",
   },
-  horizontalItem: {
-    alignItems: 'center',
+  verifiedBadge: {
+    marginLeft: 4,
+  },
+  userSince: {
+    fontSize: 12,
+    color: "#A0AEC0",
+  },
+  container: {
     flex: 1,
+    backgroundColor: "transparent",
   },
-  iconCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#1E2A3A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+  contentContainer: {
+    paddingTop: 220,
+    paddingBottom: 40,
   },
-  horizontalText: {
-    fontSize: 14,
-    color: '#F0F2F5',
-    textAlign: 'center',
+  searchContainer: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
   },
-  section: {
-    backgroundColor: '#2A3646',
-    borderRadius: 8,
-    margin: 10,
-    marginTop: 10,
-    overflow: 'hidden',
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 16,
+    padding: 0,
+  },
+  clearButton: {
+    padding: 4,
+  },
+  quickSettingsSection: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#A0A6B1',
-    padding: 12,
-    backgroundColor: '#1E2A3A',
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: 16,
+    letterSpacing: 0.5,
   },
-  sectionSubtitle: {
+  quickSettingsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  quickSettingItem: {
+    width: "48%",
+    backgroundColor: "rgba(26, 38, 51, 0.8)",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  quickSettingHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  quickSettingText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  quickSettingSubText: {
+    color: "#A0AEC0",
     fontSize: 12,
-    color: '#65676B',
-    marginTop: 2,
+  },
+  saveSettingsButton: {
+    flexDirection: "row",
+    backgroundColor: PRO_BLUE,
+    borderRadius: 12,
+    padding: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  saveSettingsText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  section: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
   },
   sectionContent: {
     paddingHorizontal: 8,
   },
   settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#3D4A5C',
+    borderBottomColor: "rgba(66, 165, 245, 0.05)",
   },
   itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
-  itemIcon: {
-    width: 24,
+  itemIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   itemText: {
     fontSize: 16,
-    color: '#F0F2F5',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    backgroundColor: '#2A3646',
-    borderRadius: 8,
-    padding: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 10,
-    marginTop: 16,
-  },
-  logoutText: {
-    color: '#ff6b6b',
-    fontWeight: 'bold',
-    marginLeft: 10,
-    fontSize: 16,
-  },
-  noResultsText: {
-    color: '#A0A6B1',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  footer: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  footerText: {
-    color: '#65676B',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#2A3646',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderTopColor: '#3D4A5C',
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    height: 70, // Augmenté la hauteur
-  },
-  navItem: {
-    alignItems: 'center',
-    paddingHorizontal: 8,
+    color: "#E2E8F0",
+    fontWeight: "500",
     flex: 1,
   },
-  navText: {
-    color: '#A0A6B1',
+  itemRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  itemBadge: {
+    backgroundColor: NOTIFICATION_RED,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  itemBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+    paddingHorizontal: 4,
+  },
+  noResultsContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  noResultsText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  noResultsSubText: {
+    color: "#A0AEC0",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  infoSection: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  infoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  infoTextContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  infoTitle: {
+    color: "#A0AEC0",
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  infoValue: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  logoutButton: {
+    flexDirection: "row",
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 107, 0.2)",
+  },
+  logoutText: {
+    color: NOTIFICATION_RED,
+    fontSize: 17,
+    fontWeight: "700",
+    marginLeft: 12,
+  },
+  footer: {
+    alignItems: "center",
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: BORDER_COLOR,
+    marginHorizontal: 20,
+  },
+  footerText: {
+    color: "#A0AEC0",
     fontSize: 12,
-    marginTop: 6,
-    fontWeight: '500',
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  footerSubText: {
+    color: "#718096",
+    fontSize: 11,
+    textAlign: "center",
   },
 });
+
 
 export default SettingsScreen;

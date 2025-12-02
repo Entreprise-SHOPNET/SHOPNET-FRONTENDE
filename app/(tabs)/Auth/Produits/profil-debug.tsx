@@ -30,12 +30,24 @@ import {
   Entypo,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
- 
 
 const BASE_URL = "http://100.64.134.89:5000";
 const { width } = Dimensions.get("window");
 const PRO_BLUE = "#42A5F5";
 const SHOPNET_BLUE = "#00182A";
+const NOTIFICATION_RED = "#FF3B30";
+
+// Types pour les notifications
+type Notification = {
+  id: string;
+  title: string;
+  message: string;
+  type: 'statistic' | 'order' | 'message' | 'shop' | 'promotion' | 'setting';
+  isRead: boolean;
+  createdAt: string;
+  icon?: string;
+  data?: any;
+};
 
 type Product = {
   id: number;
@@ -60,6 +72,138 @@ type UserProfile = {
   ordersCount: number;
 };
 
+// Données mockées pour les notifications
+const MOCK_NOTIFICATIONS: Notification[] = [
+  {
+    id: '1',
+    title: 'Nouvelle statistique 📈',
+    message: 'Votre boutique a été vue 150 fois cette semaine',
+    type: 'statistic',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    icon: 'bar-chart',
+    data: { views: 150 }
+  },
+  {
+    id: '2',
+    title: 'Nouvelle commande 🛒',
+    message: 'Commande #7890 confirmée par Marie',
+    type: 'order',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    icon: 'cart',
+    data: { orderId: 7890 }
+  },
+  {
+    id: '3',
+    title: 'Nouveau message 💬',
+    message: 'Jean vous a envoyé un message',
+    type: 'message',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+    icon: 'chatbubble',
+    data: { sender: 'Jean' }
+  },
+  {
+    id: '4',
+    title: 'Mise à jour boutique 🏪',
+    message: 'Votre boutique a été mise en avant',
+    type: 'shop',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+    icon: 'store',
+    data: { featured: true }
+  },
+  {
+    id: '5',
+    title: 'Promotion expirant bientôt ⏰',
+    message: 'Votre promotion sur les smartphones expire dans 2h',
+    type: 'promotion',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    icon: 'pricetag',
+    data: { promotionId: 123 }
+  },
+  {
+    id: '6',
+    title: 'Mise à jour paramètres ⚙️',
+    message: 'Nouvelles options de paiement disponibles',
+    type: 'setting',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
+    icon: 'settings',
+    data: { feature: 'paiement' }
+  },
+  {
+    id: '7',
+    title: 'Commande annulée ❌',
+    message: 'Commande #7891 a été annulée',
+    type: 'order',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+    icon: 'close-circle',
+    data: { orderId: 7891 }
+  },
+  {
+    id: '8',
+    title: 'Nouveau commentaire ⭐',
+    message: 'Pierre a commenté votre produit',
+    type: 'message',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 200).toISOString(),
+    icon: 'star',
+    data: { productId: 456 }
+  },
+  {
+    id: '9',
+    title: 'Statistique hebdomadaire 📊',
+    message: '+25% de ventes cette semaine',
+    type: 'statistic',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+    icon: 'trending-up',
+    data: { increase: 25 }
+  },
+  {
+    id: '10',
+    title: 'Promotion créée 🎉',
+    message: 'Votre promotion sur les casques est active',
+    type: 'promotion',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
+    icon: 'flash',
+    data: { promotionId: 456 }
+  }
+];
+
+// Composant pour les badges de notification - MODIFIÉ
+const NotificationBadge = ({ count, small = false }: { count: number, small?: boolean }) => {
+  if (count <= 0) return null;
+  
+  // Afficher "+9" quand plus de 10 notifications (pas 10)
+  const displayCount = count > 10 ? '+9' : count.toString();
+  
+  return (
+    <View style={[
+      styles.badge,
+      small ? styles.smallBadge : styles.regularBadge,
+    ]}>
+      <Text style={[
+        styles.badgeText,
+        small ? styles.smallBadgeText : styles.regularBadgeText
+      ]}>
+        {displayCount}
+      </Text>
+    </View>
+  );
+};
+
+// Fonction pour générer des nombres aléatoires limités à 10
+const generateRandomCount = (min: number, max: number): number => {
+  const count = Math.floor(Math.random() * (max - min + 1)) + min;
+  return count > 10 ? 10 : count;
+};
+
 export default function ProfilVendeurPremium() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -68,16 +212,71 @@ export default function ProfilVendeurPremium() {
   const [refreshing, setRefreshing] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
-  const [photoModalType, setPhotoModalType] = useState<
-    "profile" | "cover" | null
-  >(null);
+  const [photoModalType, setPhotoModalType] = useState<"profile" | "cover" | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
+
+  // État pour les notifications et badges
+  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [badgeCounts, setBadgeCounts] = useState({
+    statistics: generateRandomCount(0, 15),
+    orders: generateRandomCount(0, 15),
+    messages: generateRandomCount(0, 15),
+    boutique: generateRandomCount(0, 15),
+    promotions: generateRandomCount(0, 15),
+    settings: generateRandomCount(0, 15)
+  });
 
   // Animations
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(30))[0];
   const scaleAnim = useState(new Animated.Value(0.9))[0];
+
+  // Calculer les notifications non lues
+  useEffect(() => {
+    const updateBadgeCounts = () => {
+      setBadgeCounts({
+        statistics: generateRandomCount(0, 15),
+        orders: generateRandomCount(0, 15),
+        messages: generateRandomCount(0, 15),
+        boutique: generateRandomCount(0, 15),
+        promotions: generateRandomCount(0, 15),
+        settings: generateRandomCount(0, 15)
+      });
+    };
+
+    // Mettre à jour les badges toutes les 30 secondes (simulation)
+    const interval = setInterval(updateBadgeCounts, 30000);
+    
+    // Initialiser les badges au chargement
+    updateBadgeCounts();
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fonction pour réinitialiser un badge
+  const resetBadge = (key: keyof typeof badgeCounts) => {
+    setBadgeCounts(prev => ({
+      ...prev,
+      [key]: 0
+    }));
+    
+    // Marquer les notifications de ce type comme lues
+    const typeMap: { [key: string]: Notification['type'] } = {
+      statistics: 'statistic',
+      orders: 'order',
+      messages: 'message',
+      boutique: 'shop',
+      promotions: 'promotion',
+      settings: 'setting'
+    };
+    
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.type === typeMap[key] ? { ...notification, isRead: true } : notification
+      )
+    );
+  };
 
   // Charger token et profil
   const loadTokenAndUser = useCallback(async () => {
@@ -200,8 +399,7 @@ export default function ProfilVendeurPremium() {
   const handleChoosePhoto = useCallback(async () => {
     if (!token || !photoModalType) return;
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") throw new Error("Permission refusée");
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -270,6 +468,14 @@ export default function ProfilVendeurPremium() {
       return dateStr;
     }
   }, []);
+
+  // Gestion de la navigation avec réinitialisation des badges
+  const handleNavigation = useCallback((route: string, badgeKey?: keyof typeof badgeCounts) => {
+    if (badgeKey) {
+      resetBadge(badgeKey);
+    }
+    router.push(route);
+  }, [router]);
 
   const renderProductItem = useCallback(
     ({ item }: { item: Product }) => (
@@ -533,7 +739,7 @@ export default function ProfilVendeurPremium() {
           </View>
         </Animated.View>
 
-        {/* Tableau de Bord Pro */}
+        {/* Tableau de Bord Pro AVEC BADGES */}
         <Animated.View
           style={[
             styles.dashboardSection,
@@ -551,57 +757,66 @@ export default function ProfilVendeurPremium() {
                 subtitle: "Analyses détaillées",
                 icon: "bar-chart",
                 color: PRO_BLUE,
-                onPress: () =>
-                  router.push("/(tabs)/Auth/Profiles/Statistiques"),
+                badgeCount: badgeCounts.statistics,
+                badgeKey: "statistics" as const,
+                route: "/(tabs)/Auth/Profiles/Statistiques",
               },
               {
                 title: "Commandes",
                 subtitle: "Gestion des ventes",
                 icon: "shopping-cart",
                 color: "#4CAF50",
-                onPress: () =>
-                  router.push("/(tabs)/Auth/Panier/VendeurNotifications"),
+                badgeCount: badgeCounts.orders,
+                badgeKey: "orders" as const,
+                route: "/(tabs)/Auth/Panier/VendeurNotifications",
               },
               {
                 title: "Messages",
                 subtitle: "Support clients",
                 icon: "message-square",
                 color: "#FFA726",
-                onPress: () => router.push("/MisAjour"),
+                badgeCount: badgeCounts.messages,
+                badgeKey: "messages" as const,
+                route: "/MisAjour",
               },
               {
                 title: "Avis",
                 subtitle: "Réputation",
                 icon: "star",
                 color: PRO_BLUE,
-                onPress: () => router.push("/MisAjour"),
+                route: "/MisAjour",
               },
             ].map((item, index) => (
               <TouchableOpacity
                 key={index}
                 style={styles.dashboardCard}
-                onPress={item.onPress}
+                onPress={() => handleNavigation(item.route, item.badgeKey)}
               >
-                <View
-                  style={[
-                    styles.dashboardIcon,
-                    { backgroundColor: `${item.color}15` },
-                  ]}
-                >
-                  <Feather
-                    name={item.icon as any}
-                    size={24}
-                    color={item.color}
-                  />
+                <View style={styles.dashboardCardContent}>
+                  <View
+                    style={[
+                      styles.dashboardIcon,
+                      { backgroundColor: `${item.color}15` },
+                    ]}
+                  >
+                    <Feather
+                      name={item.icon as any}
+                      size={24}
+                      color={item.color}
+                    />
+                    {item.badgeCount && item.badgeCount > 0 && (
+                      <NotificationBadge count={item.badgeCount} small />
+                    )}
+                  </View>
+                  <Text style={styles.dashboardTitle}>{item.title}</Text>
+                  <Text style={styles.dashboardSubtitle}>{item.subtitle}</Text>
                 </View>
-                <Text style={styles.dashboardTitle}>{item.title}</Text>
-                <Text style={styles.dashboardSubtitle}>{item.subtitle}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </Animated.View>
 
-        {/* Menu Actions Rapides */}
+        {/* Menu Actions Rapides AVEC BADGES */}
         <Animated.View
           style={[
             styles.quickActionsSection,
@@ -616,6 +831,9 @@ export default function ProfilVendeurPremium() {
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={async () => {
+                // Réinitialiser le badge boutique
+                resetBadge('boutique');
+                
                 try {
                   const token = await AsyncStorage.getItem("userToken");
                   if (!token) {
@@ -650,60 +868,83 @@ export default function ProfilVendeurPremium() {
                 }
               }}
             >
-              <View
-                style={[
-                  styles.quickActionIcon,
-                  { backgroundColor: `${PRO_BLUE}15` },
-                ]}
-              >
-                <MaterialIcons name="store" size={24} color={PRO_BLUE} />
+              <View style={styles.quickActionIconContainer}>
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: `${PRO_BLUE}15` },
+                  ]}
+                >
+                  <MaterialIcons name="store" size={24} color={PRO_BLUE} />
+                  {badgeCounts.boutique > 0 && (
+                    <NotificationBadge count={badgeCounts.boutique} small />
+                  )}
+                </View>
+                <Text style={styles.quickActionText}>Boutique</Text>
               </View>
-              <Text style={styles.quickActionText}>Boutique</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={() => router.push("/(tabs)/Auth/Produits/Produit")}
             >
-              <View
-                style={[
-                  styles.quickActionIcon,
-                  { backgroundColor: `${PRO_BLUE}15` },
-                ]}
-              >
-                <Ionicons name="add-circle" size={24} color={PRO_BLUE} />
+              <View style={styles.quickActionIconContainer}>
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: `${PRO_BLUE}15` },
+                  ]}
+                >
+                  <Ionicons name="add-circle" size={24} color={PRO_BLUE} />
+                </View>
+                <Text style={styles.quickActionText}>Ajouter</Text>
               </View>
-              <Text style={styles.quickActionText}>Ajouter</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.quickActionButton}
-              onPress={() => router.push("/MisAjour")}
+              onPress={() => {
+                resetBadge('promotions');
+                router.push("/MisAjour");
+              }}
             >
-              <View
-                style={[
-                  styles.quickActionIcon,
-                  { backgroundColor: `${PRO_BLUE}15` },
-                ]}
-              >
-                <MaterialIcons name="local-offer" size={24} color={PRO_BLUE} />
+              <View style={styles.quickActionIconContainer}>
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: `${PRO_BLUE}15` },
+                  ]}
+                >
+                  <MaterialIcons name="local-offer" size={24} color={PRO_BLUE} />
+                  {badgeCounts.promotions > 0 && (
+                    <NotificationBadge count={badgeCounts.promotions} small />
+                  )}
+                </View>
+                <Text style={styles.quickActionText}>Promotions</Text>
               </View>
-              <Text style={styles.quickActionText}>Promotions</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.quickActionButton}
-              onPress={() => router.push("/Auth/Produits/parametre")}
+              onPress={() => {
+                resetBadge('settings');
+                router.push("/Auth/Produits/parametre");
+              }}
             >
-              <View
-                style={[
-                  styles.quickActionIcon,
-                  { backgroundColor: `${PRO_BLUE}15` },
-                ]}
-              >
-                <Ionicons name="settings" size={24} color={PRO_BLUE} />
+              <View style={styles.quickActionIconContainer}>
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: `${PRO_BLUE}15` },
+                  ]}
+                >
+                  <Ionicons name="settings" size={24} color={PRO_BLUE} />
+                  {badgeCounts.settings > 0 && (
+                    <NotificationBadge count={badgeCounts.settings} small />
+                  )}
+                </View>
+                <Text style={styles.quickActionText}>Paramètres</Text>
               </View>
-              <Text style={styles.quickActionText}>Paramètres</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -898,7 +1139,7 @@ const FullscreenPhotoModal = ({
   </Modal>
 );
 
-// Styles VIP Pro
+// Styles VIP Pro avec modifications pour les badges
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -1144,7 +1385,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Dashboard Section
+  // Dashboard Section avec badges
   dashboardSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -1159,11 +1400,14 @@ const styles = StyleSheet.create({
     width: "48%",
     backgroundColor: "rgba(30, 42, 59, 0.9)",
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
-    alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(66, 165, 245, 0.1)",
+  },
+  dashboardCardContent: {
+    alignItems: "center",
+    position: 'relative',
   },
   dashboardIcon: {
     width: 50,
@@ -1172,6 +1416,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
+    position: 'relative',
   },
   dashboardTitle: {
     color: "#fff",
@@ -1186,7 +1431,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Quick Actions
+  // Quick Actions avec badges
   quickActionsSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -1201,6 +1446,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
+  quickActionIconContainer: {
+    alignItems: "center",
+    position: 'relative',
+  },
   quickActionIcon: {
     width: 56,
     height: 56,
@@ -1208,6 +1457,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
+    position: 'relative',
   },
   quickActionText: {
     color: "#E2E8F0",
@@ -1428,5 +1678,41 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 20,
     padding: 8,
+  },
+
+  // Styles pour les badges de notification - MODIFIÉS
+  badge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: NOTIFICATION_RED,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100,
+    // SUPPRIMÉ: borderWidth: 1.5, borderColor: "#fff"
+  },
+  smallBadge: {
+    minWidth: 18,
+    height: 18,
+    top: -3,
+    right: -3,
+    borderRadius: 9,
+  },
+  regularBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  badgeText: {
+    color: "#fff",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  smallBadgeText: {
+    fontSize: 10,
+  },
+  regularBadgeText: {
+    fontSize: 12,
   },
 });
