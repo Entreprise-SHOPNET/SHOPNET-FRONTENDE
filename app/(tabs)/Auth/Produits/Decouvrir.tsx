@@ -1,3 +1,7 @@
+
+
+
+
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -18,10 +22,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const LOCAL_API = 'http://100.64.134.89:5000/api';
 
-// Couleurs SHOPNET PRO Premium
 const SHOPNET_BLUE = "#00182A";
 const PRO_BLUE = "#42A5F5";
 const PREMIUM_GOLD = "#FFD700";
@@ -72,7 +75,6 @@ const DiscoverScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -83,16 +85,8 @@ const DiscoverScreen = () => {
 
   const startEntranceAnimation = () => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start();
   };
 
@@ -115,16 +109,14 @@ const DiscoverScreen = () => {
   const fetchMixedProducts = async (jwtToken: string, pageNum = 1, initial = false) => {
     try {
       if (!initial) setLoadingMore(true);
-      
-      const limit = 5; // 5 produits par page
-      
-      // Fetch produits réguliers
+
+      const limit = 5;
+
       const regularResponse = await axios.get(`${LOCAL_API}/all-products`, {
         headers: { Authorization: `Bearer ${jwtToken}` },
         params: { page: pageNum, limit },
       });
 
-      // Fetch promotions
       const promotionResponse = await axios.get(`${LOCAL_API}/promotions`, {
         headers: { Authorization: `Bearer ${jwtToken}` },
       });
@@ -132,10 +124,7 @@ const DiscoverScreen = () => {
       let regularProducts: Product[] = [];
       let promotionProducts: Promotion[] = [];
 
-      if (regularResponse.data.success) {
-        regularProducts = regularResponse.data.products || [];
-      }
-
+      if (regularResponse.data.success) regularProducts = regularResponse.data.products || [];
       if (promotionResponse.data.success) {
         promotionProducts = (promotionResponse.data.promotions || []).map((promo: Promotion) => ({
           ...promo,
@@ -143,19 +132,11 @@ const DiscoverScreen = () => {
         }));
       }
 
-      // Mélanger les produits réguliers et les promotions
-      const allProducts = [...regularProducts, ...promotionProducts];
-      
-      // Mélanger aléatoirement
-      const shuffledProducts = allProducts.sort(() => Math.random() - 0.5);
+      const allProducts = [...regularProducts, ...promotionProducts].sort(() => Math.random() - 0.5);
 
-      if (initial) {
-        setProducts(shuffledProducts);
-      } else {
-        setProducts(prev => [...prev, ...shuffledProducts]);
-      }
+      if (initial) setProducts(allProducts);
+      else setProducts(prev => [...prev, ...allProducts]);
 
-      // Vérifier s'il y a plus de produits à charger
       setHasMore(regularProducts.length === limit);
       setPage(pageNum);
 
@@ -172,38 +153,28 @@ const DiscoverScreen = () => {
     const endDate = new Date(createdDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
     const now = new Date();
     const diffMs = endDate.getTime() - now.getTime();
-    
+
     if (diffMs <= 0) return 'Expirée';
-    
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
-    if (days > 0) return `${days}j ${hours}h`;
-    return `${hours}h`;
+    return days > 0 ? `${days}j ${hours}h` : `${hours}h`;
   };
 
-  // Mettre à jour le temps restant toutes les minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      setProducts(prev => 
-        prev.map(item => 
+      setProducts(prev =>
+        prev.map(item =>
           'duration_days' in item && item.created_at
-            ? {
-                ...item,
-                time_remaining: calculateTimeRemaining(item.created_at, item.duration_days)
-              }
+            ? { ...item, time_remaining: calculateTimeRemaining(item.created_at, item.duration_days) }
             : item
         )
       );
     }, 60000);
-
     return () => clearInterval(interval);
   }, []);
 
   const loadMoreProducts = () => {
-    if (!loadingMore && hasMore && token) {
-      fetchMixedProducts(token, page + 1, false);
-    }
+    if (!loadingMore && hasMore && token) fetchMixedProducts(token, page + 1, false);
   };
 
   const showActionModal = (product: any) => {
@@ -216,27 +187,22 @@ const DiscoverScreen = () => {
     setSelectedProduct(null);
   };
 
-  const calculateDiscount = (original: number, promo: number) => {
-    return Math.round(((original - promo) / original) * 100);
-  };
+  const calculateDiscount = (original: number, promo: number) =>
+    Math.round(((original - promo) / original) * 100);
 
-  const getProductId = (item: Product | Promotion): number => {
-    return 'product_id' in item ? item.product_id : item.id;
-  };
+  const getProductId = (item: Product | Promotion): number =>
+    'product_id' in item ? item.product_id : item.id;
 
-  const getProductTitle = (item: Product | Promotion): string => {
-    return 'product_title' in item ? item.product_title : item.title;
-  };
+  const getProductTitle = (item: Product | Promotion): string =>
+    'product_title' in item ? item.product_title : item.title;
 
-  const getProductPrice = (item: Product | Promotion): number => {
-    return 'promo_price' in item ? item.promo_price : item.price;
-  };
+  const getProductPrice = (item: Product | Promotion): number =>
+    'promo_price' in item ? item.promo_price : item.price;
 
   const getProductImages = (item: Product | Promotion): string[] => {
     if ('images' in item) {
-      if (Array.isArray(item.images)) {
-        return item.images;
-      } else if (typeof item.images === 'string') {
+      if (Array.isArray(item.images)) return item.images;
+      else if (typeof item.images === 'string') {
         try {
           const parsed = JSON.parse(item.images);
           return Array.isArray(parsed) ? parsed : [item.images];
@@ -248,11 +214,8 @@ const DiscoverScreen = () => {
     return item.images || [];
   };
 
-  const isPromotion = (item: Product | Promotion): boolean => {
-    return 'promotionId' in item;
-  };
+  const isPromotion = (item: Product | Promotion) => 'promotionId' in item;
 
-  // Composant de produit unique
   const renderProductItem = ({ item, index }: { item: Product | Promotion; index: number }) => {
     const productId = getProductId(item);
     const productTitle = getProductTitle(item);
@@ -260,92 +223,51 @@ const DiscoverScreen = () => {
     const images = getProductImages(item);
     const isPromo = isPromotion(item);
     const promotionItem = item as Promotion;
-
-    const discount = isPromo ? 
-      calculateDiscount(Number(promotionItem.original_price), Number(promotionItem.promo_price)) : 0;
-    
+    const discount = isPromo ? calculateDiscount(Number(promotionItem.original_price), Number(promotionItem.promo_price)) : 0;
     const isExpired = isPromo && promotionItem.time_remaining === 'Expirée';
     const imageUrl = images.length > 0 ? images[0] : null;
 
     return (
       <Animated.View
-        style={[
-          styles.productCard,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }
-        ]}
+        style={[styles.productCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
         <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/Auth/Panier/DetailId',
-              params: { id: productId.toString() },
-            })
-          }
+          onPress={() => {
+            const path = isPromo ? '/(tabs)/Auth/Panier/PromoDetail' : '/(tabs)/Auth/Panier/DetailId';
+            router.push({ pathname: path, params: { id: productId.toString() } });
+          }}
           activeOpacity={0.9}
         >
+          {/* Image et badges */}
           <View style={styles.imageContainer}>
             {imageUrl ? (
-              <Image 
-                source={{ uri: imageUrl }} 
-                style={styles.productImage}
-                resizeMode="cover"
-              />
+              <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="cover" />
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Ionicons name="cube-outline" size={40} color={TEXT_SECONDARY} />
                 <Text style={styles.placeholderText}>Aucune image</Text>
               </View>
             )}
-            
-            {/* Header avec badges et bouton */}
             <View style={styles.imageHeader}>
               <View style={styles.leftBadges}>
-                {/* Badge Promotion */}
                 {isPromo && (
                   <View style={styles.promotionBadge}>
                     <Ionicons name="flash" size={12} color={TEXT_WHITE} />
                     <Text style={styles.promotionBadgeText}>PROMO</Text>
                   </View>
                 )}
-                
-                {/* Badge Catégorie */}
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryBadgeText}>
-                    {'category' in item ? item.category : 'Promotion'}
-                  </Text>
+                  <Text style={styles.categoryBadgeText}>{'category' in item ? item.category : 'Promotion'}</Text>
                 </View>
               </View>
-
-              {/* Côté droit avec temps et trois points */}
               <View style={styles.rightActions}>
-                {/* Badge Temps pour les promotions */}
                 {isPromo && (
-                  <View style={[
-                    styles.timeBadge,
-                    isExpired ? styles.timeBadgeExpired : styles.timeBadgeActive
-                  ]}>
-                    <Ionicons 
-                      name={isExpired ? "time-outline" : "timer-outline"} 
-                      size={10} 
-                      color={TEXT_WHITE} 
-                    />
-                    <Text style={styles.timeBadgeText}>
-                      {promotionItem.time_remaining}
-                    </Text>
+                  <View style={[styles.timeBadge, isExpired ? styles.timeBadgeExpired : styles.timeBadgeActive]}>
+                    <Ionicons name={isExpired ? "time-outline" : "timer-outline"} size={10} color={TEXT_WHITE} />
+                    <Text style={styles.timeBadgeText}>{promotionItem.time_remaining}</Text>
                   </View>
                 )}
-                
-                {/* Bouton trois points */}
-                <TouchableOpacity 
-                  style={styles.threeDotsButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    showActionModal(item);
-                  }}
-                >
+                <TouchableOpacity style={styles.threeDotsButton} onPress={(e) => { e.stopPropagation(); showActionModal(item); }}>
                   <Ionicons name="ellipsis-horizontal" size={16} color={TEXT_WHITE} />
                 </TouchableOpacity>
               </View>
@@ -353,60 +275,33 @@ const DiscoverScreen = () => {
           </View>
 
           <View style={styles.cardContent}>
-            <Text style={styles.productTitle} numberOfLines={2}>
-              {productTitle}
-            </Text>
-
-            {/* Prix sur la même ligne */}
+            <Text style={styles.productTitle} numberOfLines={2}>{productTitle}</Text>
             <View style={styles.priceRow}>
               {isPromo ? (
-                <>
-                  <View style={styles.promotionPriceContainer}>
-                    <Text style={styles.originalPrice}>
-                      ${Number(promotionItem.original_price).toFixed(2)}
-                    </Text>
-                    <Text style={styles.promoPrice}>
-                      ${Number(productPrice).toFixed(2)}
-                    </Text>
-                    <View style={styles.discountBadge}>
-                      <Text style={styles.discountText}>-{discount}%</Text>
-                    </View>
+                <View style={styles.promotionPriceContainer}>
+                  <Text style={styles.originalPrice}>${Number(promotionItem.original_price).toFixed(2)}</Text>
+                  <Text style={styles.promoPrice}>${Number(productPrice).toFixed(2)}</Text>
+                  <View style={styles.discountBadge}>
+                    <Text style={styles.discountText}>-{discount}%</Text>
                   </View>
-                </>
+                </View>
               ) : (
-                <Text style={styles.regularPrice}>
-                  ${Number(productPrice).toFixed(2)}
-                </Text>
+                <Text style={styles.regularPrice}>${Number(productPrice).toFixed(2)}</Text>
               )}
             </View>
-
-            {/* Description promotion */}
-            {isPromo && promotionItem.description && (
-              <Text style={styles.promotionDescription} numberOfLines={2}>
-                {promotionItem.description}
-              </Text>
-            )}
-
+            {isPromo && promotionItem.description && <Text style={styles.promotionDescription} numberOfLines={2}>{promotionItem.description}</Text>}
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Ionicons name="heart" size={14} color={TEXT_SECONDARY} />
-                <Text style={styles.statsText}>
-                  {'likes_count' in item ? item.likes_count : 0}
-                </Text>
+                <Text style={styles.statsText}>{'likes_count' in item ? item.likes_count : 0}</Text>
               </View>
-
               <View style={styles.statItem}>
                 <Ionicons name="chatbubble-outline" size={14} color={TEXT_SECONDARY} />
-                <Text style={styles.statsText}>
-                  {'comments_count' in item ? item.comments_count : 0}
-                </Text>
+                <Text style={styles.statsText}>{'comments_count' in item ? item.comments_count : 0}</Text>
               </View>
-
               <View style={styles.statItem}>
                 <Ionicons name="share-outline" size={14} color={TEXT_SECONDARY} />
-                <Text style={styles.statsText}>
-                  {'shares_count' in item ? item.shares_count : 0}
-                </Text>
+                <Text style={styles.statsText}>{'shares_count' in item ? item.shares_count : 0}</Text>
               </View>
             </View>
           </View>
@@ -416,67 +311,38 @@ const DiscoverScreen = () => {
   };
 
   const renderActionModal = () => (
-    <Modal
-      visible={actionModalVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={hideActionModal}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={hideActionModal}
-      >
+    <Modal visible={actionModalVisible} transparent animationType="fade" onRequestClose={hideActionModal}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={hideActionModal}>
         <View style={styles.actionModal}>
           {selectedProduct && (
             <>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Options Produit</Text>
-                <Text style={styles.modalSubtitle} numberOfLines={1}>
-                  {getProductTitle(selectedProduct)}
-                </Text>
+                <Text style={styles.modalSubtitle} numberOfLines={1}>{getProductTitle(selectedProduct)}</Text>
               </View>
-
               <View style={styles.modalActions}>
                 <TouchableOpacity 
                   style={styles.modalAction}
                   onPress={() => {
                     hideActionModal();
                     const productId = getProductId(selectedProduct);
-                    router.push({
-                      pathname: '/(tabs)/Auth/Panier/DetailId',
-                      params: { id: productId.toString() },
-                    });
+                    const path = isPromotion(selectedProduct) ? '/(tabs)/Auth/Panier/PromoDetail' : '/(tabs)/Auth/Panier/DetailId';
+                    router.push({ pathname: path, params: { id: productId.toString() } });
                   }}
                 >
                   <Ionicons name="eye-outline" size={24} color={PRO_BLUE} />
                   <Text style={styles.modalActionText}>Voir les détails</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.modalAction}
-                  onPress={() => {
-                    hideActionModal();
-                    // Naviguer vers le chat
-                  }}
-                >
+                <TouchableOpacity style={styles.modalAction}>
                   <Ionicons name="chatbubble-ellipses-outline" size={24} color={PRO_BLUE} />
                   <Text style={styles.modalActionText}>Contacter le vendeur</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.modalAction, styles.reportAction]}
-                  onPress={hideActionModal}
-                >
+                <TouchableOpacity style={[styles.modalAction, styles.reportAction]} onPress={hideActionModal}>
                   <Ionicons name="share-outline" size={24} color={PRO_BLUE} />
                   <Text style={styles.modalActionText}>Partager</Text>
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity 
-                style={styles.modalCancel}
-                onPress={hideActionModal}
-              >
+              <TouchableOpacity style={styles.modalCancel} onPress={hideActionModal}>
                 <Text style={styles.modalCancelText}>Annuler</Text>
               </TouchableOpacity>
             </>
@@ -486,33 +352,26 @@ const DiscoverScreen = () => {
     </Modal>
   );
 
-  const renderFooter = () => {
-    if (!loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={PRO_BLUE} />
-        <Text style={styles.loadingMoreText}>Chargement...</Text>
-      </View>
-    );
-  };
+  const renderFooter = () => loadingMore ? (
+    <View style={styles.footerLoader}>
+      <ActivityIndicator size="small" color={PRO_BLUE} />
+      <Text style={styles.loadingMoreText}>Chargement...</Text>
+    </View>
+  ) : null;
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
-        <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color={PRO_BLUE} />
-          <Text style={styles.loadingText}>Chargement des produits...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (loading) return (
+    <SafeAreaView style={styles.loadingContainer}>
+      <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+      <View style={styles.loadingContent}>
+        <ActivityIndicator size="large" color={PRO_BLUE} />
+        <Text style={styles.loadingText}>Chargement des produits...</Text>
+      </View>
+    </SafeAreaView>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
-
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="cube-outline" size={28} color={PRO_BLUE} />
@@ -522,13 +381,9 @@ const DiscoverScreen = () => {
           <Ionicons name="options-outline" size={24} color={PRO_BLUE} />
         </TouchableOpacity>
       </View>
-
-      {/* Liste des produits mélangés */}
       <FlatList
         data={products}
-        keyExtractor={(item, index) => 
-          `product-${getProductId(item)}-${index}`
-        }
+        keyExtractor={(item, index) => `product-${getProductId(item)}-${index}`}
         renderItem={renderProductItem}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
@@ -541,17 +396,16 @@ const DiscoverScreen = () => {
           <View style={styles.emptyState}>
             <Ionicons name="cube-outline" size={64} color={TEXT_SECONDARY} />
             <Text style={styles.emptyStateTitle}>Aucun produit disponible</Text>
-            <Text style={styles.emptyStateText}>
-              Les produits apparaîtront ici lorsqu'ils seront ajoutés
-            </Text>
+            <Text style={styles.emptyStateText}>Les produits apparaîtront ici lorsqu'ils seront ajoutés</Text>
           </View>
         }
       />
-
       {renderActionModal()}
     </SafeAreaView>
   );
 };
+
+// -- Styles restent identiques, pas besoin de les recopier ici pour ne pas surcharger le code --
 
 const styles = StyleSheet.create({
   container: {
@@ -857,8 +711,7 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     fontSize: 17,
-    fontWeight: '600',0.
-    
+    fontWeight: '600',
     color: PRO_BLUE,
   },
 });
