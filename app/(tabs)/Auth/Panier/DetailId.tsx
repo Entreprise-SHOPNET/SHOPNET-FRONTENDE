@@ -22,9 +22,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_URL = "https://shopnet-backend.onrender.com/api/products";
-const COMMAND_API_URL = "https://shopnet-backend.onrender.com/api/commandes";
-const PANIER_API_URL = "https://shopnet-backend.onrender.com/api/cart";
+const API_URL = "http://100.64.134.89:5000/api/products";
+const COMMAND_API_URL = "http://100.64.134.89:5000/api/commandes";
+const PANIER_API_URL = "http://100.64.134.89:5000/api/cart";
 
 const { width, height } = Dimensions.get("window");
 
@@ -986,3 +986,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
