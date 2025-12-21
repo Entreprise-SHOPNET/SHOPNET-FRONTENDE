@@ -1,7 +1,6 @@
 
 
 
-
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -16,6 +15,8 @@ import {
   Modal,
   SafeAreaView,
   StatusBar,
+  AppState,
+  AppStateStatus
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -64,6 +65,26 @@ type Promotion = {
   time_remaining?: string;
 };
 
+// Fonction d'envoi de présence
+const sendPresence = async () => {
+  try {
+    const userId = await AsyncStorage.getItem('userId');
+    
+    if (!userId) {
+      console.log('Aucun userId trouvé pour l\'envoi de présence');
+      return;
+    }
+    
+    await axios.post(`${LOCAL_API}/admin/dashboard/update-activity`, {
+      userId
+    });
+    
+    console.log('Présence envoyée avec succès pour userId:', userId);
+  } catch (error: any) {
+    console.error('Erreur lors de l\'envoi de présence:', error.message);
+  }
+};
+
 const DiscoverScreen = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -77,11 +98,75 @@ const DiscoverScreen = () => {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  
+  // Réf pour l'intervalle de présence
+  const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    // Marquer que le composant est monté
+    isMountedRef.current = true;
+    
     loadToken();
     startEntranceAnimation();
+    
+    // Setup de l'envoi de présence
+    setupPresenceSystem();
+    
+    // Écouter les changements d'état de l'application
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    // Nettoyage à la destruction du composant
+    return () => {
+      isMountedRef.current = false;
+      cleanupPresenceSystem();
+      appStateSubscription.remove();
+    };
   }, []);
+
+  // Système d'envoi de présence
+  const setupPresenceSystem = async () => {
+    try {
+      // Envoyer la présence immédiatement
+      await sendPresence();
+      
+      // Configurer l'intervalle toutes les 5 minutes (300000 ms)
+      presenceIntervalRef.current = setInterval(async () => {
+        if (isMountedRef.current) {
+          await sendPresence();
+        }
+      }, 300000); // 5 minutes
+      
+      console.log('Système de présence initialisé');
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation du système de présence:', error);
+    }
+  };
+
+  const cleanupPresenceSystem = () => {
+    // Nettoyer l'intervalle
+    if (presenceIntervalRef.current) {
+      clearInterval(presenceIntervalRef.current);
+      presenceIntervalRef.current = null;
+      console.log('Système de présence nettoyé');
+    }
+  };
+
+  // Gérer les changements d'état de l'application
+  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    if (nextAppState === 'active') {
+      // L'application est redevenue active, renvoyer la présence
+      await sendPresence();
+      
+      // Redémarrer l'intervalle si nécessaire
+      if (!presenceIntervalRef.current && isMountedRef.current) {
+        setupPresenceSystem();
+      }
+    } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+      // Optionnel: Nettoyer l'intervalle en arrière-plan
+      cleanupPresenceSystem();
+    }
+  };
 
   const startEntranceAnimation = () => {
     Animated.parallel([
@@ -405,8 +490,6 @@ const DiscoverScreen = () => {
   );
 };
 
-// -- Styles restent identiques, pas besoin de les recopier ici pour ne pas surcharger le code --
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -487,7 +570,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
   },
-  // Header de l'image avec badges
   imageHeader: {
     position: 'absolute',
     top: 8,
@@ -656,7 +738,6 @@ const styles = StyleSheet.create({
     color: PRO_BLUE,
     fontSize: 14,
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
