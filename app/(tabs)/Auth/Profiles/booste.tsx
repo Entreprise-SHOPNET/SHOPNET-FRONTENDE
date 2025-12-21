@@ -2,6 +2,7 @@
 // Booste.tsx
 // Booste.tsx
 // Booste.tsx
+import { getValidToken } from "../authService"; // le chemin exact selon ton projet
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -458,56 +459,89 @@ export default function Booste() {
   };
 
   const handleSubmit = async () => {
-    if (!product.id) {
-      showMessage('error', '❌ Produit invalide');
-      return;
-    }
+  if (!product.id) {
+    showMessage('error', '❌ Produit invalide');
+    return;
+  }
 
-    if (!selectedLocation) {
-      showMessage('error', '❌ Veuillez sélectionner une localisation');
-      return;
-    }
+  if (!selectedLocation) {
+    showMessage('error', '❌ Veuillez sélectionner une localisation');
+    return;
+  }
 
-    const minBudget = currency === "CDF" ? 1000 : 1;
-    if (budget < minBudget) {
-      showMessage('error', `❌ Le budget doit être d'au moins ${formatAmount(minBudget, currency)}`);
-      return;
-    }
+  const minBudget = currency === "CDF" ? 1000 : 1;
+  if (budget < minBudget) {
+    showMessage('error', `❌ Le budget doit être d'au moins ${formatAmount(minBudget, currency)}`);
+    return;
+  }
 
-    try {
-      setLoading(true);
-      showMessage('info', '📡 Préparation du paiement...');
+  try {
+    setLoading(true);
+    showMessage('info', '📡 Enregistrement du boost en attente...');
 
-      // Préparer les données pour PawaPay
       const boostData = {
         productId: product.id,
-        userId: "1", // À remplacer par l'ID utilisateur réel
-        title: String(product.title),
-        price: parseFloat(String(product.price)) || 0,
-        imageUrl: product.image ?? null,
-        budget: budget,
-        currency: currency,
+        amount: budget,
+        duration_hours: days * 24,
         views: views,
-        days: days,
         country: country,
         city: city,
-        address: selectedLocation?.address || `${city}, ${country}`,
-        timestamp: new Date().toISOString(),
+        address: selectedLocation?.address,
       };
 
-      // Redirection vers l'écran de confirmation
-      router.push({ 
-        pathname: "/(tabs)/Auth/Profiles/ConfirmationPaiement", 
-        params: boostData as any 
-      });
 
-    } catch (err: any) {
-      console.error("Erreur:", err);
-      showMessage('error', '❌ Erreur lors de la préparation');
-    } finally {
-      setLoading(false);
+// Récupération du token directement depuis AsyncStorage
+const token = await getValidToken(); // ✅ token récupéré comme dans les autres pages
+if (!token) {
+  showMessage('error', '❌ Vous devez être connecté pour effectuer cette action');
+  setLoading(false);
+  return;
+}
+
+// POST avec token
+const response = await fetch('http://100.64.134.89:5000/api/manual-payment/create-boost', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  },
+  body: JSON.stringify(boostData),
+});
+
+    const result = await response.json();
+
+    if (result.success) {
+      showMessage('success', '✅ Boost enregistré en attente !');
+      
+      // Redirection vers l'écran de paiement si nécessaire
+router.push({ 
+  pathname: "/(tabs)/Auth/Profiles/ConfirmationPaiement", 
+  params: {
+    productId: product.id,
+    title: product.title,
+    price: product.price,
+    imageUrl: product.image,
+    budget: budget,
+    currency: currency,
+    views: views,
+    days: days,
+    country: country,
+    city: city,
+    address: selectedLocation?.address
+  } 
+});
+
+    } else {
+      showMessage('error', '❌ Impossible d’enregistrer le boost');
     }
-  };
+
+  } catch (err: any) {
+    console.error("Erreur:", err);
+    showMessage('error', '❌ Erreur lors de l’enregistrement du boost');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const renderBudgetItem = ({ item }: { item: number }) => {
     const selected = item === budget;

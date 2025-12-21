@@ -780,11 +780,12 @@ export default function ProfilVendeurPremium() {
                 route: "/MisAjour",
               },
               {
-                title: "Avis",
-                subtitle: "Réputation",
-                icon: "star",
-                color: PRO_BLUE,
-                route: "/MisAjour",
+            title: "Boost Pro",
+            subtitle: "Produits premium",
+            icon: "award",
+            color: PRO_BLUE,
+            route: "/(tabs)/Auth/Profiles/PaymentStatus",
+
               },
             ].map((item, index) => (
               <TouchableOpacity

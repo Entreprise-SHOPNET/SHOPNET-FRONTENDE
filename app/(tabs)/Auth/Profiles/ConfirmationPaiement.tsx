@@ -1,6 +1,3 @@
-
-
-// app/(tabs)/Auth/Profiles/ConfirmationPaiement.tsx
 // app/(tabs)/Auth/Profiles/ConfirmationPaiement.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import {
@@ -15,9 +12,9 @@ import {
   Animated,
   Image,
   ActivityIndicator,
-  Linking,
   Alert,
   BackHandler,
+  Clipboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons, FontAwesome5, Ionicons, FontAwesome } from "@expo/vector-icons";
@@ -30,9 +27,11 @@ const ERROR_RED = "#F44336";
 const WARNING_ORANGE = "#FF9800";
 const BOOST_ORANGE = "#FA7921";
 
-// Configuration Backend PawaPay
-const BACKEND_CONFIG = {
-  apiUrl: "http://100.64.134.89:5000/api/boost",
+// Numéros SHOPNET PAYE
+const SHOPNET_PAYMENT_NUMBERS = {
+  AIRTEL: '+243 97 87 27 791',
+  ORANGE: '+243 89 60 37 137',
+  VODACOM: '+243 81 00 00 000',
 };
 
 export default function ConfirmationPaiement() {
@@ -40,9 +39,8 @@ export default function ConfirmationPaiement() {
   const router = useRouter();
   
   const [processingPayment, setProcessingPayment] = useState(false);
-  const [generatingLink, setGeneratingLink] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
-  const [boostId, setBoostId] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'validated' | 'rejected'>('idle');
+  const [transactionId, setTransactionId] = useState<string | null>(null);
 
   // États pour les messages
   const [messageVisible, setMessageVisible] = useState(false);
@@ -74,6 +72,7 @@ export default function ConfirmationPaiement() {
     return () => backHandler.remove();
   }, [processingPayment]);
 
+  // Démarrer les animations
   React.useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { 
@@ -129,7 +128,8 @@ export default function ConfirmationPaiement() {
         city: String(params.city || "Kinshasa"),
         userId: String(params.userId || "1"),
         costPerView: costPerView,
-        formatAmount: formatAmount
+        formatAmount: formatAmount,
+        boostId: String(params.boostId || ""), // Ajout du boostId
       };
     } catch (error) {
       console.error("Erreur parsing campaign data:", error);
@@ -150,7 +150,8 @@ export default function ConfirmationPaiement() {
         userId: "1",
         costPerView: "2.50",
         formatAmount: (amount: number, curr: "USD" | "CDF") => 
-          curr === "CDF" ? `${amount} CDF` : `$${amount} USD`
+          curr === "CDF" ? `${amount} CDF` : `$${amount} USD`,
+        boostId: "",
       };
     }
   }, [params]);
@@ -184,145 +185,39 @@ export default function ConfirmationPaiement() {
     });
   };
 
-  // Vérifier le statut du paiement
-  const checkPaymentStatus = async (id: string) => {
-    try {
-      const response = await fetch(`${BACKEND_CONFIG.apiUrl}/status/${id}`);
-      const result = await response.json();
-      
-      if (result.success && result.boost) {
-        if (result.boost.status === 'active' || result.boost.status === 'completed') {
-          setPaymentStatus('success');
-          showMessage(
-            "✅ Paiement Réussi !",
-            "Votre campagne de boost a été activée avec succès !",
-            "success"
-          );
-          return true;
-        } else if (result.boost.status === 'failed') {
-          setPaymentStatus('failed');
-          showMessage(
-            "❌ Paiement Échoué",
-            "Le paiement a échoué. Veuillez réessayer.",
-            "error"
-          );
-          return true;
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error("Erreur vérification statut:", error);
-      return false;
-    }
+  // Copier un numéro dans le presse-papier
+  const copyToClipboard = (text: string, operator: string) => {
+    Clipboard.setString(text);
+    showMessage(
+      "✅ Copié !",
+      `Numéro ${operator} copié dans le presse-papier`,
+      "success"
+    );
   };
 
-  // Fonction pour initier le paiement PawaPay
-  const initiatePawaPayPayment = async () => {
-    try {
-      setProcessingPayment(true);
-      setGeneratingLink(true);
-      setPaymentStatus('pending');
+  // Navigation vers la page de preuve de paiement - CORRECTION ICI
+  const navigateToPaymentProof = () => {
+    const paymentData = {
+      boostId: campaignData.boostId, // Utilisation de campaignData.boostId
+      productId: campaignData.product.id,
+      userId: campaignData.userId,
+      budget: campaignData.budget,
+      currency: campaignData.currency,
+      views: campaignData.views,
+      days: campaignData.days,
+      location: campaignData.location,
+      country: campaignData.country,
+      city: campaignData.city,
+      productTitle: campaignData.product.title,
+      productImage: campaignData.product.image,
+      amountInCDF: campaignData.budget * (campaignData.currency === "USD" ? 2000 : 1)
+    };
 
-      // Préparer les données pour le backend
-      const paymentData = {
-        productId: campaignData.product.id,
-        userId: campaignData.userId,
-        budget: campaignData.budget,
-        currency: campaignData.currency,
-        views: campaignData.views,
-        days: campaignData.days,
-        country: campaignData.country,
-        city: campaignData.city,
-        address: campaignData.location
-      };
-
-      console.log("🔄 Envoi demande paiement au backend:", paymentData);
-
-      // Appeler le backend pour créer le Payment Link PawaPay
-      const response = await fetch(`${BACKEND_CONFIG.apiUrl}/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentData),
-      });
-
-      const result = await response.json();
-
-      console.log("✅ Réponse backend:", result);
-
-      if (response.ok && result.success && result.link) {
-        setBoostId(result.boostId);
-        
-        // Ouvrir le Payment Link PawaPay dans le navigateur
-        const canOpen = await Linking.canOpenURL(result.link);
-        if (canOpen) {
-          await Linking.openURL(result.link);
-          showMessage(
-            "🔗 Redirection vers PawaPay",
-            `Ouverture de la page de paiement sécurisée PawaPay...\nMontant: ${campaignData.formatAmount(campaignData.budget, campaignData.currency)}`,
-            "info"
-          );
-
-          // Démarrer la vérification périodique du statut
-          const statusInterval = setInterval(async () => {
-            const isCompleted = await checkPaymentStatus(result.boostId);
-            if (isCompleted) {
-              clearInterval(statusInterval);
-            }
-          }, 5000);
-
-          // Arrêter la vérification après 10 minutes
-          setTimeout(() => {
-            clearInterval(statusInterval);
-            if (paymentStatus === 'pending') {
-              showMessage(
-                "⏱️ Vérification expirée",
-                "Le délai de vérification est écoulé. Vérifiez manuellement le statut de votre paiement.",
-                "warning"
-              );
-            }
-          }, 10 * 60 * 1000);
-
-        } else {
-          throw new Error("Impossible d'ouvrir le lien de paiement PawaPay");
-        }
-      } else {
-        throw new Error(result.message || "Erreur lors de la génération du lien de paiement PawaPay");
-      }
-
-    } catch (error: any) {
-      console.error("❌ Erreur paiement PawaPay:", error);
-      setPaymentStatus('failed');
-      showMessage(
-        "❌ Erreur de Paiement",
-        error.message || "Une erreur est survenue lors de la connexion à PawaPay. Veuillez réessayer.",
-        "error"
-      );
-    } finally {
-      setProcessingPayment(false);
-      setGeneratingLink(false);
-    }
-  };
-
-  // Ouvrir le lien PawaPay manuellement
-  const openPawaPayLink = async () => {
-    if (!boostId) return;
-    
-    try {
-      const response = await fetch(`${BACKEND_CONFIG.apiUrl}/status/${boostId}`);
-      const result = await response.json();
-      
-      if (result.success && result.boost.payment_url) {
-        await Linking.openURL(result.boost.payment_url);
-      }
-    } catch (error) {
-      showMessage(
-        "❌ Lien indisponible",
-        "Le lien de paiement n'est plus disponible. Veuillez recréer la commande.",
-        "error"
-      );
-    }
+    // Naviguer vers la page de preuve de paiement avec les données
+    router.push({
+      pathname: '/Auth/Profiles/PaymentProof',
+      params: paymentData
+    });
   };
 
   // Composant Message
@@ -396,7 +291,7 @@ export default function ConfirmationPaiement() {
     );
   };
 
-  // Composant Statut Paiement
+  // Composant Statut Paiement (simplifié)
   const PaymentStatusIndicator = () => {
     if (paymentStatus === 'idle') return null;
 
@@ -404,20 +299,20 @@ export default function ConfirmationPaiement() {
       pending: {
         color: WARNING_ORANGE,
         icon: 'schedule',
-        text: 'Paiement en attente',
-        description: 'En attente de confirmation PawaPay...'
+        text: 'En attente de validation',
+        description: "Votre paiement est en cours de validation par l'admin SHOPNET"
       },
-      success: {
+      validated: {
         color: SUCCESS_GREEN,
         icon: 'check-circle',
-        text: 'Paiement confirmé',
-        description: 'Votre boost est maintenant actif !'
+        text: 'Paiement validé ✅',
+        description: 'Votre boost/boutique est maintenant actif !'
       },
-      failed: {
+      rejected: {
         color: ERROR_RED,
         icon: 'error',
-        text: 'Paiement échoué',
-        description: 'Le paiement n\'a pas abouti'
+        text: 'Paiement refusé',
+        description: 'Votre preuve de paiement n\'a pas été acceptée'
       }
     };
 
@@ -430,12 +325,6 @@ export default function ConfirmationPaiement() {
           <Text style={[styles.statusText, { color: config.color }]}>{config.text}</Text>
         </View>
         <Text style={styles.statusDescription}>{config.description}</Text>
-        
-        {paymentStatus === 'pending' && boostId && (
-          <TouchableOpacity style={styles.retryButton} onPress={openPawaPayLink}>
-            <Text style={styles.retryButtonText}>Ouvrir PawaPay à nouveau</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -462,19 +351,21 @@ export default function ConfirmationPaiement() {
           <TouchableOpacity 
             style={styles.backButton}
             onPress={() => router.back()}
-            disabled={processingPayment}
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Paiement PawaPay</Text>
+          <Text style={styles.headerTitle}>Paiement SHOPNET</Text>
           <View style={styles.amountContainer}>
             <Text style={styles.amountLabel}>Montant à payer</Text>
             <Text style={styles.amount}>
               {campaignData.formatAmount(campaignData.budget, campaignData.currency)}
             </Text>
+            <Text style={styles.convertedAmount}>
+              ≈ {campaignData.formatAmount(campaignData.budget * 2000, "CDF")}
+            </Text>
           </View>
           <Text style={styles.headerSubtitle}>
-            Paiement sécurisé via PawaPay
+            Paiement manuel via Mobile Money
           </Text>
         </Animated.View>
 
@@ -534,6 +425,131 @@ export default function ConfirmationPaiement() {
           </View>
         </Animated.View>
 
+        {/* Numéros SHOPNET PAYE */}
+        <Animated.View 
+          style={[
+            styles.section,
+            { 
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <Text style={styles.sectionTitle}>📱 Numéros SHOPNET PAYE</Text>
+          <Text style={styles.sectionSubtitle}>
+            Envoyez le paiement à l'un de ces numéros
+          </Text>
+          
+          <View style={styles.paymentNumbersContainer}>
+            {/* Airtel */}
+            <View style={styles.paymentNumberCard}>
+              <View style={styles.operatorHeader}>
+                <View style={[styles.operatorIcon, { backgroundColor: '#E41F25' }]}>
+                  <Text style={styles.operatorIconText}>A</Text>
+                </View>
+                <View>
+                  <Text style={styles.operatorName}>Airtel Money</Text>
+                  <Text style={styles.operatorHint}>SHOPNET PAYE</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.copyButton}
+                onPress={() => copyToClipboard(SHOPNET_PAYMENT_NUMBERS.AIRTEL, 'Airtel')}
+              >
+                <Text style={styles.paymentNumber}>{SHOPNET_PAYMENT_NUMBERS.AIRTEL}</Text>
+                <MaterialIcons name="content-copy" size={18} color={PRO_BLUE} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Orange */}
+            <View style={styles.paymentNumberCard}>
+              <View style={styles.operatorHeader}>
+                <View style={[styles.operatorIcon, { backgroundColor: '#FF6600' }]}>
+                  <Text style={styles.operatorIconText}>O</Text>
+                </View>
+                <View>
+                  <Text style={styles.operatorName}>Orange Money</Text>
+                  <Text style={styles.operatorHint}>SHOPNET PAYE</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.copyButton}
+                onPress={() => copyToClipboard(SHOPNET_PAYMENT_NUMBERS.ORANGE, 'Orange')}
+              >
+                <Text style={styles.paymentNumber}>{SHOPNET_PAYMENT_NUMBERS.ORANGE}</Text>
+                <MaterialIcons name="content-copy" size={18} color={PRO_BLUE} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Vodacom */}
+            <View style={styles.paymentNumberCard}>
+              <View style={styles.operatorHeader}>
+                <View style={[styles.operatorIcon, { backgroundColor: '#E41F25' }]}>
+                  <Text style={styles.operatorIconText}>V</Text>
+                </View>
+                <View>
+                  <Text style={styles.operatorName}>Vodacom M-Pesa</Text>
+                  <Text style={styles.operatorHint}>SHOPNET PAYE</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.copyButton}
+                onPress={() => copyToClipboard(SHOPNET_PAYMENT_NUMBERS.VODACOM, 'Vodacom')}
+              >
+                <Text style={styles.paymentNumber}>{SHOPNET_PAYMENT_NUMBERS.VODACOM}</Text>
+                <MaterialIcons name="content-copy" size={18} color={PRO_BLUE} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Instructions */}
+        <Animated.View 
+          style={[
+            styles.section,
+            { 
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <Text style={styles.sectionTitle}>📋 Comment procéder ?</Text>
+          <View style={styles.instructions}>
+            <View style={styles.instructionStep}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>1</Text>
+              </View>
+              <Text style={styles.instructionText}>
+                Envoyez {campaignData.formatAmount(campaignData.budget * 2000, "CDF")} à l'un des numéros SHOPNET PAYE ci-dessus
+              </Text>
+            </View>
+            <View style={styles.instructionStep}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <Text style={styles.instructionText}>
+                Sauvegardez le code de confirmation reçu par SMS (ex: TX49301, MP3486, AT-9932)
+              </Text>
+            </View>
+            <View style={styles.instructionStep}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <Text style={styles.instructionText}>
+                Cliquez sur "J'ai payé" ci-dessous pour envoyer votre preuve de paiement
+              </Text>
+            </View>
+            <View style={styles.instructionStep}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>4</Text>
+              </View>
+              <Text style={styles.instructionText}>
+                Attendez la validation par l'admin SHOPNET (quelques minutes)
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
         {/* Récapitulatif coût */}
         <Animated.View 
           style={[
@@ -569,100 +585,6 @@ export default function ConfirmationPaiement() {
           </View>
         </Animated.View>
 
-        {/* Informations de paiement PawaPay */}
-        <Animated.View 
-          style={[
-            styles.section,
-            { 
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          <Text style={styles.sectionTitle}>🔒 Paiement Sécurisé PawaPay</Text>
-
-          <View style={styles.paymentInfo}>
-            <View style={styles.paymentHeader}>
-              <Image 
-                source={{ uri: 'https://pawapay.app/images/logo.png' }}
-                style={styles.pawaPayLogo}
-                resizeMode="contain"
-              />
-              <Text style={styles.paymentInfoTitle}>PawaPay Payment</Text>
-            </View>
-            
-            <Text style={styles.paymentInfoText}>
-              • Paiement 100% sécurisé et crypté{'\n'}
-              • Support mobile money et cartes{'\n'}
-              • Transactions instantanées{'\n'}
-              • Support client 24h/24{'\n'}
-              • Reçu électronique immédiat
-            </Text>
-
-            <View style={styles.securityBadges}>
-              <View style={styles.badge}>
-                <MaterialIcons name="security" size={16} color={SUCCESS_GREEN} />
-                <Text style={styles.badgeText}>SSL Sécurisé</Text>
-              </View>
-              <View style={styles.badge}>
-                <MaterialIcons name="verified-user" size={16} color={PRO_BLUE} />
-                <Text style={styles.badgeText}>Certifié</Text>
-              </View>
-              <View style={styles.badge}>
-                <MaterialIcons name="lock" size={16} color={WARNING_ORANGE} />
-                <Text style={styles.badgeText}>Crypté</Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Instructions */}
-        <Animated.View 
-          style={[
-            styles.section,
-            { 
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
-          <Text style={styles.sectionTitle}>📋 Comment procéder ?</Text>
-          <View style={styles.instructions}>
-            <View style={styles.instructionStep}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>1</Text>
-              </View>
-              <Text style={styles.instructionText}>
-                Cliquez sur "Payer avec PawaPay"
-              </Text>
-            </View>
-            <View style={styles.instructionStep}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>2</Text>
-              </View>
-              <Text style={styles.instructionText}>
-                Vous serez redirigé vers la page sécurisée PawaPay
-              </Text>
-            </View>
-            <View style={styles.instructionStep}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>3</Text>
-              </View>
-              <Text style={styles.instructionText}>
-                Complétez le paiement avec votre mobile money ou carte
-              </Text>
-            </View>
-            <View style={styles.instructionStep}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>4</Text>
-              </View>
-              <Text style={styles.instructionText}>
-                Retour automatique et activation du boost
-              </Text>
-            </View>
-          </View>
-        </Animated.View>
-
         {/* Boutons d'action */}
         <Animated.View 
           style={[
@@ -673,79 +595,37 @@ export default function ConfirmationPaiement() {
             }
           ]}
         >
-          {paymentStatus !== 'success' && (
-            <TouchableOpacity 
-              style={[
-                styles.paymentButton,
-                processingPayment && styles.paymentButtonDisabled,
-                paymentStatus === 'pending' && styles.paymentButtonPending
-              ]}
-              onPress={initiatePawaPayPayment}
-              disabled={processingPayment || paymentStatus === 'pending'}
-            >
-              {generatingLink ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.paymentButtonText}>
-                    Génération du Payment Link...
-                  </Text>
-                </View>
-              ) : paymentStatus === 'pending' ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.paymentButtonText}>
-                    Paiement en cours...
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <MaterialIcons name="payment" size={20} color="#fff" />
-                  <Text style={styles.paymentButtonText}>
-                    Payer {campaignData.formatAmount(campaignData.budget, campaignData.currency)} avec PawaPay
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
-
-          {paymentStatus === 'success' && (
-            <TouchableOpacity 
-              style={styles.successButton}
-              onPress={() => router.push('/(tabs)/HomeScreen')}
-            >
-              <MaterialIcons name="check-circle" size={20} color="#fff" />
-              <Text style={styles.successButtonText}>
-                Retour à l'accueil
-              </Text>
-            </TouchableOpacity>
-          )}
-
           <TouchableOpacity 
-            style={[
-              styles.cancelButton,
-              (processingPayment || paymentStatus === 'pending') && styles.cancelButtonDisabled
-            ]}
-            onPress={() => {
-              if (paymentStatus === 'success') {
-                router.push('/(tabs)/HomeScreen');
-              } else {
-                router.back();
-              }
-            }}
-            disabled={processingPayment || paymentStatus === 'pending'}
+            style={styles.paymentButton}
+            onPress={navigateToPaymentProof} // Appel de la fonction corrigée
+            disabled={paymentStatus === 'pending'}
           >
-            <Text style={styles.cancelButtonText}>
-              {paymentStatus === 'success' ? 'Terminer' : 'Annuler'}
+            <MaterialIcons name="check-circle" size={20} color="#fff" />
+            <Text style={styles.paymentButtonText}>
+              J'ai payé via Mobile Money
             </Text>
           </TouchableOpacity>
 
-          {/* Lien support */}
+          <TouchableOpacity 
+            style={styles.cancelButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.cancelButtonText}>
+              Annuler
+            </Text>
+          </TouchableOpacity>
+
+          {/* Support */}
           <TouchableOpacity 
             style={styles.supportLink}
-            onPress={() => Linking.openURL('https://pawapay.app/support')}
+            onPress={() => showMessage(
+              "📞 Support SHOPNET",
+              "Pour toute assistance :\n• Email : support@shopnet.cd\n• WhatsApp : +243 81 00 00 000\n• Heures : 8h-18h (Lun-Sam)",
+              "info"
+            )}
           >
             <Text style={styles.supportLinkText}>
-              Besoin d'aide ? Contactez le support PawaPay
+              Besoin d'aide ? Contactez le support SHOPNET
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -803,6 +683,11 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: "900",
   },
+  convertedAmount: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 14,
+    marginTop: 4,
+  },
   headerSubtitle: {
     color: "rgba(255,255,255,0.6)",
     fontSize: 14,
@@ -830,18 +715,7 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
     fontSize: 14,
     marginBottom: 12,
-  },
-  retryButton: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  retryButtonText: {
-    color: PRO_BLUE,
-    fontSize: 12,
-    fontWeight: "600",
+    lineHeight: 20,
   },
   section: {
     paddingHorizontal: 20,
@@ -851,6 +725,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 20,
     fontWeight: "700",
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
     marginBottom: 16,
   },
   productCard: {
@@ -905,6 +784,58 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 4,
   },
+  paymentNumbersContainer: {
+    gap: 12,
+  },
+  paymentNumberCard: {
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.3)",
+  },
+  operatorHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  operatorIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  operatorIconText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  operatorName: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  operatorHint: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12,
+  },
+  copyButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 8,
+  },
+  paymentNumber: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
   summaryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -928,58 +859,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  paymentInfo: {
-    backgroundColor: "rgba(66, 165, 245, 0.1)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.3)",
-  },
-  paymentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  pawaPayLogo: {
-    width: 24,
-    height: 24,
-    marginRight: 8,
-  },
-  paymentInfoTitle: {
-    color: PRO_BLUE,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  paymentInfoText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  securityBadges: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 10,
-    marginLeft: 4,
-    fontWeight: "500",
-  },
   instructions: {
     gap: 12,
   },
   instructionStep: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   stepNumber: {
     width: 24,
@@ -989,6 +874,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    marginTop: 2,
   },
   stepNumberText: {
     color: "#fff",
@@ -999,40 +885,13 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.9)",
     fontSize: 14,
     flex: 1,
+    lineHeight: 20,
   },
   ctaSection: {
     paddingHorizontal: 20,
     alignItems: "center",
   },
   paymentButton: {
-    backgroundColor: BOOST_ORANGE,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    width: "100%",
-    marginBottom: 12,
-    shadowColor: BOOST_ORANGE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  paymentButtonPending: {
-    backgroundColor: WARNING_ORANGE,
-  },
-  paymentButtonDisabled: {
-    opacity: 0.7,
-  },
-  paymentButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-    marginLeft: 8,
-  },
-  successButton: {
     backgroundColor: SUCCESS_GREEN,
     flexDirection: "row",
     alignItems: "center",
@@ -1042,24 +901,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: "100%",
     marginBottom: 12,
+    shadowColor: SUCCESS_GREEN,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  successButtonText: {
+  paymentButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "800",
     marginLeft: 8,
   },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   cancelButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
     marginBottom: 16,
-  },
-  cancelButtonDisabled: {
-    opacity: 0.5,
   },
   cancelButtonText: {
     color: "rgba(255,255,255,0.6)",
