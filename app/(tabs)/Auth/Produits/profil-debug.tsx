@@ -853,12 +853,13 @@ export default function ProfilVendeurPremium() {
                     },
                   );
 
+
                   const data = await response.json();
 
                   if (response.ok && data.success) {
-                    router.push("/(tabs)/Auth/Boutique/MaBoutique");
+                    router.push("/(tabs)/Auth/Boutique/Boutique");
                   } else {
-                    router.push("/(tabs)/Auth/Boutique/CreerBoutique");
+                    router.push("/(tabs)/Auth/Boutique/Boutique");
                   }
                 } catch (error) {
                   console.error("Erreur vérification boutique:", error);
