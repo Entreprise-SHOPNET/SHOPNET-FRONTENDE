@@ -25,9 +25,9 @@ import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://100.64.134.89:5000';
-const RENDER_API = 'http://100.64.134.89:5000/api';
-const PRODUCTS_ENDPOINT = '/api/products';
+//const API_BASE_URL = 'http://100.64.134.89:5000/api';
+const RENDER_API = 'http://100.64.134.89:5000/api/products';
+const PRODUCTS_ENDPOINT = 'http://100.64.134.89:5000/api/products';
 const PROMOTIONS_API_URL = 'http://100.64.134.89:5000/api/promotions';
 const NOTIFICATIONS_API_URL = 'http://100.64.134.89:5000/api/notifications';
 
