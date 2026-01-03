@@ -522,34 +522,41 @@ const ShopApp = () => {
         throw new Error('Réponse API invalide');
       }
 
-      const formattedProducts = response.data.products.map((product: any) => ({
-        id: product.id?.toString() ?? '',
-        title: product.title ?? 'Titre non disponible',
-        description: product.description ?? 'Description non disponible',
-        price: Number(product.price) ?? 0,
-        discount: product.original_price
-          ? Math.round((1 - product.price / product.original_price) * 100)
-          : 0,
-        images: Array.isArray(product.image_urls) && product.image_urls.length > 0
-          ? product.image_urls
-          : ['https://via.placeholder.com/400'],
-        seller: {
-          id: product.seller.id ?? "1",
-          name: product.seller.name ?? "Vendeur inconnu",
-          avatar: product.seller.avatar
-            ? (product.seller.avatar.startsWith('http')
-                ? product.seller.avatar
-                : `${API_BASE_URL}${product.seller.avatar}`)
-            : 'https://via.placeholder.com/40',
-        },
-        rating: product.rating ?? 0,
-        comments: product.comments ?? 0,
-        likes: product.likes ?? 0,
-        isLiked: product.isLiked ?? false,
-        shares: product.shares ?? 0,
-        location: product.location ?? 'Lubumbashi',
-        isPromotion: false
-      }));
+ const formattedProducts = response.data.products.map((product: any) => {
+  // S'assurer que images est un tableau non vide d'URLs valides
+  const images = Array.isArray(product.images)
+    ? product.images.filter((img: string) => typeof img === 'string' && img.trim() !== '')
+    : [];
+
+  return {
+    id: product.id?.toString() ?? '',
+    title: product.title ?? 'Titre non disponible',
+    description: product.description ?? 'Description non disponible',
+    price: Number(product.price) ?? 0,
+    discount: product.original_price
+      ? Math.round((1 - product.price / product.original_price) * 100)
+      : 0,
+    images: images.length > 0
+      ? images.map((img: string) => img.startsWith('http') ? img : `${API_BASE_URL}${img}`)
+      : ['https://via.placeholder.com/400'], // fallback si pas d'image
+    seller: {
+      id: product.seller?.id?.toString() ?? "1",
+      name: product.seller?.name ?? "Vendeur inconnu",
+      avatar: product.seller?.avatar
+        ? (product.seller.avatar.startsWith('http')
+            ? product.seller.avatar
+            : `${API_BASE_URL}${product.seller.avatar}`)
+        : 'https://via.placeholder.com/40',
+    },
+    rating: product.rating ?? 0,
+    comments: product.comments ?? 0,
+    likes: product.likes ?? 0,
+    isLiked: product.isLiked ?? false,
+    shares: product.shares ?? 0,
+    location: product.location ?? 'Lubumbashi',
+    isPromotion: false
+  };
+});
 
       return {
         products: formattedProducts,
