@@ -20,7 +20,14 @@ import axios from 'axios';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FontAwesome5, MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 
-const LOCAL_API = 'http://100.64.134.89:5000/api';
+// 🔹 Serveur Render en production
+const LOCAL_API = 'https://shopnet-backend.onrender.com/api';
+
+// 🔹 Serveur local pour développement (commenté)
+// const LOCAL_API = 'http://100.64.134.89:5000/api';
+
+
+
 const SHOPNET_BLUE = "#00182A";
 const PREMIUM_ORANGE = "#FFA726";
 const VALID_GREEN = "#4DB14E";

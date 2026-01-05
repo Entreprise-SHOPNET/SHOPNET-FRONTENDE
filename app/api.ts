@@ -18,7 +18,7 @@ const getBaseURL = () => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
   // Default backend URL
-  return 'http://100.64.134.89:5000/api';
+  return 'https://shopnet-backend.onrender.com/api';
 };
 
 // Crée un client axios avec la base URL de ton backend

@@ -31,7 +31,10 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 
-const BASE_URL = "http://100.64.134.89:5000";
+// Configuration API
+// const BASE_URL = "http://100.64.134.89:5000"; // Serveur LOCAL (commenté)
+const BASE_URL = "https://shopnet-backend.onrender.com"; // Serveur Render (production)
+
 const { width } = Dimensions.get("window");
 const PRO_BLUE = "#42A5F5";
 const SHOPNET_BLUE = "#00182A";
@@ -620,7 +623,7 @@ export default function ProfilVendeurPremium() {
 
             {/* Badge VIP sur couverture */}
             <View style={styles.coverBadge}>
-              <Ionicons name="diamond" size={14} color="#FFD700" />
+              <Ionicons name="diamond" size={14} color="#0048ffff" />
               <Text style={styles.coverBadgeText}>PROFIL PRO</Text>
             </View>
           </TouchableOpacity>

@@ -31,7 +31,14 @@ import { FontAwesome5, Ionicons, Feather, MaterialCommunityIcons, MaterialIcons,
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHOPNET_BLUE = "#00182A";
 const PREMIUM_GOLD = "#FFA726";
-const LOCAL_API = "http://100.64.134.89:5000/api";
+
+
+// 🔹 Serveur Render en production
+const LOCAL_API = "https://shopnet-backend.onrender.com/api";
+
+// 🔹 Serveur local pour développement (commenté)
+// const LOCAL_API = "http://100.64.134.89:5000/api";
+
 
 // Configuration Cloudinary
 const CLOUDINARY_CLOUD_NAME = "dddr7gb6w";

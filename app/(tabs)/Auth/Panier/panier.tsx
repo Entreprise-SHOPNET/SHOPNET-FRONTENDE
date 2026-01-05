@@ -21,7 +21,13 @@ import { Ionicons, Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://100.64.134.89:5000';
+// 🔹 Serveur Render en production
+const API_BASE_URL = 'https://shopnet-backend.onrender.com';
+// 🔹 Serveur local pour développement (commenté)
+// const API_BASE_URL = 'http://100.64.134.89:5000';
+
+
+
 const userId = 24;
 const CART_ENDPOINT = `/api/cart/${userId}`;
 

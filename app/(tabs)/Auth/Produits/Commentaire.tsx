@@ -257,7 +257,7 @@ export default function CommentaireVIP() {
         Alert.alert('Signaler', 'Commentaire signalé avec succès');
         break;
       case 'profile':
-        router.push(`/Auth/Profile/${comment.user_id}`);
+        router.push(`/(tabs)/Auth/Profiles/SellerProfile`);
         break;
     }
   };
@@ -277,7 +277,7 @@ export default function CommentaireVIP() {
       >
         {/* Avatar */}
         <View style={styles.avatarContainer}>
-          <TouchableOpacity onPress={() => router.push(`/Auth/Profile/${item.user_id}`)}>
+          <TouchableOpacity onPress={() => router.push(`/(tabs)/Auth/Profiles/SellerProfile`)}>
             <Ionicons name="person-circle" size={40} color={VIP_COLORS.accent} />
           </TouchableOpacity>
         </View>

@@ -23,7 +23,9 @@ import Constants from 'expo-constants';
 
 
 
-const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token';
+// const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token'; // Serveur LOCAL (commenté)
+const EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token'; // Serveur Render (production)
+
 
 
 async function registerExpoToken(userId: string) {
@@ -57,7 +59,9 @@ async function registerExpoToken(userId: string) {
 
 
 
-const API_URL = 'http://100.64.134.89:5000/api/auth';
+// const API_URL = 'http://100.64.134.89:5000/api/auth'; // Serveur LOCAL (commenté)
+const API_URL = 'https://shopnet-backend.onrender.com/api/auth'; // Serveur Render (production)
+
 
 
 
@@ -197,10 +201,12 @@ const registerExpoToken = async (userId: string) => {
     })).data;
 
     if (expoToken) {
-      await axios.post('http://100.64.134.89:5000/api/save-expo-token', {
+      // await axios.post('http://100.64.134.89:5000/api/save-expo-token', { // Serveur LOCAL (commenté)
+      await axios.post('https://shopnet-backend.onrender.com/api/save-expo-token', { // Serveur Render (production)
         userId,
         expoPushToken: expoToken,
       });
+
       console.log('✅ Expo Token enregistré pour l’utilisateur', userId);
     }
   } catch (err) {

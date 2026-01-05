@@ -34,10 +34,17 @@ const ERROR_RED = "#F44336";
 const WARNING_ORANGE = "#FF9800";
 const BOOST_ORANGE = "#FA7921";
 
+
+// Configuration Backend SHOPNET
 // Configuration Backend SHOPNET
 const BACKEND_CONFIG = {
-  apiUrl: "http://100.64.134.89:5000/api",
+  // ✅ Serveur Render (production)
+  apiUrl: "https://shopnet-backend.onrender.com/api",
+
+  // 🟢 Serveur local (dev/test)
+  // apiUrl: "http://100.64.134.89:5000/api",
 };
+
 
 export default function PaymentProof() {
   const params = useLocalSearchParams();
@@ -88,7 +95,7 @@ export default function PaymentProof() {
           );
           
           setTimeout(() => {
-            router.replace('/Auth/Login');
+            router.replace('/splash');
           }, 3000);
         }
       } catch (error) {
@@ -536,7 +543,7 @@ export default function PaymentProof() {
           "error"
         );
 
-        setTimeout(() => router.replace('/Auth/Login'), 2000);
+        setTimeout(() => router.replace('/Auth/auth'), 2000);
       } else {
         throw new Error(result?.message || "Erreur lors de l'envoi de la preuve");
       }
@@ -584,7 +591,7 @@ export default function PaymentProof() {
             await AsyncStorage.removeItem('userToken');
             setUserToken(null);
             setIsAuthenticated(false);
-            router.replace('/Auth/Login');
+            router.replace('/Auth/auth');
           }
         }
       ]
@@ -772,7 +779,7 @@ export default function PaymentProof() {
             {!isAuthenticated && (
               <TouchableOpacity 
                 style={styles.loginButton}
-                onPress={() => router.replace('/Auth/Login')}
+                onPress={() => router.replace('/Auth/auth')}
               >
                 <Text style={styles.loginButtonText}>Se connecter</Text>
               </TouchableOpacity>
@@ -1133,13 +1140,13 @@ export default function PaymentProof() {
                 </Text>
                 <TouchableOpacity 
                   style={styles.authButton}
-                  onPress={() => router.replace('/Auth/Login')}
+                  onPress={() => router.replace('/Auth/auth')}
                 >
                   <Text style={styles.authButtonText}>Se connecter</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.registerLink}
-                  onPress={() => router.push('/Auth/Register')}
+                  onPress={() => router.push('/Auth/auth')}
                 >
                   <Text style={styles.registerLinkText}>Créer un compte</Text>
                 </TouchableOpacity>

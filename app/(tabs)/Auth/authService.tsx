@@ -6,7 +6,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://100.64.134.89:5000/api';
+
+// Base URL pour l'API
+export const API_BASE_URL = 'https://shopnet-backend.onrender.com/api'; // ✅ Production Render
+// export const API_BASE_URL = 'http://100.64.134.89:5000/api'; // Serveur local (commenté)
+
 
 
 interface DecodedToken {

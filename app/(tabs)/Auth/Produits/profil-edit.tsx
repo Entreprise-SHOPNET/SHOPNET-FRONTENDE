@@ -39,7 +39,14 @@ const PRO_GREEN = "#4CAF50";
 const NOTIFICATION_RED = "#FF3B30";
 const CARD_BG = "rgba(30, 42, 59, 0.9)";
 const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
-const BASE_URL = "http://100.64.134.89:5000";
+
+
+// 🔹 Serveur Render en production
+const BASE_URL = "https://shopnet-backend.onrender.com";
+
+// 🔹 Serveur local pour développement (commenté)
+// const BASE_URL = "http://100.64.134.89:5000";
+
 
 interface UserProfile {
   id: number;

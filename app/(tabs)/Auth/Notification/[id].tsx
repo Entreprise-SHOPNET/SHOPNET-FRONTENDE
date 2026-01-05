@@ -117,30 +117,34 @@ export default function NotificationDetailScreen() {
       id: 1,
       title: "Mes Commandes",
       icon: "cart-outline",
-      route: "/(tabs)/Auth/Commandes",
+      route: "/(tabs)/Auth/Panier/VendeurNotifications", // ← chemin relatif correct
       color: VIP_COLORS.secondary
     },
+
     {
       id: 2,
       title: "Ma Boutique",
       icon: "storefront-outline",
-      route: "/(tabs)/Auth/Boutique/MaBoutique",
+      route: "/(tabs)/Auth/Boutique/Boutique", // ← chemin relatif correct
       color: VIP_COLORS.accent
     },
+
     {
       id: 3,
       title: "Mon Profil",
       icon: "person-outline",
-      route: "/(tabs)/Auth/Vendeur/Profile",
+      route: "/(tabs)/Auth/Produits/profil-debug", // ← chemin relatif correct
       color: VIP_COLORS.gold
     },
+
     {
       id: 4,
       title: "Support",
       icon: "headset-outline",
-      route: "/(tabs)/Auth/Support",
+      route: "/MisAjour", // ← chemin relatif correct
       color: VIP_COLORS.success
-    }
+    },
+
   ];
 
   return (
@@ -270,7 +274,7 @@ export default function NotificationDetailScreen() {
         <View style={styles.actionsSection}>
           <TouchableOpacity 
             style={styles.primaryButton}
-            onPress={() => router.push("/(tabs)/Auth/Notifications")}
+            onPress={() => router.push("/(tabs)/Auth/Notification/NotificationsUser")}
           >
             <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
             <Text style={styles.primaryButtonText}>Retour aux notifications</Text>
@@ -278,7 +282,7 @@ export default function NotificationDetailScreen() {
           
           <TouchableOpacity 
             style={styles.secondaryButton}
-            onPress={() => router.push("/(tabs)/Auth/Boutique/MaBoutique")}
+            onPress={() => router.push("/(tabs)/Auth/Boutique/Boutique")}
           >
             <FontAwesome5 name="store" size={16} color={VIP_COLORS.text} />
             <Text style={styles.secondaryButtonText}>Voir ma boutique</Text>

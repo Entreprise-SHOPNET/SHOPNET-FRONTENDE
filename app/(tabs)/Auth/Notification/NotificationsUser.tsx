@@ -330,11 +330,11 @@ export default function NotificationsScreen() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch(
-        `http://100.64.134.89:5000/api/notifications`
-      );
-      const data = await response.json();
-      console.log("🔍 Données reçues :", data);
+        // const response = await fetch(`http://100.64.134.89:5000/api/notifications`);
+        const response = await fetch(`https://shopnet-backend.onrender.com/api/notifications`);
+        const data = await response.json();
+        console.log("🔍 Données reçues :", data);
+
 
       let notificationsData: Notification[] = [];
       

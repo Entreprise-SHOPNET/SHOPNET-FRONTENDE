@@ -19,7 +19,8 @@ import { saveToken } from '../authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
-const API_URL = 'http://100.64.134.89:5000/api/auth';
+// const API_URL = 'http://100.64.134.89:5000/api/auth'; // Serveur LOCAL (commenté)
+const API_URL = 'https://shopnet-backend.onrender.com/api/auth'; // Serveur Render (production)
 
 
 export default function CodeConfirmation() {

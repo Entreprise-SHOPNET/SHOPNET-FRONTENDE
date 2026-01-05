@@ -60,11 +60,18 @@ export default function Index() {
             const userId = decoded.id;
 
             // ✅ Envoi automatique du token Expo au serveur
-            await fetch("http://100.64.134.89:5000/api/save-expo-token", {
+            // await fetch("http://100.64.134.89:5000/api/save-expo-token", { // Serveur LOCAL (commenté)
+            //   method: 'POST',
+            //   headers: { 'Content-Type': 'application/json' },
+            //   body: JSON.stringify({ userId, expoPushToken: expoToken }),
+            // });
+
+            await fetch("https://shopnet-backend.onrender.com/api/save-expo-token", { // Serveur Render (production)
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userId, expoPushToken: expoToken }),
             });
+
 
             console.log('✅ Token Expo enregistré sur le serveur');
           }

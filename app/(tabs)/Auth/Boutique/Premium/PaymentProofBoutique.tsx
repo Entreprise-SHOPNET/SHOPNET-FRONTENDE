@@ -35,9 +35,16 @@ const WARNING_ORANGE = "#FF9800";
 const PRO_BLUE = "#42A5F5";
 
 // Configuration Backend SHOPNET
+// 🔹 Configuration Backend SHOPNET
+
 const BACKEND_CONFIG = {
-  apiUrl: "http://100.64.134.89:5000/api",
+  apiUrl: "https://shopnet-backend.onrender.com/api", // production Render
 };
+
+// 🔹 Serveur local pour développement (commenté)
+// const BACKEND_CONFIG = {
+//   apiUrl: "http://100.64.134.89:5000/api",
+// };
 
 
 

@@ -22,7 +22,12 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const LOCAL_API = "http://100.64.134.89:5000/api";
+// 🔹 Serveur Render en production
+const LOCAL_API = "https://shopnet-backend.onrender.com/api";
+// 🔹 Serveur local pour développement (commenté)
+// const LOCAL_API = "http://100.64.134.89:5000/api";
+
+
 const COMMAND_API_URL = `${LOCAL_API}/commandes`;
 const PANIER_API_URL = `${LOCAL_API}/cart`;
 const PROMOTIONS_API_URL = `${LOCAL_API}/promotions`;
