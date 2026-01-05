@@ -21,7 +21,9 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 
 const { width, height } = Dimensions.get("window");
-const API_BASE_URL = "https://shopnet-backend.onrender.com";
+// const API_BASE_URL = "http://100.64.134.89:5000"; // Serveur LOCAL (commenté)
+const API_BASE_URL = "https://shopnet-backend.onrender.com"; // Serveur Render (production)
+
 const CART_ENDPOINT = "/api/cart";
 
 // Couleurs SHOPNET PRO VIP

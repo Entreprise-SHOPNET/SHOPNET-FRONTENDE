@@ -6,7 +6,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getValidToken } from '../authService';
 
 
-const SOCKET_URL = 'http://100.64.134.89:5000';
+// Production (Render)
+const SOCKET_URL = 'https://shopnet-backend.onrender.com';
+
+// Local (développement)
+// const SOCKET_URL = 'http://100.64.134.89:5000';
 
 export default function VendeurDashboard() {
   useEffect(() => {

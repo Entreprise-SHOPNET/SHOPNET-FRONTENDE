@@ -620,7 +620,7 @@ export default function ConfirmationPaiement() {
             style={styles.supportLink}
             onPress={() => showMessage(
               "📞 Support SHOPNET",
-              "Pour toute assistance :\n• Email : support@shopnet.cd\n• WhatsApp : +243 81 00 00 000\n• Heures : 8h-18h (Lun-Sam)",
+              "Pour toute assistance :\n• Email : entrepriseshopia@gmail.com\n• WhatsApp : +243 89 60 37 137\n• Heures : 8h-18h (Lun-Sam)",
               "info"
             )}
           >

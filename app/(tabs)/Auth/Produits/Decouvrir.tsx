@@ -24,7 +24,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-const LOCAL_API = 'http://100.64.134.89:5000/api';
+// const LOCAL_API = 'http://100.64.134.89:5000/api'; // Serveur LOCAL (commenté)
+const LOCAL_API = 'https://shopnet-backend.onrender.com/api'; // Serveur Render (production)
+
 
 const SHOPNET_BLUE = "#00182A";
 const PRO_BLUE = "#42A5F5";

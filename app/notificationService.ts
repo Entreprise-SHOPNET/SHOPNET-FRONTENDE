@@ -5,7 +5,9 @@ import { Audio } from 'expo-av';
 import io, { Socket } from 'socket.io-client';
 import { getCurrentUser, getValidToken } from '../app/(tabs)/Auth/authService';
 
-const API_URL = 'http://100.64.134.89:5000';
+// const API_URL = 'http://100.64.134.89:5000'; // Serveur LOCAL (commenté)
+const API_URL = 'https://shopnet-backend.onrender.com'; // Serveur Render (production)
+
 
 // 🔥 CORRECTION : Interface alignée avec le backend
 interface Notification {

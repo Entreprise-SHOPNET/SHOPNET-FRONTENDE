@@ -22,8 +22,13 @@ import axios from 'axios';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 
-const API_URL = 'http://100.64.134.89:5000/api/auth';
-const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token';
+// Configuration API
+// const API_URL = 'http://100.64.134.89:5000/api/auth'; // Serveur LOCAL (commenté)
+// const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token'; // Serveur LOCAL (commenté)
+
+const API_URL = 'https://shopnet-backend.onrender.com/api/auth'; // Serveur Render (production)
+const EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token'; // Serveur Render (production)
+
 
 // Fonction pour récupérer et envoyer le token Expo
 const registerExpoToken = async (userId: string) => {

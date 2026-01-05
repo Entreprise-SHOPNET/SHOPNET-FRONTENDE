@@ -11,7 +11,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { getCurrentUser, getValidToken, authApi } from '../authService'; // adapte ton chemin si besoin
 import { router } from 'expo-router';
 
+// 🔹 Serveur Render en production
 const API_URL = 'https://shopnet-backend.onrender.com';
+
+// 🔹 Serveur local pour développement (commenté)
+// const API_URL = 'http://100.64.134.89:5000';
+
+
 const SOCKET_URL = API_URL;
 
 

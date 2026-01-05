@@ -25,11 +25,25 @@ import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 
-//const API_BASE_URL = 'http://100.64.134.89:5000/api';
-const RENDER_API = 'http://100.64.134.89:5000/api/products';
-const PRODUCTS_ENDPOINT = 'http://100.64.134.89:5000/api/products';
-const PROMOTIONS_API_URL = 'http://100.64.134.89:5000/api/promotions';
-const NOTIFICATIONS_API_URL = 'http://100.64.134.89:5000/api/notifications';
+
+
+// ===============================
+// Configuration API – PRODUCTION
+// ===============================
+const API_BASE_URL = 'https://shopnet-backend.onrender.com/api';
+
+const PRODUCTS_ENDPOINT = `${API_BASE_URL}/products`;
+const PROMOTIONS_API_URL = `${API_BASE_URL}/promotions`;
+const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
+
+
+// ===============================
+// Configuration API – LOCAL (commentée)
+// ===============================
+// const API_BASE_URL = 'http://100.64.134.89:5000/api';
+// const PRODUCTS_ENDPOINT = `${API_BASE_URL}/products`;
+// const PROMOTIONS_API_URL = `${API_BASE_URL}/promotions`;
+// const NOTIFICATIONS_API_URL = `${API_BASE_URL}/notifications`;
 
 const { width } = Dimensions.get('window');
 
@@ -641,80 +655,107 @@ const ShopApp = () => {
     };
   }, []);
 
-  const handleAddToCart = useCallback(
-    async (product: Product) => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        if (!token) {
-          showNotification('Authentification requise');
-          return;
-        }
 
-        const cartItem = {
-          product_id: product.isPromotion ? product.promotionId : product.id,
-          title: product.title,
-          description: product.description,
-          price: product.price,
-          original_price: product.original_price || product.price,
-          category: categories[activeCategory].replace(/[^a-zA-Z]/g, ''),
-          condition: 'new',
-          quantity: 1,
-          stock: 10,
-          location: product.location,
-          delivery_options: { pickup: true, delivery: true },
-          images: product.images,
-          seller_id: product.seller.id,
-          seller_name: product.seller.name,
-          seller_rating: product.rating,
+
+const handleAddToCart = useCallback(
+  async (product: Product) => {
+    try {
+      // 🔹 Vérifier que le token existe
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        showNotification('⚠️ Authentification requise');
+        return;
+      }
+
+      // 🔹 Construire l'objet à envoyer
+      const cartItem = {
+        product_id: product.isPromotion ? product.promotionId : product.id,
+        title: product.title,
+        description: product.description || '',
+        price: product.price,
+        original_price: product.original_price || product.price,
+        category: categories[activeCategory]?.replace(/[^a-zA-Z]/g, '') || '',
+        condition: 'new',
+        quantity: 1,
+        stock: 10,
+        location: product.location || '',
+        delivery_options: { pickup: true, delivery: true },
+        images: product.images || [],
+        seller_id: product.seller?.id || '',
+        seller_name: product.seller?.name || '',
+        seller_rating: product.rating || 0,
+      };
+
+      // 🔹 Endpoint correct selon le type de produit
+      const endpoint = product.isPromotion
+        ? 'https://shopnet-backend.onrender.com/api/cart' // même endpoint pour promotions
+        : 'https://shopnet-backend.onrender.com/api/cart'; // même endpoint pour produits normaux
+
+      console.log('➡️ Endpoint:', endpoint);
+      console.log('➡️ Cart Item envoyé:', cartItem);
+      console.log('➡️ Token présent:', !!token);
+
+      // 🔹 Appel POST vers le backend
+      const res = await authApi.post(endpoint, cartItem, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res?.data?.success) {
+        // ✅ Notification utilisateur
+        showNotification(`✅ ${product.isPromotion ? 'Promotion' : 'Produit'} ajouté au panier !`);
+
+        const userNotification: Notification = {
+          id: `cart_${Date.now()}`,
+          title: 'Produit ajouté au panier 🛒',
+          message: `Vous avez ajouté "${product.title}" à votre panier`,
+          type: 'system',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          icon: 'cart',
+          data: { productId: product.id }
         };
 
-        const endpoint = product.isPromotion ? '/cart/promotion' : '/cart';
-        
-        const res = await authApi.post( 
-          endpoint, 
-          cartItem,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
+        setNotifications(prev => [userNotification, ...prev]);
+        setBadgeCounts(prev => ({
+          ...prev,
+          cart: prev.cart + 1,
+          notification: prev.notification + 1
+        }));
 
-        if (res?.data?.success) {
-          showNotification(`✅ ${product.isPromotion ? 'Promotion' : 'Produit'} ajouté avec succès !`);
+        // 🔔 Notification vendeur
+        const sellerNotification: Notification = {
+          id: `seller_${Date.now()}`,
+          title: 'Un de vos produits a été ajouté au panier 🛒',
+          message: `"${product.title}" a été ajouté au panier par un client.`,
+          type: 'system',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          icon: 'cart',
+          data: { productId: product.id, buyerId: res.data.userId || null }
+        };
 
-          // Ajouter une notification pour l'ajout au panier
-          const newNotification: Notification = {
-            id: Date.now().toString(),
-            title: 'Produit ajouté au panier 🛒',
-            message: `Vous avez ajouté "${product.title}" à votre panier`,
-            type: 'system',
-            isRead: false,
-            createdAt: new Date().toISOString(),
-            icon: 'cart',
-            data: { productId: product.id }
-          };
-          
-          setNotifications(prev => [newNotification, ...prev]);
-          setBadgeCounts(prev => ({
-            ...prev,
-            cart: prev.cart + 1,
-            notification: prev.notification + 1
-          }));
+        // Ici, tu peux envoyer cette notification au store global ou à une route API notifications
+        console.log('🔔 Notification vendeur:', sellerNotification);
 
-          if (soundRef.current) {
-            await soundRef.current.replayAsync();
-          }
-        } else {
-          showNotification('⚠️ Impossible d\'ajouter au panier.');
+        // 🔹 Son si activé
+        if (soundRef.current) {
+          await soundRef.current.replayAsync();
         }
-      } catch (error: any) {
-        console.error('Erreur lors de l\'ajout au panier:', error);
-        showNotification('❌ Erreur lors de l\'ajout au panier');
+
+      } else {
+        console.warn('⚠️ Backend renvoie success=false', res.data);
+        showNotification('⚠️ Impossible d\'ajouter au panier.');
       }
-    },
-    [activeCategory, categories, showNotification]
-  );
+
+    } catch (error: any) {
+      console.error('❌ Erreur lors de l\'ajout au panier:', error);
+      showNotification('❌ Erreur lors de l\'ajout au panier');
+    }
+  },
+  [activeCategory, categories, showNotification]
+);
+
+
 
   const handleLike = useCallback(async (productId: string) => {
     let previousLikeState = false;
@@ -774,9 +815,14 @@ const ShopApp = () => {
       console.log('➡️ Envoi du like au serveur...');
 
       // Envoi au serveur (adapter l'URL selon que c'est une promotion ou un produit normal)
-      const endpoint = productId.startsWith('promo_') 
-        ? `http://100.64.134.89:5000/api/promotions/${productId.replace('promo_', '')}/like`
-        : `http://100.64.134.89:5000/api/interactions/${productId}/like`;
+    // const endpoint = productId.startsWith('promo_') 
+    //   ? `http://100.64.134.89:5000/api/promotions/${productId.replace('promo_', '')}/like` // Serveur LOCAL (commenté)
+    //   : `http://100.64.134.89:5000/api/interactions/${productId}/like`; // Serveur LOCAL (commenté)
+
+    const endpoint = productId.startsWith('promo_') 
+      ? `https://shopnet-backend.onrender.com/api/promotions/${productId.replace('promo_', '')}/like` // Serveur Render (production)
+      : `https://shopnet-backend.onrender.com/api/interactions/${productId}/like`; // Serveur Render (production)
+
 
       const response = await axios.post(
         endpoint,

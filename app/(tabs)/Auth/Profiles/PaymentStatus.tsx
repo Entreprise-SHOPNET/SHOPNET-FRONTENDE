@@ -37,7 +37,12 @@ const PRO_RED = "#F44336";
 const PRO_PURPLE = "#9C27B0";
 const CARD_BG = "rgba(30, 42, 59, 0.9)";
 const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
-const BASE_URL = "http://100.64.134.89:5000";
+
+
+// Base URL pour les requêtes backend
+const BASE_URL = "https://shopnet-backend.onrender.com"; // ✅ Serveur Render (production)
+// const BASE_URL = "http://100.64.134.89:5000"; // 🟢 Serveur local (dev/test)
+
 
 // Types
 type BoostStatus = 'pending' | 'active' | 'failed' | 'completed';
@@ -105,7 +110,7 @@ export default function MyBoostsScreen() {
       const token = await getValidToken();
       if (!token) {
         Alert.alert("Erreur", "Vous devez être connecté");
-        router.push("/login");
+        router.push("/Auth/auth");
         return;
       }
 

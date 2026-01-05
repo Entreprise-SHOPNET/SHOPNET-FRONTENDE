@@ -499,14 +499,19 @@ if (!token) {
 }
 
 // POST avec token
-const response = await fetch('http://100.64.134.89:5000/api/manual-payment/create-boost', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  },
-  body: JSON.stringify(boostData),
-});
+  const response = await fetch(
+    'https://shopnet-backend.onrender.com/api/manual-payment/create-boost', // ✅ Production Render
+    // 'http://100.64.134.89:5000/api/manual-payment/create-boost', // Serveur local (commenté)
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(boostData),
+    }
+  );
+
 
     const result = await response.json();
 

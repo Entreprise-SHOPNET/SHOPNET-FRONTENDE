@@ -420,7 +420,7 @@ export default function CreerBoutique() {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
         showNotification('Veuillez vous reconnecter', 'error');
-        router.replace('/login');
+        router.replace('/Auth/auth');
         return;
       }
 
@@ -458,13 +458,24 @@ export default function CreerBoutique() {
       }
 
       // Envoyer les données au backend
-      const response = await fetch('http://100.64.134.89:5000/api/boutique/premium/create', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formDataToSend,
-      });
+    // 🔹 Serveur Render en production
+    const response = await fetch('https://shopnet-backend.onrender.com/api/boutique/premium/create', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formDataToSend,
+    });
+
+    // 🔹 Serveur local pour développement (commenté)
+    // const response = await fetch('http://100.64.134.89:5000/api/boutique/premium/create', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': `Bearer ${token}`,
+    //   },
+    //   body: formDataToSend,
+    // });
+
 
       const responseText = await response.text();
       console.log('Réponse brute:', responseText);

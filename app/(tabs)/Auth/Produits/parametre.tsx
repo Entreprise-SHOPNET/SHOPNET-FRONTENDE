@@ -38,7 +38,13 @@ const NOTIFICATION_RED = "#FF3B30";
 const CARD_BG = "rgba(30, 42, 59, 0.9)";
 const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
 
-const BASE_URL = "http://100.64.134.89:5000";
+
+
+// Production (Render)
+const BASE_URL = 'https://shopnet-backend.onrender.com';
+// Local (développement)
+// const BASE_URL = 'http://100.64.134.89:5000';
+
 
 // Types pour les paramètres
 type SettingsSection = {
@@ -59,54 +65,54 @@ const initialSettingsSections: SettingsSection[] = [
     title: "Compte & Profil",
     items: [
       { name: "Mon profil", route: "/Auth/Produits/profil-edit", icon: "person-circle", badge: 0, iconFamily: 'ionicons' },
-      { name: "Sécurité", route: "/Auth/Produits/securite", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
-      { name: "Paiements", route: "/Auth/Produits/paiements", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
-      { name: "Badge Pro", route: "/Auth/Produits/badge-pro", icon: "verified", badge: 0, iconFamily: 'material' },
+      { name: "Sécurité", route: "/MisAjour", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
+      { name: "Paiements", route: "/MisAjour", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
+      { name: "Badge Pro", route: "/MisAjour", icon: "verified", badge: 0, iconFamily: 'material' },
     ],
   },
   {
     title: "Notifications & Communications",
     items: [
-      { name: "Notifications", route: "/Auth/Produits/notifications-settings", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
-      { name: "Messages", route: "/Auth/Produits/messages-settings", icon: "chatbubble", badge: 0, iconFamily: 'ionicons' },
-      { name: "Alertes", route: "/Auth/Produits/alertes", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
-      { name: "Son & Vibration", route: "/Auth/Produits/son-vibration", icon: "volume-high", badge: 0, iconFamily: 'ionicons' },
+      { name: "Notifications", route: "/MisAjour", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
+      { name: "Messages", route: "/MisAjour", icon: "chatbubble", badge: 0, iconFamily: 'ionicons' },
+      { name: "Alertes", route: "/MisAjour", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
+      { name: "Son & Vibration", route: "/MisAjour", icon: "volume-high", badge: 0, iconFamily: 'ionicons' },
     ],
   },
   {
     title: "Apparence & Préférences",
     items: [
-      { name: "Thème", route: "/Auth/Produits/theme", icon: "palette", badge: 0, iconFamily: 'ionicons' },
-      { name: "Langue", route: "/Auth/Produits/langue", icon: "language", badge: 0, iconFamily: 'ionicons' },
-      { name: "Localisation", route: "/Auth/Produits/localisation", icon: "location", badge: 0, iconFamily: 'ionicons' },
-      { name: "Affichage", route: "/Auth/Produits/affichage", icon: "desktop", badge: 0, iconFamily: 'fontawesome' },
+      { name: "Thème", route: "/MisAjour", icon: "palette", badge: 0, iconFamily: 'ionicons' },
+      { name: "Langue", route: "/MisAjour", icon: "language", badge: 0, iconFamily: 'ionicons' },
+      { name: "Localisation", route: "/MisAjour", icon: "location", badge: 0, iconFamily: 'ionicons' },
+      { name: "Affichage", route: "/MisAjour", icon: "desktop", badge: 0, iconFamily: 'fontawesome' },
     ],
   },
   {
     title: "Boutique & Produits",
     items: [
-      { name: "Paramètres boutique", route: "/Auth/Boutique/MaBoutique/settings", icon: "store", badge: 0, iconFamily: 'material' },
-      { name: "Gestion produits", route: "/Auth/Produits/Produit", icon: "cube", badge: 0, iconFamily: 'ionicons' },
-      { name: "Livraison", route: "/Auth/Produits/livraison", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
-      { name: "Promotions", route: "/Auth/Produits/promotions", icon: "pricetag", badge: 2, iconFamily: 'ionicons' },
+      { name: "Paramètres boutique", route: "/MisAjour", icon: "store", badge: 0, iconFamily: 'material' },
+      { name: "Gestion produits", route: "/MisAjour", icon: "cube", badge: 9, iconFamily: 'ionicons' },
+      { name: "Livraison", route: "/MisAjour", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
+      { name: "Promotions", route: "/MisAjour", icon: "pricetag", badge: 2, iconFamily: 'ionicons' },
     ],
   },
   {
     title: "Support & Aide",
     items: [
-      { name: "Centre d'aide", route: "/Auth/Produits/centre-aide", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
-      { name: "Signaler un problème", route: "/Auth/Produits/signaler", icon: "warning", badge: 0, iconFamily: 'material' },
-      { name: "Nous contacter", route: "/Auth/Produits/contact", icon: "mail", badge: 0, iconFamily: 'ionicons' },
-      { name: "À propos", route: "/Auth/Produits/about", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
+      { name: "Centre d'aide", route: "/MisAjour", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
+      { name: "Signaler un problème", route: "/MisAjour", icon: "warning", badge: 0, iconFamily: 'material' },
+      { name: "Nous contacter", route: "/MisAjour", icon: "mail", badge: 0, iconFamily: 'ionicons' },
+      { name: "À propos", route: "/MisAjour", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
     ],
   },
   {
     title: "Confidentialité & Sécurité",
     items: [
-      { name: "Vie privée", route: "/Auth/Produits/privacy", icon: "lock-closed", badge: 0, iconFamily: 'ionicons' },
-      { name: "Sécurité avancée", route: "/Auth/Produits/advanced-security", icon: "shield", badge: 0, iconFamily: 'ionicons' },
-      { name: "Historique", route: "/Auth/Produits/historique", icon: "time", badge: 0, iconFamily: 'ionicons' },
-      { name: "Autorisations", route: "/Auth/Produits/permissions", icon: "key", badge: 0, iconFamily: 'fontawesome' },
+      { name: "Vie privée", route: "/MisAjour", icon: "lock-closed", badge: 0, iconFamily: 'ionicons' },
+      { name: "Sécurité avancée", route: "/MisAjour", icon: "shield", badge: 0, iconFamily: 'ionicons' },
+      { name: "Historique", route: "/MisAjour", icon: "time", badge: 0, iconFamily: 'ionicons' },
+      { name: "Autorisations", route: "/MisAjour", icon: "key", badge: 0, iconFamily: 'fontawesome' },
     ],
   },
 ];
@@ -377,9 +383,9 @@ const SettingsScreen = () => {
           <View style={styles.headerTop}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.push("/")}
+              onPress={() => router.push("/(tabs)/Auth/Produits/profil-debug")}
             >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name="arrow-back" size={24} color="#ffffffff" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Paramètres Pro</Text>
             <TouchableOpacity
@@ -642,7 +648,7 @@ const SettingsScreen = () => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>© 2024 Shopnet Pro. Tous droits réservés.</Text>
+          <Text style={styles.footerText}>© 2026 Shopnet Pro. Tous droits réservés.</Text>
           <Text style={styles.footerSubText}>Version 2.5.1 • Build 2412</Text>
         </View>
       </ScrollView>

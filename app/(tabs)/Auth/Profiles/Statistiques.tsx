@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
@@ -15,7 +17,7 @@ import {
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, FontAwesome, Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
@@ -23,8 +25,13 @@ const { width } = Dimensions.get("window");
 // Couleurs SHOPNET PRO VIP
 const SHOPNET_BLUE = "#00182A";
 const PRO_BLUE = "#42A5F5";
+const PRO_GREEN = "#4CAF50";
+const PRO_ORANGE = "#FF9800";
+const PRO_RED = "#F44336";
+const PRO_PURPLE = "#9C27B0";
 const PREMIUM_GOLD = "#FFD700";
-const CARD_BG = "#1E2A3B";
+const CARD_BG = "rgba(30, 42, 59, 0.9)";
+const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
 const TEXT_WHITE = "#FFFFFF";
 const TEXT_SECONDARY = "#A0AEC0";
 const SUCCESS_GREEN = "#4CAF50";
@@ -36,6 +43,8 @@ type TopProduct = {
   title: string;
   ventes?: number;
   vues?: number;
+  likes?: number;
+  commentaires?: number;
   image: string | null;
 };
 
@@ -58,6 +67,7 @@ type StatsResponse = {
     interactions: {
       likes: number;
       partages: number;
+      commentaires: number;
     };
   };
 };
@@ -108,15 +118,40 @@ const SellerStatsScreen = () => {
     fetchStats();
   };
 
+  // Calculer les vues totales selon la formule : (ventes * 2) + (likes * 3)
+  const calculateTotalVues = () => {
+    if (!data || !data.statistiques) return 0;
+    const ventes = typeof data.statistiques.ventes.total_produits_vendus === 'string' 
+      ? parseInt(data.statistiques.ventes.total_produits_vendus) 
+      : data.statistiques.ventes.total_produits_vendus;
+    const likes = data.statistiques.interactions.likes;
+    return (ventes * 2) + (likes * 3);
+  };
+
+  // Calculer les vues pour un produit spécifique
+  const calculateProductVues = (produit: TopProduct) => {
+    const ventesVues = (produit.ventes || 0) * 2;
+    const likesVues = (data?.statistiques.interactions.likes || 0) * 0.1;
+    return Math.round(ventesVues + likesVues);
+  };
+
+  // Formater les nombres en K et M
   const formatNumber = (num: number | string) => {
     const n = typeof num === "string" ? parseInt(num) : num;
-    if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
-    if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+    if (isNaN(n)) return "0";
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + "M";
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + "K";
     return n.toString();
   };
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1).replace('.0', '')}M`;
+    }
+    if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(1).replace('.0', '')}K`;
+    }
+    return `$${amount.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
   if (loading && !refreshing) {
@@ -162,26 +197,36 @@ const SellerStatsScreen = () => {
   }
 
   const stats = data.statistiques;
+  const totalVuesCalcule = calculateTotalVues();
 
-  const StatCard = ({
+  // Composant de carte de statistique compacte
+  const CompactStatCard = ({
     icon,
-    label,
+    title,
     value,
     color = PRO_BLUE,
+    trend,
   }: {
     icon: string;
-    label: string;
+    title: string;
     value: string | number;
     color?: string;
+    trend?: string;
   }) => (
-    <View style={styles.statCard}>
-      <View style={styles.statHeader}>
-        <View style={[styles.statIcon, { backgroundColor: `${color}20` }]}>
-          <Ionicons name={icon as any} size={24} color={color} />
+    <View style={[styles.compactStatCard, { borderColor: color + '40' }]}>
+      <View style={styles.compactStatTop}>
+        <View style={[styles.compactStatIcon, { backgroundColor: color + '20' }]}>
+          <FontAwesome name={icon as any} size={16} color={color} />
         </View>
+        {trend && (
+          <View style={styles.compactStatTrend}>
+            <Feather name="trending-up" size={10} color={color} />
+            <Text style={[styles.compactStatTrendText, { color }]}>{trend}</Text>
+          </View>
+        )}
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.compactStatValue, { color }]}>{value}</Text>
+      <Text style={styles.compactStatTitle}>{title}</Text>
     </View>
   );
 
@@ -193,50 +238,67 @@ const SellerStatsScreen = () => {
     item: TopProduct;
     type: "vendu" | "vu";
     rank: number;
-  }) => (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() =>
-        router.push({
-          pathname: "/(tabs)/Auth/Panier/DetailId",
-          params: { id: item.id.toString() },
-        })
-      }
-      activeOpacity={0.8}
-    >
-      <View style={styles.rankBadge}>
-        <Text style={styles.rankText}>#{rank}</Text>
-      </View>
-      <Image
-        source={{
-          uri: item.image || "https://via.placeholder.com/80",
-        }}
-        style={styles.productImage}
-        resizeMode="cover"
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <View style={styles.productStats}>
-          <View style={styles.statRow}>
-            <Ionicons
-              name={type === "vendu" ? "cart" : "eye"}
-              size={16}
-              color={type === "vendu" ? SUCCESS_GREEN : PRO_BLUE}
-            />
-            <Text style={styles.statCount}>
-              {type === "vendu" ? (item.ventes ?? 0) : (item.vues ?? 0)}
-            </Text>
-            <Text style={styles.statLabel}>
-              {type === "vendu" ? "ventes" : "vues"}
-            </Text>
+  }) => {
+    // Calcul des vues pour ce produit
+    const productVues = type === "vu" ? calculateProductVues(item) : item.ventes || 0;
+    
+    return (
+      <TouchableOpacity
+        style={styles.productCard}
+        onPress={() =>
+          router.push({
+            pathname: "/(tabs)/Auth/Panier/DetailId",
+            params: { id: item.id.toString() },
+          })
+        }
+        activeOpacity={0.8}
+      >
+        <View style={[
+          styles.rankBadge,
+          rank === 1 ? styles.rankFirst :
+          rank === 2 ? styles.rankSecond :
+          rank === 3 ? styles.rankThird : styles.rankOther
+        ]}>
+          <Text style={styles.rankText}>#{rank}</Text>
+        </View>
+        <Image
+          source={{
+            uri: item.image || "https://via.placeholder.com/80",
+          }}
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+        <View style={styles.productInfo}>
+          <Text style={styles.productTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <View style={styles.productStats}>
+            <View style={styles.statRow}>
+              <Ionicons
+                name={type === "vendu" ? "cart" : "eye"}
+                size={16}
+                color={type === "vendu" ? SUCCESS_GREEN : PRO_BLUE}
+              />
+              <Text style={styles.statCount}>
+                {type === "vendu" ? formatNumber(item.ventes || 0) : formatNumber(productVues)}
+              </Text>
+              <Text style={styles.statLabel}>
+                {type === "vendu" ? "ventes" : "vues"}
+              </Text>
+            </View>
+            {type === "vu" && (
+              <View style={styles.vuesFormula}>
+                <Text style={styles.vuesFormulaText}>
+                  = ({item.ventes || 0} × 2) + ({stats.interactions.likes} × 3)
+                </Text>
+              </View>
+            )}
           </View>
         </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={TEXT_SECONDARY} />
-    </TouchableOpacity>
-  );
+        <Ionicons name="chevron-forward" size={20} color={TEXT_SECONDARY} />
+      </TouchableOpacity>
+    );
+  };
 
   const ActionButton = ({
     icon,
@@ -278,12 +340,11 @@ const SellerStatsScreen = () => {
           onPress={onRefresh}
           disabled={refreshing}
         >
-          <Ionicons
-            name="refresh"
-            size={22}
-            color={PRO_BLUE}
-            style={refreshing && styles.refreshing}
-          />
+          {refreshing ? (
+            <ActivityIndicator size="small" color={PRO_BLUE} />
+          ) : (
+            <Ionicons name="refresh" size={22} color={PRO_BLUE} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -299,80 +360,165 @@ const SellerStatsScreen = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Statistiques Principales */}
+        {/* Statistiques Principales - Alignement Horizontal */}
         <View style={styles.mainStatsSection}>
-          <Text style={styles.sectionTitle}>Aperçu des Performances</Text>
-          <View style={styles.mainStatsGrid}>
-            <StatCard
-              icon="bag-check-outline"
-              label="Produits Vendus"
-              value={formatNumber(stats.ventes.total_produits_vendus)}
-              color={SUCCESS_GREEN}
-            />
-            <StatCard
-              icon="cash-outline"
-              label="Revenu Total"
+          <View style={styles.sectionHeader}>
+            <MaterialIcons name="dashboard" size={20} color={PRO_BLUE} />
+            <Text style={styles.sectionTitle}>Statistiques Clés</Text>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalStatsScroll}
+            contentContainerStyle={styles.horizontalStatsContent}
+          >
+            <CompactStatCard
+              icon="dollar"
+              title="Revenu Total"
               value={formatCurrency(stats.ventes.revenu_total)}
-              color={PREMIUM_GOLD}
+              color={PRO_GREEN}
+              trend={`+${formatNumber(stats.ventes.revenu_mensuel)}`}
             />
-            <StatCard
-              icon="calendar-outline"
-              label="Ce Mois"
-              value={formatCurrency(stats.ventes.revenu_mensuel)}
+            
+            <CompactStatCard
+              icon="shopping-cart"
+              title="Ventes Total"
+              value={formatNumber(stats.ventes.total_produits_vendus)}
+              color={PRO_RED}
+              trend="Hot"
+            />
+            
+            <CompactStatCard
+              icon="eye"
+              title="Vues Total"
+              value={formatNumber(totalVuesCalcule)}
               color={PRO_BLUE}
+              trend={`${formatNumber(totalVuesCalcule)}`}
             />
-            <StatCard
-              icon="cube-outline"
-              label="En Vente"
-              value={stats.produits.total_produits_en_vente}
-              color={WARNING_ORANGE}
+            
+            <CompactStatCard
+              icon="calendar"
+              title="Ce Mois"
+              value={formatCurrency(stats.ventes.revenu_mensuel)}
+              color={PRO_ORANGE}
+              trend="Boost"
             />
+          </ScrollView>
+        </View>
+
+        {/* Calcul des Vues */}
+        <View style={styles.calculationCard}>
+          <View style={styles.calculationHeader}>
+            <MaterialIcons name="calculate" size={20} color={PRO_BLUE} />
+            <Text style={styles.calculationTitle}>Calcul des Vues</Text>
+          </View>
+          <View style={styles.calculationContent}>
+            <View style={styles.calculationRow}>
+              <Text style={styles.calculationLabel}>Ventes totales</Text>
+              <Text style={styles.calculationValue}>
+                {formatNumber(stats.ventes.total_produits_vendus)}
+              </Text>
+              <Text style={styles.calculationSymbol}>× 2 =</Text>
+              <Text style={styles.calculationResult}>
+                {formatNumber(typeof stats.ventes.total_produits_vendus === 'string' 
+                  ? parseInt(stats.ventes.total_produits_vendus) * 2 
+                  : stats.ventes.total_produits_vendus * 2)} vues
+              </Text>
+            </View>
+            <View style={styles.calculationRow}>
+              <Text style={styles.calculationLabel}>Likes</Text>
+              <Text style={styles.calculationValue}>
+                {formatNumber(stats.interactions.likes)}
+              </Text>
+              <Text style={styles.calculationSymbol}>× 3 =</Text>
+              <Text style={styles.calculationResult}>
+                {formatNumber(stats.interactions.likes * 3)} vues
+              </Text>
+            </View>
+            <View style={styles.calculationTotal}>
+              <Text style={styles.calculationTotalLabel}>VUES TOTALES</Text>
+              <Text style={styles.calculationTotalValue}>
+                {formatNumber(totalVuesCalcule)}
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Métriques d'Engagement */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Engagement</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="stats-chart" size={20} color={PRO_PURPLE} />
+            <Text style={styles.sectionTitle}>Engagement</Text>
+          </View>
           <View style={styles.engagementGrid}>
-            <View style={styles.engagementCard}>
-              <Ionicons name="eye-outline" size={28} color={PRO_BLUE} />
+            <View style={[styles.engagementCard, { borderColor: PRO_BLUE + '40' }]}>
+              <View style={[styles.engagementIcon, { backgroundColor: PRO_BLUE + '20' }]}>
+                <Ionicons name="eye-outline" size={24} color={PRO_BLUE} />
+              </View>
               <View style={styles.engagementInfo}>
                 <Text style={styles.engagementValue}>
-                  {formatNumber(stats.vues.total)}
+                  {formatNumber(totalVuesCalcule)}
                 </Text>
                 <Text style={styles.engagementLabel}>Vues Total</Text>
+                <Text style={styles.engagementSubtitle}>
+                  Ventes×2 + Likes×3
+                </Text>
               </View>
             </View>
-            <View style={styles.engagementCard}>
-              <Ionicons name="heart-outline" size={28} color={ERROR_RED} />
+            
+            <View style={[styles.engagementCard, { borderColor: PRO_RED + '40' }]}>
+              <View style={[styles.engagementIcon, { backgroundColor: PRO_RED + '20' }]}>
+                <Ionicons name="heart-outline" size={24} color={PRO_RED} />
+              </View>
               <View style={styles.engagementInfo}>
                 <Text style={styles.engagementValue}>
                   {formatNumber(stats.interactions.likes)}
                 </Text>
                 <Text style={styles.engagementLabel}>Likes</Text>
+                <Text style={styles.engagementSubtitle}>
+                  ×3 = vues
+                </Text>
               </View>
             </View>
-            <View style={styles.engagementCard}>
-              <Ionicons
-                name="share-social-outline"
-                size={28}
-                color={SUCCESS_GREEN}
-              />
+            
+            <View style={[styles.engagementCard, { borderColor: PRO_GREEN + '40' }]}>
+              <View style={[styles.engagementIcon, { backgroundColor: PRO_GREEN + '20' }]}>
+                <Ionicons name="share-social-outline" size={24} color={PRO_GREEN} />
+              </View>
               <View style={styles.engagementInfo}>
                 <Text style={styles.engagementValue}>
                   {formatNumber(stats.interactions.partages)}
                 </Text>
                 <Text style={styles.engagementLabel}>Partages</Text>
+                <Text style={styles.engagementSubtitle}>
+                  Viralité
+                </Text>
+              </View>
+            </View>
+            
+            <View style={[styles.engagementCard, { borderColor: PRO_ORANGE + '40' }]}>
+              <View style={[styles.engagementIcon, { backgroundColor: PRO_ORANGE + '20' }]}>
+                <Ionicons name="chatbubble-outline" size={24} color={PRO_ORANGE} />
+              </View>
+              <View style={styles.engagementInfo}>
+                <Text style={styles.engagementValue}>
+                  {formatNumber(stats.interactions.commentaires || 0)}
+                </Text>
+                <Text style={styles.engagementLabel}>Commentaires</Text>
+                <Text style={styles.engagementSubtitle}>
+                  Engagement
+                </Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Top Produits */}
+        {/* Top Produits Vendus */}
         <View style={styles.topProductsSection}>
           <View style={styles.sectionHeader}>
             <Ionicons name="trophy-outline" size={24} color={PREMIUM_GOLD} />
-            <Text style={styles.sectionTitle}>Produits Performants</Text>
+            <Text style={styles.sectionTitle}>Top Produits Vendus</Text>
           </View>
 
           <FlatList
@@ -393,6 +539,37 @@ const SellerStatsScreen = () => {
                 <Text style={styles.emptyText}>Aucune vente enregistrée</Text>
                 <Text style={styles.emptySubtext}>
                   Vos produits performants apparaîtront ici
+                </Text>
+              </View>
+            }
+          />
+        </View>
+
+        {/* Top Produits Vus */}
+        <View style={styles.topProductsSection}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="eye-outline" size={24} color={PRO_BLUE} />
+            <Text style={styles.sectionTitle}>Top Produits Vus</Text>
+          </View>
+
+          <FlatList
+            data={stats.produits.top_vus}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item, index }) => (
+              <ProductCard item={item} type="vu" rank={index + 1} />
+            )}
+            scrollEnabled={false}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ListEmptyComponent={
+              <View style={styles.emptySection}>
+                <Ionicons
+                  name="eye-outline"
+                  size={48}
+                  color={TEXT_SECONDARY}
+                />
+                <Text style={styles.emptyText}>Aucune vue enregistrée</Text>
+                <Text style={styles.emptySubtext}>
+                  Les vues de vos produits apparaîtront ici
                 </Text>
               </View>
             }
@@ -473,6 +650,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     backgroundColor: SHOPNET_BLUE,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER_COLOR,
   },
   headerContent: {
     flex: 1,
@@ -489,63 +668,22 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   refreshButton: {
-    padding: 8,
-  },
-  refreshing: {
-    opacity: 0.5,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: CARD_BG,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
   },
   scrollView: {
     flex: 1,
   },
   mainStatsSection: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: TEXT_WHITE,
+    marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 16,
-  },
-  mainStatsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  statCard: {
-    width: (width - 64) / 2,
-    backgroundColor: CARD_BG,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
-  },
-  statHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: TEXT_WHITE,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: TEXT_SECONDARY,
-    fontWeight: "500",
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -553,20 +691,161 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: TEXT_WHITE,
+  },
+  // Styles pour les statistiques horizontales compactes
+  horizontalStatsScroll: {
+    marginHorizontal: -4,
+  },
+  horizontalStatsContent: {
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+  },
+  compactStatCard: {
+    width: 140,
+    backgroundColor: CARD_BG,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    marginLeft: 8,
+  },
+  compactStatTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  compactStatIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  compactStatTrend: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  compactStatTrendText: {
+    fontSize: 9,
+    fontWeight: "600",
+    marginLeft: 2,
+  },
+  compactStatValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  compactStatTitle: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "600",
+  },
+  calculationCard: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  calculationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  calculationTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: TEXT_WHITE,
+    marginLeft: 10,
+  },
+  calculationContent: {
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    borderRadius: 12,
+    padding: 16,
+  },
+  calculationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    justifyContent: "space-between",
+  },
+  calculationLabel: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.8)",
+    flex: 2,
+  },
+  calculationValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: PRO_BLUE,
+    flex: 1,
+    textAlign: "center",
+  },
+  calculationSymbol: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.6)",
+    flex: 1,
+    textAlign: "center",
+  },
+  calculationResult: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: PRO_GREEN,
+    flex: 2,
+    textAlign: "right",
+  },
+  calculationTotal: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+  },
+  calculationTotalLabel: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.6)",
+    fontWeight: "700",
+  },
+  calculationTotalValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: PRO_BLUE,
+  },
+  section: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
   engagementGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
   },
   engagementCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    width: (width - 56) / 2,
     backgroundColor: CARD_BG,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
-    gap: 12,
+  },
+  engagementIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
   },
   engagementInfo: {
     flex: 1,
@@ -579,39 +858,60 @@ const styles = StyleSheet.create({
   },
   engagementLabel: {
     fontSize: 12,
-    color: TEXT_SECONDARY,
-    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  engagementSubtitle: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.6)",
   },
   topProductsSection: {
-    paddingHorizontal: 20,
+    marginHorizontal: 16,
     marginBottom: 24,
   },
   productCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: CARD_BG,
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
+    borderColor: BORDER_COLOR,
   },
   rankBadge: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: PREMIUM_GOLD,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    borderWidth: 2,
+  },
+  rankFirst: {
+    backgroundColor: "rgba(255, 215, 0, 0.15)",
+    borderColor: "#FFD700",
+  },
+  rankSecond: {
+    backgroundColor: "rgba(192, 192, 192, 0.15)",
+    borderColor: "#C0C0C0",
+  },
+  rankThird: {
+    backgroundColor: "rgba(205, 127, 50, 0.15)",
+    borderColor: "#CD7F32",
+  },
+  rankOther: {
+    backgroundColor: "rgba(66, 165, 245, 0.15)",
+    borderColor: PRO_BLUE,
   },
   rankText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "800",
-    color: SHOPNET_BLUE,
+    color: TEXT_WHITE,
   },
   productImage: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     borderRadius: 8,
     backgroundColor: "#2C3A4A",
   },
@@ -621,26 +921,39 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   productTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: TEXT_WHITE,
     marginBottom: 6,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   productStats: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
   },
   statRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    marginBottom: 4,
   },
   statCount: {
     fontSize: 14,
     fontWeight: "700",
     color: TEXT_WHITE,
     marginLeft: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: TEXT_SECONDARY,
+    fontWeight: "500",
+  },
+  vuesFormula: {
+    marginTop: 2,
+  },
+  vuesFormulaText: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.5)",
+    fontStyle: "italic",
   },
   separator: {
     height: 8,
@@ -651,7 +964,7 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
+    borderColor: BORDER_COLOR,
   },
   emptyText: {
     color: TEXT_SECONDARY,
@@ -677,7 +990,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
+    borderColor: BORDER_COLOR,
   },
   actionIcon: {
     width: 48,
@@ -738,5 +1051,4 @@ const styles = StyleSheet.create({
   },
 });
 
-// ✅ EXPORT CORRECT
 export default SellerStatsScreen;

@@ -19,7 +19,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
 const { width, height } = Dimensions.get('window');
-const API_URL = 'http://100.64.134.89:5000/api/products';
+// const API_URL = 'http://100.64.134.89:5000/api/products'; // Serveur LOCAL (commenté)
+const API_URL = 'https://shopnet-backend.onrender.com/api/products'; // Serveur Render (production)
+
 
 // Couleurs premium SHOPNET VIP
 const PRIMARY_COLOR = "#00182A";

@@ -26,7 +26,12 @@ const PRO_BLUE = "#42A5F5";
 const { width, height } = Dimensions.get("window");
 
 // URL des API de vérification (SEULEMENT Premium)
-const PREMIUM_CHECK_URL = "http://100.64.134.89:5000/api/boutique/premium/check";
+// 🔹 Serveur Render en production
+const PREMIUM_CHECK_URL = "https://shopnet-backend.onrender.com/api/boutique/premium/check";
+
+// 🔹 Serveur local pour développement (commenté)
+// const PREMIUM_CHECK_URL = "http://100.64.134.89:5000/api/boutique/premium/check";
+
 
 // Type pour les informations de boutique
 interface BoutiqueInfo {

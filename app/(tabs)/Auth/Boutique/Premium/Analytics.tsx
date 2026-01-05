@@ -35,7 +35,14 @@ const PENDING_BLUE = "#42A5F5";
 const CHART_PURPLE = "#9C27B0";
 const CHART_ORANGE = "#FF9800";
 const DANGER_RED = "#F44336";
-const LOCAL_API = "http://100.64.134.89:5000/api";
+
+
+// 🔹 Serveur Render en production
+const LOCAL_API = "https://shopnet-backend.onrender.com/api";
+
+// 🔹 Serveur local pour développement (commenté)
+// const LOCAL_API = "http://100.64.134.89:5000/api";
+
 
 // Types basés sur le backend
 interface Boutique {
