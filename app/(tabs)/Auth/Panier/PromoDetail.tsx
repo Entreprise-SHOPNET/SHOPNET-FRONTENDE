@@ -28,6 +28,7 @@ const LOCAL_API = "https://shopnet-backend.onrender.com/api";
 // const LOCAL_API = "http://100.64.134.89:5000/api";
 
 
+
 const COMMAND_API_URL = `${LOCAL_API}/commandes`;
 const PANIER_API_URL = `${LOCAL_API}/cart`;
 const PROMOTIONS_API_URL = `${LOCAL_API}/promotions`;

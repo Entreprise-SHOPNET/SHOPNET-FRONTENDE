@@ -174,10 +174,10 @@ const ProductItem = memo(({
 
       <TouchableOpacity
         onPress={() => {
-          if (item.isPromotion) {
+          if (item.isPromotion && item.promotionId) {
             router.push({
               pathname: "/(tabs)/Auth/Panier/PromoDetail",
-              params: { id: item.id.toString() }
+              params: { id: item.promotionId.toString() } // ✅ safe
             });
           } else {
             router.push({
@@ -186,7 +186,8 @@ const ProductItem = memo(({
             });
           }
         }}
-      >
+        >
+
         <Image 
           source={{ uri: item.images[0] || 'https://via.placeholder.com/400' }} 
           style={styles.productImage}
