@@ -8,7 +8,7 @@ buildscript {
         minSdkVersion = 24
         compileSdkVersion = 35
         targetSdkVersion = 34
-        kotlinVersion = '1.9.0'   // ⚡ fixe Kotlin pour éviter languageVersion is final
+        kotlinVersion = '1.8.22'  // ⚡ Correction Kotlin
 
         ndkVersion = "26.1.10909125"
         cmakeVersion = "3.22.1"
@@ -22,7 +22,7 @@ buildscript {
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
         classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0") // ⚡ version fixe
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
@@ -52,9 +52,9 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 android {
-    compileSdk 35                 // ⚡ valeur fixe
-    buildToolsVersion "35.0.0"   // ⚡ valeur fixe
-    ndkVersion "26.1.10909125"   // ⚡ valeur fixe
+    compileSdk 35                     // ⚡ Correction
+    buildToolsVersion "35.0.0"       // ⚡ Correction
+    ndkVersion rootProject.ext.ndkVersion
 
     namespace 'com.shopai.app'
 
@@ -92,8 +92,8 @@ android {
     // =====================
     externalNativeBuild {
         cmake {
-            path "CMakeLists.txt" // ⚡ vérifie que ce fichier existe
-            version "3.22.1"
+            path "CMakeLists.txt" // ⚡ Vérifie que ce fichier existe
+            version rootProject.ext.cmakeVersion
         }
     }
 
@@ -123,6 +123,7 @@ dependencies {
     // React Native core
     implementation("com.facebook.react:react-android")
 
+    // Hermes activé
     def hermesEnabled = true
     if (hermesEnabled) {
         implementation("com.facebook.react:hermes-android")
