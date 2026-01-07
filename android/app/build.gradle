@@ -1,5 +1,7 @@
 
 
+// android/app/build.gradle (prêt pour SDK 52 et RN 0.74+)
+
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
@@ -7,14 +9,14 @@ apply plugin: "com.facebook.react"
 android {
     namespace "com.shopai.app"
 
-    compileSdk 33
-    buildToolsVersion "33.0.2"
+    compileSdk 52
+    buildToolsVersion "35.0.1"
     ndkVersion "26.1.10909125"
 
     defaultConfig {
         applicationId "com.shopai.app"
-        minSdkVersion 24
-        targetSdkVersion 33
+        minSdk 24
+        targetSdk 52
         versionCode 1
         versionName "1.0.0"
     }
@@ -54,15 +56,10 @@ android {
 
 react {
     entryFile = "index.js"
-    autolinkLibrariesWithApp()
+    hermesEnabled = true
 }
 
 dependencies {
-    implementation("com.facebook.react:react-android")
-    def hermesEnabled = true
-    if (hermesEnabled) {
-        implementation("com.facebook.react:hermes-android:0.74.6")
-    } else {
-        implementation "org.webkit:android-jsc:+"
-    }
+    implementation "com.facebook.react:react-android"
+    implementation "com.facebook.react:hermes-android"
 }
