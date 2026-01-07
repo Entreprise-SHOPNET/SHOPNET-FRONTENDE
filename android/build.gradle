@@ -1,57 +1,58 @@
 
 
-apply plugin: "com.android.application"
-apply plugin: "org.jetbrains.kotlin.android"
-apply plugin: "com.facebook.react"
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-android {
-    namespace "com.shopai.app"
-
-    compileSdk rootProject.ext.compileSdkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
-    ndkVersion rootProject.ext.ndkVersion
-
-    defaultConfig {
-        applicationId "com.shopai.app"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+buildscript {
+    ext {
+        buildToolsVersion = "33.0.2"
+        minSdkVersion = 24
+        compileSdkVersion = 33
+        targetSdkVersion = 33
+        kotlinVersion = "1.9.10"  // Kotlin stable pour RN 0.72+
+        ndkVersion = "26.1.10909125"
     }
 
-    signingConfigs {
-        debug {
-            storeFile file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
-        }
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://www.jitpack.io" }
     }
 
-    buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
-        release {
-            signingConfig signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-        }
-    }
-
-    packagingOptions {
-        jniLibs {
-            useLegacyPackaging false
-        }
-    }
-
-    kotlinOptions {
-        jvmTarget = "1.8"
-        freeCompilerArgs += ["-Xskip-prerelease-check", "-Xsuppress-version-warnings"]
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.1.0")          // Gradle compatible
+        classpath("com.facebook.react:react-native-gradle-plugin:0.74.6") // Version RN stable
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
-react {
-    entryFile = "index.js"
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://www.jitpack.io" }
+    }
+}
+
+// ---------------------------
+// Kotlin config pour tous les modules
+// ---------------------------
+subprojects {
+    afterEvaluate { project ->
+        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all { task ->
+            task.kotlinOptions {
+                jvmTarget = "1.8"
+                freeCompilerArgs += ["-Xskip-prerelease-check", "-Xsuppress-version-warnings"]
+            }
+        }
+    }
+}
+
+// ---------------------------
+// Optionnel : mémoire Gradle
+// ---------------------------
+gradle.projectsEvaluated {
+    tasks.withType(JavaCompile) {
+        options.fork = true
+        options.forkOptions.memoryMaximumSize = "2g"
+    }
 }
