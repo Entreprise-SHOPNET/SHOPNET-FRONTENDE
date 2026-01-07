@@ -1,56 +1,23 @@
 
 
-// Top-level build file
+// android/settings.gradle — Expo SDK 52 / RN 0.74+
 
-buildscript {
-    ext {
-        buildToolsVersion = "35.0.0"
-        minSdkVersion = 24
-        compileSdkVersion = 52       // ⚡ SDK Expo 52
-        targetSdkVersion = 52
-        kotlinVersion = "1.9.25"     // ⚡ Kotlin à jour
+rootProject.name = "shopnet"
 
-        ndkVersion = "26.1.10909125"
-        cmakeVersion = "3.22.1"
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
     }
+}
 
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
-        maven { url "https://www.jitpack.io" }
-    }
-
-    dependencies {
-        classpath("com.android.tools.build:gradle:7.4.2")
-        classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
-apply plugin: "com.facebook.react.rootproject"
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url "https://www.jitpack.io" }
-    }
-}
-
-subprojects {
-    afterEvaluate { project ->
-        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all { task ->
-            task.kotlinOptions {
-                jvmTarget = "1.8"
-                freeCompilerArgs += ["-Xskip-prerelease-check", "-Xsuppress-version-warnings"]
-            }
-        }
-    }
-}
-
-gradle.projectsEvaluated {
-    tasks.withType(JavaCompile) {
-        options.fork = true
-        options.forkOptions.memoryMaximumSize = "2g"
-    }
-}
+include(":app")
