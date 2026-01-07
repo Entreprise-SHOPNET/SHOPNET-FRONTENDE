@@ -7,14 +7,14 @@ apply plugin: "com.facebook.react"
 android {
     namespace "com.shopai.app"
 
-    compileSdk rootProject.ext.compileSdkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
-    ndkVersion rootProject.ext.ndkVersion
+    compileSdk 33
+    buildToolsVersion "33.0.2"
+    ndkVersion "26.1.10909125"
 
     defaultConfig {
         applicationId "com.shopai.app"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdkVersion 24
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0.0"
     }
@@ -54,4 +54,15 @@ android {
 
 react {
     entryFile = "index.js"
+    autolinkLibrariesWithApp()
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+    def hermesEnabled = true
+    if (hermesEnabled) {
+        implementation("com.facebook.react:hermes-android:0.74.6")
+    } else {
+        implementation "org.webkit:android-jsc:+"
+    }
 }
