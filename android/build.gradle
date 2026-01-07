@@ -4,14 +4,14 @@
 
 buildscript {
     ext {
-        buildToolsVersion = findProperty('android.buildToolsVersion') ?: '35.0.0'
-        minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
-        compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
-        targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
-        kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
+        buildToolsVersion = '35.0.0'
+        minSdkVersion = 24
+        compileSdkVersion = 35
+        targetSdkVersion = 34
+        kotlinVersion = '1.9.0'   // ⚡ fixe Kotlin pour éviter languageVersion is final
 
         ndkVersion = "26.1.10909125"
-        cmakeVersion = "3.22.1"  // ⚡ ajouté pour CMake
+        cmakeVersion = "3.22.1"
     }
 
     repositories {
@@ -20,9 +20,9 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:7.4.2") // correct
+        classpath("com.android.tools.build:gradle:7.4.2")
         classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0") // ⚡ version fixe
     }
 }
 
@@ -52,16 +52,16 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 android {
-    compileSdk rootProject.ext.compileSdkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
-    ndkVersion rootProject.ext.ndkVersion
+    compileSdk 35                 // ⚡ valeur fixe
+    buildToolsVersion "35.0.0"   // ⚡ valeur fixe
+    ndkVersion "26.1.10909125"   // ⚡ valeur fixe
 
     namespace 'com.shopai.app'
 
     defaultConfig {
         applicationId 'com.shopai.app'
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdkVersion 24
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0.0"
     }
@@ -93,7 +93,7 @@ android {
     externalNativeBuild {
         cmake {
             path "CMakeLists.txt" // ⚡ vérifie que ce fichier existe
-            version rootProject.ext.cmakeVersion
+            version "3.22.1"
         }
     }
 
@@ -123,7 +123,6 @@ dependencies {
     // React Native core
     implementation("com.facebook.react:react-android")
 
-    // ⚡ Hermes activé
     def hermesEnabled = true
     if (hermesEnabled) {
         implementation("com.facebook.react:hermes-android")
