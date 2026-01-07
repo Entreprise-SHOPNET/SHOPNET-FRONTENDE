@@ -1,3 +1,5 @@
+
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
@@ -9,7 +11,7 @@ buildscript {
         kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
 
         ndkVersion = "26.1.10909125"
-        cmakeVersion = "3.22.1"
+        cmakeVersion = "3.22.1"  // ⚡ ajouté pour CMake
     }
 
     repositories {
@@ -18,7 +20,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:7.4.2") // Fix plugin version
+        classpath("com.android.tools.build:gradle:7.4.2") // correct
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
@@ -29,11 +31,9 @@ apply plugin: "com.facebook.react.rootproject"
 allprojects {
     repositories {
         maven {
-            // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
             url(new File(['node', '--print', "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim(), '../android'))
         }
         maven {
-            // Android JSC is installed from npm
             url(new File(['node', '--print', "require.resolve('jsc-android/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim(), '../dist'))
         }
 
@@ -92,7 +92,7 @@ android {
     // =====================
     externalNativeBuild {
         cmake {
-            path "CMakeLists.txt" // Crée ce fichier si absent
+            path "CMakeLists.txt" // ⚡ vérifie que ce fichier existe
             version rootProject.ext.cmakeVersion
         }
     }
@@ -123,7 +123,8 @@ dependencies {
     // React Native core
     implementation("com.facebook.react:react-android")
 
-    def hermesEnabled = true // Activer Hermes si tu veux
+    // ⚡ Hermes activé
+    def hermesEnabled = true
     if (hermesEnabled) {
         implementation("com.facebook.react:hermes-android")
     } else {
@@ -131,4 +132,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
