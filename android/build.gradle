@@ -1,14 +1,14 @@
 
 
-// android/build.gradle (root, prêt pour SDK 52 et RN 0.74+)
+// android/build.gradle (ROOT) — VERSION STABLE EAS SDK 52
 
 buildscript {
     ext {
-        buildToolsVersion = "35.0.1"      // Compatible avec SDK 52
+        buildToolsVersion = "35.0.0"
         minSdkVersion = 24
-        compileSdkVersion = 52
-        targetSdkVersion = 52
-        kotlinVersion = "1.9.10"          // Stable pour RN 0.74+
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        kotlinVersion = "1.9.10"
         ndkVersion = "26.1.10909125"
     }
 
@@ -18,9 +18,9 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.1.0")                       // Gradle compatible RN 0.74+
-        classpath("com.facebook.react:react-native-gradle-plugin:0.74.6")      // Plugin React Native stable
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")  // Kotlin stable
+        classpath("com.android.tools.build:gradle:8.1.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        // ❌ PAS DE react-native-gradle-plugin ICI
     }
 }
 
@@ -28,29 +28,5 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-    }
-}
-
-// ---------------------------
-// Configuration Kotlin pour tous les modules
-// ---------------------------
-subprojects {
-    afterEvaluate { project ->
-        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all { task ->
-            task.kotlinOptions {
-                jvmTarget = "1.8"
-                freeCompilerArgs += ["-Xskip-prerelease-check", "-Xsuppress-version-warnings"]
-            }
-        }
-    }
-}
-
-// ---------------------------
-// Optimisation mémoire Gradle
-// ---------------------------
-gradle.projectsEvaluated {
-    tasks.withType(JavaCompile) {
-        options.fork = true
-        options.forkOptions.memoryMaximumSize = "2g"
     }
 }
