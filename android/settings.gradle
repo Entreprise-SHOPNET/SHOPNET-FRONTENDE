@@ -2,7 +2,7 @@
 
 // android/settings.gradle — Expo SDK 52 / RN 0.74+
 
-rootProject.name = "shopnet"
+// android/settings.gradle — Expo SDK 52 / Gradle 8+
 
 pluginManagement {
     repositories {
@@ -19,5 +19,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+rootProject.name = "shopnet"
 
 include(":app")
