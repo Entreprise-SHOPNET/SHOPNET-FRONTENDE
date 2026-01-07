@@ -9,15 +9,18 @@ buildscript {
         kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
 
         ndkVersion = "26.1.10909125"
+        cmakeVersion = "3.22.1"
     }
+
     repositories {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath('com.android.tools.build:gradle')
-        classpath('com.facebook.react:react-native-gradle-plugin')
-        classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+        classpath("com.android.tools.build:gradle:7.4.2") // Fix plugin version
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
@@ -39,3 +42,93 @@ allprojects {
         maven { url 'https://www.jitpack.io' }
     }
 }
+
+// =====================
+// Android App Configuration
+// =====================
+
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+android {
+    compileSdk rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    ndkVersion rootProject.ext.ndkVersion
+
+    namespace 'com.shopai.app'
+
+    defaultConfig {
+        applicationId 'com.shopai.app'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    // =====================
+    // CMake / NDK Config
+    // =====================
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt" // Crée ce fichier si absent
+            version rootProject.ext.cmakeVersion
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging false
+        }
+    }
+
+    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+// =====================
+// React Native / Hermes
+// =====================
+
+react {
+    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", rootDir.absolutePath, "android", "absolute"].execute(null, rootDir).text.trim())
+    reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+    codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+    autolinkLibrariesWithApp()
+}
+
+dependencies {
+    // React Native core
+    implementation("com.facebook.react:react-android")
+
+    def hermesEnabled = true // Activer Hermes si tu veux
+    if (hermesEnabled) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        def jscFlavor = 'org.webkit:android-jsc:+'
+        implementation jscFlavor
+    }
+}
+
