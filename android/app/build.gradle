@@ -42,7 +42,6 @@ android {
     }
 }
 
+// ✅ Ne rien mettre ici pour React ou Hermes
 dependencies {
-    implementation("com.facebook.react:react-android")
-    implementation("com.facebook.react:hermes-android")
 }
