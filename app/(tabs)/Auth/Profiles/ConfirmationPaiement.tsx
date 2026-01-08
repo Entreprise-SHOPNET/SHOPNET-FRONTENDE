@@ -31,7 +31,7 @@ const BOOST_ORANGE = "#FA7921";
 const SHOPNET_PAYMENT_NUMBERS = {
   AIRTEL: '+243 97 87 27 791',
   ORANGE: '+243 89 60 37 137',
-  VODACOM: '+243 81 00 00 000',
+  VODACOM:'+243 83 86 94 364',
 };
 
 export default function ConfirmationPaiement() {
