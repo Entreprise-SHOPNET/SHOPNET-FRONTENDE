@@ -3,12 +3,12 @@ workflows:
     name: Build Android APK & AAB
     environment:
       vars:
-        # Les noms doivent correspondre exactement à ceux que tu as définis dans Codemagic
-        EXPO_TOKEN: EXPO_TOKEN
-        ANDROID_KEYSTORE_PATH: ANDROID_KEYSTORE_PATH
-        ANDROID_KEYSTORE_PASSWORD: ANDROID_KEYSTORE_PASSWORD
-        ANDROID_KEY_ALIAS: ANDROID_KEY_ALIAS
-        ANDROID_KEY_PASSWORD: ANDROID_KEY_PASSWORD
+        # Utilisation des variables Codemagic
+        EXPO_TOKEN: $EXPO_TOKEN
+        ANDROID_KEYSTORE_PATH: $ANDROID_KEYSTORE_PATH
+        ANDROID_KEYSTORE_PASSWORD: $ANDROID_KEYSTORE_PASSWORD
+        ANDROID_KEY_ALIAS: $ANDROID_KEY_ALIAS
+        ANDROID_KEY_PASSWORD: $ANDROID_KEY_PASSWORD
 
     scripts:
       - name: Install dependencies
