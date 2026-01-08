@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false, // ✅ Désactivé pour éviter les erreurs
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -22,8 +22,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "versionCode": 1
+      }
     },
     "web": {
       "bundler": "metro",
@@ -48,4 +47,5 @@
     "owner": "shopia"
   }
 }
+
 
