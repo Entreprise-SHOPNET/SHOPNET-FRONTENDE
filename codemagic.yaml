@@ -10,6 +10,7 @@ workflows:
         ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      node: stable # s'assure que npx est disponible
     scripts:
       - name: Install dependencies
         script: npm ci
@@ -17,12 +18,19 @@ workflows:
       - name: Prebuild Expo
         script: npx expo prebuild --no-install
 
+      # Build APK
       - name: Build APK
-        script: npx eas build --platform android --profile production-apk --non-interactive
+        script: |
+          echo "Starting EAS build for APK"
+          npx --yes eas build --platform android --profile production-apk --non-interactive --clear-cache
 
+      # Build AAB
       - name: Build AAB
-        script: npx eas build --platform android --profile production-aab --non-interactive
+        script: |
+          echo "Starting EAS build for AAB"
+          npx --yes eas build --platform android --profile production-aab --non-interactive --clear-cache
 
     artifacts:
       - build/**/*.apk
       - build/**/*.aab
+
