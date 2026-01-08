@@ -2,20 +2,21 @@
 
 // android/app/build.gradle — FINAL OK (Expo SDK 52)
 
+// android/app/build.gradle — CORRECTION DÉFINITIVE EXPO SDK 52
+
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 
 android {
     namespace "com.shopai.app"
 
-    compileSdkVersion 34
+    compileSdk 34
     buildToolsVersion "35.0.0"
-    ndkVersion "26.1.10909125"
 
     defaultConfig {
         applicationId "com.shopai.app"
-        minSdkVersion 24
-        targetSdkVersion 34
+        minSdk 24
+        targetSdk 34
         versionCode 1
         versionName "1.0.0"
     }
@@ -42,6 +43,14 @@ android {
     }
 }
 
-// ✅ Ne rien mettre ici pour React ou Hermes
 dependencies {
+    // ✅ OBLIGATOIRE pour Theme.AppCompat
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
+    // ✅ OBLIGATOIRE pour Theme.SplashScreen (Expo)
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // ✅ Requis par Expo / RN
+    implementation("androidx.core:core-ktx:1.12.0")
 }
+
