@@ -1,36 +1,18 @@
 
 
-workflows:
-  android:
-    name: Build Android APK & AAB
-    environment:
-      vars:
-        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        ANDROID_KEYSTORE_PATH: "@shopia__shopai.jks"
-        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      node: stable # s'assure que npx est disponible
-    scripts:
-      - name: Install dependencies
-        script: npm ci
+scripts:
+  - name: Install dependencies
+    script: npm ci
 
-      - name: Prebuild Expo
-        script: npx expo prebuild --no-install
+  - name: Install EAS CLI globally
+    script: npm install -g eas-cli
 
-      # Build APK
-      - name: Build APK
-        script: |
-          echo "Starting EAS build for APK"
-          npx --yes eas build --platform android --profile production-apk --non-interactive --clear-cache
+  - name: Prebuild Expo
+    script: npx expo prebuild --no-install
 
-      # Build AAB
-      - name: Build AAB
-        script: |
-          echo "Starting EAS build for AAB"
-          npx --yes eas build --platform android --profile production-aab --non-interactive --clear-cache
+  - name: Build APK
+    script: eas build --platform android --profile production-apk --non-interactive --clear-cache
 
-    artifacts:
-      - build/**/*.apk
-      - build/**/*.aab
+  - name: Build AAB
+    script: eas build --platform android --profile production-aab --non-interactive --clear-cache
 
