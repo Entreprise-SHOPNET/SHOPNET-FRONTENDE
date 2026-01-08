@@ -3,11 +3,11 @@ workflows:
     name: Build Android APK & AAB
     environment:
       vars:
-        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        EXPO_TOKEN: $EXPO_TOKEN
         ANDROID_KEYSTORE_PATH: "@shopia__shopai.jks"
-        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        ANDROID_KEYSTORE_PASSWORD: $ANDROID_KEYSTORE_PASSWORD
+        ANDROID_KEY_ALIAS: $ANDROID_KEY_ALIAS
+        ANDROID_KEY_PASSWORD: $ANDROID_KEY_PASSWORD
     scripts:
       - name: Install dependencies
         script: npm ci
