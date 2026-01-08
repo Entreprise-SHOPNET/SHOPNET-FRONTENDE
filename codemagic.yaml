@@ -15,18 +15,16 @@ workflows:
       - name: Install EAS CLI globally
         script: npm install -g eas-cli
 
-      - name: Login to Expo
-        script: eas login --token $EXPO_TOKEN
-
       - name: Prebuild Expo
         script: npx expo prebuild --no-install
 
       - name: Build APK
-        script: eas build --platform android --profile production-apk --non-interactive
+        script: eas build --platform android --profile production-apk --non-interactive --clear-cache
 
       - name: Build AAB
-        script: eas build --platform android --profile production-aab --non-interactive
+        script: eas build --platform android --profile production-aab --non-interactive --clear-cache
 
     artifacts:
       - build/**/*.apk
       - build/**/*.aab
+
