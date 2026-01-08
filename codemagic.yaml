@@ -3,7 +3,7 @@ workflows:
     name: Build Android APK & AAB
     environment:
       vars:
-        EXPO_TOKEN: $EXPO_TOKEN
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         ANDROID_KEYSTORE_PATH: "@shopia__shopai.jks"
         ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -23,6 +23,10 @@ workflows:
 
       - name: Build AAB
         script: eas build --platform android --profile production-aab --non-interactive
-build/**/*.aab
+
+    artifacts:
+      - build/**/*.apk
+      - build/**/*.aab
+
 
 
