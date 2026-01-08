@@ -1,5 +1,3 @@
-
-
 scripts:
   - name: Install dependencies
     script: npm ci
