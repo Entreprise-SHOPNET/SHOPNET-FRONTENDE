@@ -14,6 +14,7 @@ import {
   RefreshControl,
   StatusBar,
   SafeAreaView,
+  Platform,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,7 +37,6 @@ const TEXT_WHITE = "#FFFFFF";
 const TEXT_SECONDARY = "#A0AEC0";
 const SUCCESS_GREEN = "#4CAF50";
 const ERROR_RED = "#FF6B6B";
-const WARNING_ORANGE = "#FFA726";
 
 type TopProduct = {
   id: number;
@@ -60,9 +60,6 @@ type StatsResponse = {
       total_produits_en_vente: number;
       top_vendus: TopProduct[];
       top_vus: TopProduct[];
-    };
-    vues: {
-      total: number | string;
     };
     interactions: {
       likes: number;
@@ -118,23 +115,6 @@ const SellerStatsScreen = () => {
     fetchStats();
   };
 
-  // Calculer les vues totales selon la formule : (ventes * 2) + (likes * 3)
-  const calculateTotalVues = () => {
-    if (!data || !data.statistiques) return 0;
-    const ventes = typeof data.statistiques.ventes.total_produits_vendus === 'string' 
-      ? parseInt(data.statistiques.ventes.total_produits_vendus) 
-      : data.statistiques.ventes.total_produits_vendus;
-    const likes = data.statistiques.interactions.likes;
-    return (ventes * 2) + (likes * 3);
-  };
-
-  // Calculer les vues pour un produit spécifique
-  const calculateProductVues = (produit: TopProduct) => {
-    const ventesVues = (produit.ventes || 0) * 2;
-    const likesVues = (data?.statistiques.interactions.likes || 0) * 0.1;
-    return Math.round(ventesVues + likesVues);
-  };
-
   // Formater les nombres en K et M
   const formatNumber = (num: number | string) => {
     const n = typeof num === "string" ? parseInt(num) : num;
@@ -156,18 +136,16 @@ const SellerStatsScreen = () => {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={PRO_BLUE} />
         <Text style={styles.loadingText}>Chargement des statistiques...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.errorContainer}>
-        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+      <View style={styles.errorContainer}>
         <Ionicons name="cloud-offline" size={80} color={ERROR_RED} />
         <Text style={styles.errorTitle}>Erreur</Text>
         <Text style={styles.errorText}>{error}</Text>
@@ -175,14 +153,13 @@ const SellerStatsScreen = () => {
           <Ionicons name="refresh" size={20} color={TEXT_WHITE} />
           <Text style={styles.retryButtonText}>Réessayer</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!data || !data.success) {
     return (
-      <SafeAreaView style={styles.errorContainer}>
-        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
+      <View style={styles.errorContainer}>
         <Ionicons name="stats-chart" size={80} color={TEXT_SECONDARY} />
         <Text style={styles.errorTitle}>Aucune donnée</Text>
         <Text style={styles.errorText}>
@@ -192,134 +169,82 @@ const SellerStatsScreen = () => {
           <Ionicons name="refresh" size={20} color={TEXT_WHITE} />
           <Text style={styles.retryButtonText}>Actualiser</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const stats = data.statistiques;
-  const totalVuesCalcule = calculateTotalVues();
 
-  // Composant de carte de statistique compacte
-  const CompactStatCard = ({
-    icon,
-    title,
-    value,
-    color = PRO_BLUE,
-    trend,
-  }: {
-    icon: string;
-    title: string;
-    value: string | number;
-    color?: string;
-    trend?: string;
+  // Composant de carte de statistique
+  const StatCard = ({ icon, title, value, color = PRO_BLUE }: { 
+    icon: string; 
+    title: string; 
+    value: string | number; 
+    color?: string; 
   }) => (
-    <View style={[styles.compactStatCard, { borderColor: color + '40' }]}>
-      <View style={styles.compactStatTop}>
-        <View style={[styles.compactStatIcon, { backgroundColor: color + '20' }]}>
-          <FontAwesome name={icon as any} size={16} color={color} />
-        </View>
-        {trend && (
-          <View style={styles.compactStatTrend}>
-            <Feather name="trending-up" size={10} color={color} />
-            <Text style={[styles.compactStatTrendText, { color }]}>{trend}</Text>
-          </View>
-        )}
+    <View style={[styles.statCard, { borderColor: color + '40' }]}>
+      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
+        <FontAwesome name={icon as any} size={16} color={color} />
       </View>
-      <Text style={[styles.compactStatValue, { color }]}>{value}</Text>
-      <Text style={styles.compactStatTitle}>{title}</Text>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={styles.statTitle}>{title}</Text>
     </View>
   );
 
-  const ProductCard = ({
-    item,
-    type,
-    rank,
-  }: {
-    item: TopProduct;
-    type: "vendu" | "vu";
-    rank: number;
-  }) => {
-    // Calcul des vues pour ce produit
-    const productVues = type === "vu" ? calculateProductVues(item) : item.ventes || 0;
-    
-    return (
-      <TouchableOpacity
-        style={styles.productCard}
-        onPress={() =>
+  // Composant de produit
+  const ProductCard = ({ item, type, rank }: { 
+    item: TopProduct; 
+    type: "vendu" | "vu"; 
+    rank: number; 
+  }) => (
+    <TouchableOpacity
+      style={styles.productCard}
+      onPress={() => {
+        if (item.id) {
           router.push({
             pathname: "/(tabs)/Auth/Panier/DetailId",
             params: { id: item.id.toString() },
-          })
+          });
         }
-        activeOpacity={0.8}
-      >
-        <View style={[
-          styles.rankBadge,
-          rank === 1 ? styles.rankFirst :
-          rank === 2 ? styles.rankSecond :
-          rank === 3 ? styles.rankThird : styles.rankOther
-        ]}>
-          <Text style={styles.rankText}>#{rank}</Text>
-        </View>
-        <Image
-          source={{
-            uri: item.image || "https://via.placeholder.com/80",
-          }}
-          style={styles.productImage}
-          resizeMode="cover"
-        />
-        <View style={styles.productInfo}>
-          <Text style={styles.productTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <View style={styles.productStats}>
-            <View style={styles.statRow}>
-              <Ionicons
-                name={type === "vendu" ? "cart" : "eye"}
-                size={16}
-                color={type === "vendu" ? SUCCESS_GREEN : PRO_BLUE}
-              />
-              <Text style={styles.statCount}>
-                {type === "vendu" ? formatNumber(item.ventes || 0) : formatNumber(productVues)}
-              </Text>
-              <Text style={styles.statLabel}>
-                {type === "vendu" ? "ventes" : "vues"}
-              </Text>
-            </View>
-            {type === "vu" && (
-              <View style={styles.vuesFormula}>
-                <Text style={styles.vuesFormulaText}>
-                  = ({item.ventes || 0} × 2) + ({stats.interactions.likes} × 3)
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={TEXT_SECONDARY} />
-      </TouchableOpacity>
-    );
-  };
-
-  const ActionButton = ({
-    icon,
-    label,
-    onPress,
-    color = PRO_BLUE,
-  }: {
-    icon: string;
-    label: string;
-    onPress: () => void;
-    color?: string;
-  }) => (
-    <TouchableOpacity
-      style={styles.actionButton}
-      onPress={onPress}
+      }}
       activeOpacity={0.8}
     >
-      <View style={[styles.actionIcon, { backgroundColor: `${color}20` }]}>
-        <Ionicons name={icon as any} size={24} color={color} />
+      <View style={[
+        styles.rankBadge,
+        rank === 1 ? styles.rankFirst :
+        rank === 2 ? styles.rankSecond :
+        styles.rankThird
+      ]}>
+        <Text style={styles.rankText}>#{rank}</Text>
       </View>
-      <Text style={styles.actionLabel}>{label}</Text>
+      <Image
+        source={{
+          uri: item.image || "https://via.placeholder.com/80",
+        }}
+        style={styles.productImage}
+        resizeMode="cover"
+      />
+      <View style={styles.productInfo}>
+        <Text style={styles.productTitle} numberOfLines={2}>
+          {item.title || "Produit sans nom"}
+        </Text>
+        <View style={styles.productStats}>
+          <View style={styles.statRow}>
+            <Ionicons
+              name={type === "vendu" ? "cart" : "eye"}
+              size={16}
+              color={type === "vendu" ? SUCCESS_GREEN : PRO_BLUE}
+            />
+            <Text style={styles.statCount}>
+              {formatNumber(type === "vendu" ? (item.ventes || 0) : (item.vues || 0))}
+            </Text>
+            <Text style={styles.statLabel}>
+              {type === "vendu" ? "ventes" : "vues"}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={TEXT_SECONDARY} />
     </TouchableOpacity>
   );
 
@@ -327,7 +252,7 @@ const SellerStatsScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
 
-      {/* Header Élégant */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Tableau de Bord</Text>
@@ -360,7 +285,7 @@ const SellerStatsScreen = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Statistiques Principales - Alignement Horizontal */}
+        {/* Statistiques Principales */}
         <View style={styles.mainStatsSection}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="dashboard" size={20} color={PRO_BLUE} />
@@ -373,76 +298,34 @@ const SellerStatsScreen = () => {
             style={styles.horizontalStatsScroll}
             contentContainerStyle={styles.horizontalStatsContent}
           >
-            <CompactStatCard
+            <StatCard
               icon="dollar"
               title="Revenu Total"
               value={formatCurrency(stats.ventes.revenu_total)}
               color={PRO_GREEN}
-              trend={`+${formatNumber(stats.ventes.revenu_mensuel)}`}
             />
             
-            <CompactStatCard
+            <StatCard
               icon="shopping-cart"
               title="Ventes Total"
               value={formatNumber(stats.ventes.total_produits_vendus)}
               color={PRO_RED}
-              trend="Hot"
             />
             
-            <CompactStatCard
+            <StatCard
               icon="eye"
-              title="Vues Total"
-              value={formatNumber(totalVuesCalcule)}
+              title="Produits en vente"
+              value={formatNumber(stats.produits.total_produits_en_vente)}
               color={PRO_BLUE}
-              trend={`${formatNumber(totalVuesCalcule)}`}
             />
             
-            <CompactStatCard
+            <StatCard
               icon="calendar"
               title="Ce Mois"
               value={formatCurrency(stats.ventes.revenu_mensuel)}
-              color={PRO_ORANGE}
-              trend="Boost"
+              color={PREMIUM_GOLD}
             />
           </ScrollView>
-        </View>
-
-        {/* Calcul des Vues */}
-        <View style={styles.calculationCard}>
-          <View style={styles.calculationHeader}>
-            <MaterialIcons name="calculate" size={20} color={PRO_BLUE} />
-            <Text style={styles.calculationTitle}>Calcul des Vues</Text>
-          </View>
-          <View style={styles.calculationContent}>
-            <View style={styles.calculationRow}>
-              <Text style={styles.calculationLabel}>Ventes totales</Text>
-              <Text style={styles.calculationValue}>
-                {formatNumber(stats.ventes.total_produits_vendus)}
-              </Text>
-              <Text style={styles.calculationSymbol}>× 2 =</Text>
-              <Text style={styles.calculationResult}>
-                {formatNumber(typeof stats.ventes.total_produits_vendus === 'string' 
-                  ? parseInt(stats.ventes.total_produits_vendus) * 2 
-                  : stats.ventes.total_produits_vendus * 2)} vues
-              </Text>
-            </View>
-            <View style={styles.calculationRow}>
-              <Text style={styles.calculationLabel}>Likes</Text>
-              <Text style={styles.calculationValue}>
-                {formatNumber(stats.interactions.likes)}
-              </Text>
-              <Text style={styles.calculationSymbol}>× 3 =</Text>
-              <Text style={styles.calculationResult}>
-                {formatNumber(stats.interactions.likes * 3)} vues
-              </Text>
-            </View>
-            <View style={styles.calculationTotal}>
-              <Text style={styles.calculationTotalLabel}>VUES TOTALES</Text>
-              <Text style={styles.calculationTotalValue}>
-                {formatNumber(totalVuesCalcule)}
-              </Text>
-            </View>
-          </View>
         </View>
 
         {/* Métriques d'Engagement */}
@@ -452,64 +335,34 @@ const SellerStatsScreen = () => {
             <Text style={styles.sectionTitle}>Engagement</Text>
           </View>
           <View style={styles.engagementGrid}>
-            <View style={[styles.engagementCard, { borderColor: PRO_BLUE + '40' }]}>
-              <View style={[styles.engagementIcon, { backgroundColor: PRO_BLUE + '20' }]}>
-                <Ionicons name="eye-outline" size={24} color={PRO_BLUE} />
-              </View>
-              <View style={styles.engagementInfo}>
-                <Text style={styles.engagementValue}>
-                  {formatNumber(totalVuesCalcule)}
-                </Text>
-                <Text style={styles.engagementLabel}>Vues Total</Text>
-                <Text style={styles.engagementSubtitle}>
-                  Ventes×2 + Likes×3
-                </Text>
-              </View>
-            </View>
-            
             <View style={[styles.engagementCard, { borderColor: PRO_RED + '40' }]}>
               <View style={[styles.engagementIcon, { backgroundColor: PRO_RED + '20' }]}>
                 <Ionicons name="heart-outline" size={24} color={PRO_RED} />
               </View>
-              <View style={styles.engagementInfo}>
-                <Text style={styles.engagementValue}>
-                  {formatNumber(stats.interactions.likes)}
-                </Text>
-                <Text style={styles.engagementLabel}>Likes</Text>
-                <Text style={styles.engagementSubtitle}>
-                  ×3 = vues
-                </Text>
-              </View>
+              <Text style={styles.engagementValue}>
+                {formatNumber(stats.interactions.likes)}
+              </Text>
+              <Text style={styles.engagementLabel}>Likes</Text>
             </View>
             
             <View style={[styles.engagementCard, { borderColor: PRO_GREEN + '40' }]}>
               <View style={[styles.engagementIcon, { backgroundColor: PRO_GREEN + '20' }]}>
                 <Ionicons name="share-social-outline" size={24} color={PRO_GREEN} />
               </View>
-              <View style={styles.engagementInfo}>
-                <Text style={styles.engagementValue}>
-                  {formatNumber(stats.interactions.partages)}
-                </Text>
-                <Text style={styles.engagementLabel}>Partages</Text>
-                <Text style={styles.engagementSubtitle}>
-                  Viralité
-                </Text>
-              </View>
+              <Text style={styles.engagementValue}>
+                {formatNumber(stats.interactions.partages)}
+              </Text>
+              <Text style={styles.engagementLabel}>Partages</Text>
             </View>
             
-            <View style={[styles.engagementCard, { borderColor: PRO_ORANGE + '40' }]}>
-              <View style={[styles.engagementIcon, { backgroundColor: PRO_ORANGE + '20' }]}>
-                <Ionicons name="chatbubble-outline" size={24} color={PRO_ORANGE} />
+            <View style={[styles.engagementCard, { borderColor: PRO_BLUE + '40' }]}>
+              <View style={[styles.engagementIcon, { backgroundColor: PRO_BLUE + '20' }]}>
+                <Ionicons name="chatbubble-outline" size={24} color={PRO_BLUE} />
               </View>
-              <View style={styles.engagementInfo}>
-                <Text style={styles.engagementValue}>
-                  {formatNumber(stats.interactions.commentaires || 0)}
-                </Text>
-                <Text style={styles.engagementLabel}>Commentaires</Text>
-                <Text style={styles.engagementSubtitle}>
-                  Engagement
-                </Text>
-              </View>
+              <Text style={styles.engagementValue}>
+                {formatNumber(stats.interactions.commentaires || 0)}
+              </Text>
+              <Text style={styles.engagementLabel}>Commentaires</Text>
             </View>
           </View>
         </View>
@@ -521,28 +374,18 @@ const SellerStatsScreen = () => {
             <Text style={styles.sectionTitle}>Top Produits Vendus</Text>
           </View>
 
-          <FlatList
-            data={stats.produits.top_vendus}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item, index }) => (
-              <ProductCard item={item} type="vendu" rank={index + 1} />
-            )}
-            scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            ListEmptyComponent={
-              <View style={styles.emptySection}>
-                <Ionicons
-                  name="cart-outline"
-                  size={48}
-                  color={TEXT_SECONDARY}
-                />
-                <Text style={styles.emptyText}>Aucune vente enregistrée</Text>
-                <Text style={styles.emptySubtext}>
-                  Vos produits performants apparaîtront ici
-                </Text>
-              </View>
-            }
-          />
+          {stats.produits.top_vendus && stats.produits.top_vendus.length > 0 ? (
+            <View style={styles.productsList}>
+              {stats.produits.top_vendus.map((item, index) => (
+                <ProductCard key={item.id.toString()} item={item} type="vendu" rank={index + 1} />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptySection}>
+              <Ionicons name="cart-outline" size={48} color={TEXT_SECONDARY} />
+              <Text style={styles.emptyText}>Aucune vente enregistrée</Text>
+            </View>
+          )}
         </View>
 
         {/* Top Produits Vus */}
@@ -552,28 +395,18 @@ const SellerStatsScreen = () => {
             <Text style={styles.sectionTitle}>Top Produits Vus</Text>
           </View>
 
-          <FlatList
-            data={stats.produits.top_vus}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item, index }) => (
-              <ProductCard item={item} type="vu" rank={index + 1} />
-            )}
-            scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            ListEmptyComponent={
-              <View style={styles.emptySection}>
-                <Ionicons
-                  name="eye-outline"
-                  size={48}
-                  color={TEXT_SECONDARY}
-                />
-                <Text style={styles.emptyText}>Aucune vue enregistrée</Text>
-                <Text style={styles.emptySubtext}>
-                  Les vues de vos produits apparaîtront ici
-                </Text>
-              </View>
-            }
-          />
+          {stats.produits.top_vus && stats.produits.top_vus.length > 0 ? (
+            <View style={styles.productsList}>
+              {stats.produits.top_vus.map((item, index) => (
+                <ProductCard key={item.id.toString()} item={item} type="vu" rank={index + 1} />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptySection}>
+              <Ionicons name="eye-outline" size={48} color={TEXT_SECONDARY} />
+              <Text style={styles.emptyText}>Aucune vue enregistrée</Text>
+            </View>
+          )}
         </View>
 
         {/* Actions Rapides */}
@@ -583,38 +416,34 @@ const SellerStatsScreen = () => {
             <Text style={styles.sectionTitle}>Actions Rapides</Text>
           </View>
           <View style={styles.actionsGrid}>
-            <ActionButton
-              icon="add-circle-outline"
-              label="Nouveau Produit"
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => router.push("/(tabs)/Auth/Produits/Produit")}
-              color={SUCCESS_GREEN}
-            />
-            <ActionButton
-              icon="analytics-outline"
-              label="Analytiques"
+              activeOpacity={0.8}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: SUCCESS_GREEN + '20' }]}>
+                <Ionicons name="add-circle-outline" size={24} color={SUCCESS_GREEN} />
+              </View>
+              <Text style={styles.actionLabel}>Nouveau Produit</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => router.push("/(tabs)/Auth/Profiles/ProductStats")}
-              color={PRO_BLUE}
-            />
-            <ActionButton
-              icon="time-outline"
-              label="Historique"
-              onPress={() => router.push("/MisAjour")}
-              color={WARNING_ORANGE}
-            />
-            <ActionButton
-              icon="settings-outline"
-              label="Paramètres"
-              onPress={() => router.push("/MisAjour")}
-              color={TEXT_SECONDARY}
-            />
+              activeOpacity={0.8}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: PRO_BLUE + '20' }]}>
+                <Ionicons name="analytics-outline" size={24} color={PRO_BLUE} />
+              </View>
+              <Text style={styles.actionLabel}>Analytiques</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Mis à jour à{" "}
-            {new Date().toLocaleTimeString("fr-FR", {
+            Mis à jour à {new Date().toLocaleTimeString("fr-FR", {
               hour: "2-digit",
               minute: "2-digit",
             })}
@@ -635,6 +464,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: SHOPNET_BLUE,
+    padding: 20,
   },
   errorContainer: {
     flex: 1,
@@ -696,7 +526,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: TEXT_WHITE,
   },
-  // Styles pour les statistiques horizontales compactes
   horizontalStatsScroll: {
     marginHorizontal: -4,
   },
@@ -704,124 +533,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 8,
   },
-  compactStatCard: {
+  statCard: {
     width: 140,
     backgroundColor: CARD_BG,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
     marginLeft: 8,
+    alignItems: "center",
   },
-  compactStatTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  compactStatIcon: {
+  statIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 12,
   },
-  compactStatTrend: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  compactStatTrendText: {
-    fontSize: 9,
-    fontWeight: "600",
-    marginLeft: 2,
-  },
-  compactStatValue: {
+  statValue: {
     fontSize: 20,
     fontWeight: "800",
     marginBottom: 4,
+    textAlign: "center",
   },
-  compactStatTitle: {
+  statTitle: {
     fontSize: 13,
     color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "600",
-  },
-  calculationCard: {
-    marginHorizontal: 16,
-    marginBottom: 24,
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  calculationHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  calculationTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: TEXT_WHITE,
-    marginLeft: 10,
-  },
-  calculationContent: {
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
-    borderRadius: 12,
-    padding: 16,
-  },
-  calculationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    justifyContent: "space-between",
-  },
-  calculationLabel: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.8)",
-    flex: 2,
-  },
-  calculationValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: PRO_BLUE,
-    flex: 1,
     textAlign: "center",
-  },
-  calculationSymbol: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.6)",
-    flex: 1,
-    textAlign: "center",
-  },
-  calculationResult: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: PRO_GREEN,
-    flex: 2,
-    textAlign: "right",
-  },
-  calculationTotal: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-  },
-  calculationTotalLabel: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.6)",
-    fontWeight: "700",
-  },
-  calculationTotalValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: PRO_BLUE,
   },
   section: {
     marginHorizontal: 16,
@@ -829,46 +568,43 @@ const styles = StyleSheet.create({
   },
   engagementGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
+    justifyContent: "space-between",
   },
   engagementCard: {
-    width: (width - 56) / 2,
+    width: (width - 56) / 3,
     backgroundColor: CARD_BG,
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
+    alignItems: "center",
   },
   engagementIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
-  },
-  engagementInfo: {
-    flex: 1,
+    marginBottom: 8,
   },
   engagementValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
     color: TEXT_WHITE,
     marginBottom: 2,
+    textAlign: "center",
   },
   engagementLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "600",
-    marginBottom: 2,
-  },
-  engagementSubtitle: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.6)",
+    textAlign: "center",
   },
   topProductsSection: {
     marginHorizontal: 16,
     marginBottom: 24,
+  },
+  productsList: {
+    gap: 8,
   },
   productCard: {
     flexDirection: "row",
@@ -900,10 +636,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(205, 127, 50, 0.15)",
     borderColor: "#CD7F32",
   },
-  rankOther: {
-    backgroundColor: "rgba(66, 165, 245, 0.15)",
-    borderColor: PRO_BLUE,
-  },
   rankText: {
     fontSize: 12,
     fontWeight: "800",
@@ -934,7 +666,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 4,
   },
   statCount: {
     fontSize: 14,
@@ -946,17 +677,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: TEXT_SECONDARY,
     fontWeight: "500",
-  },
-  vuesFormula: {
-    marginTop: 2,
-  },
-  vuesFormulaText: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.5)",
-    fontStyle: "italic",
-  },
-  separator: {
-    height: 8,
   },
   emptySection: {
     alignItems: "center",
@@ -972,22 +692,15 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontWeight: "600",
   },
-  emptySubtext: {
-    color: TEXT_SECONDARY,
-    fontSize: 14,
-    marginTop: 4,
-    textAlign: "center",
-  },
   actionsGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
+    justifyContent: "space-between",
   },
   actionButton: {
-    width: (width - 64) / 2,
+    width: (width - 56) / 2,
     backgroundColor: CARD_BG,
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     alignItems: "center",
     borderWidth: 1,
     borderColor: BORDER_COLOR,
