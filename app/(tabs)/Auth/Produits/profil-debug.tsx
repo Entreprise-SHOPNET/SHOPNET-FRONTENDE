@@ -12,11 +12,9 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Linking,
-  Modal,
   Dimensions,
   FlatList,
-  Animated,
+  Modal,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,20 +25,18 @@ import {
   FontAwesome5,
   MaterialIcons,
   Feather,
-  Entypo,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 
 // Configuration API
-// const BASE_URL = "http://100.64.134.89:5000"; // Serveur LOCAL (commenté)
-const BASE_URL = "https://shopnet-backend.onrender.com"; // Serveur Render (production)
+const BASE_URL = "https://shopnet-backend.onrender.com";
 
 const { width } = Dimensions.get("window");
 const PRO_BLUE = "#42A5F5";
 const SHOPNET_BLUE = "#00182A";
 const NOTIFICATION_RED = "#FF3B30";
 
-// Types pour les notifications
+// Types
 type Notification = {
   id: string;
   title: string;
@@ -179,11 +175,10 @@ const MOCK_NOTIFICATIONS: Notification[] = [
   }
 ];
 
-// Composant pour les badges de notification - MODIFIÉ
+// Composant pour les badges de notification
 const NotificationBadge = ({ count, small = false }: { count: number, small?: boolean }) => {
   if (count <= 0) return null;
   
-  // Afficher "+9" quand plus de 10 notifications (pas 10)
   const displayCount = count > 10 ? '+9' : count.toString();
   
   return (
@@ -207,6 +202,104 @@ const generateRandomCount = (min: number, max: number): number => {
   return count > 10 ? 10 : count;
 };
 
+// Composants modaux
+const PhotoModalComponent = ({
+  visible,
+  type,
+  hasPhoto,
+  uploading,
+  onView,
+  onChoose,
+  onClose,
+}: {
+  visible: boolean;
+  type: "profile" | "cover" | null;
+  hasPhoto: boolean;
+  uploading: boolean;
+  onView: () => void;
+  onChoose: () => void;
+  onClose: () => void;
+}) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="fade"
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <Text style={styles.modalTitle}>
+          {type === "profile" ? "Photo de profil" : "Photo de couverture"}
+        </Text>
+        <TouchableOpacity
+          style={[styles.modalBtn, !hasPhoto && styles.disabledBtn]}
+          onPress={onView}
+          disabled={uploading || !hasPhoto}
+        >
+          <Ionicons name="eye" size={20} color="#FFFFFF" />
+          <Text style={styles.modalBtnText}>Voir la photo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.modalBtn}
+          onPress={onChoose}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <View style={styles.modalBtnContent}>
+              <Ionicons name="image" size={20} color="#FFFFFF" />
+              <Text style={styles.modalBtnText}>Choisir une photo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modalBtn, styles.cancelBtn]}
+          onPress={onClose}
+          disabled={uploading}
+        >
+          <Text style={styles.modalBtnText}>Annuler</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
+
+const FullscreenPhotoModalComponent = ({
+  visible,
+  photoUri,
+  onClose,
+}: {
+  visible: boolean;
+  photoUri: string | null | undefined;
+  onClose: () => void;
+}) => (
+  <Modal
+    visible={visible}
+    transparent={false}
+    animationType="fade"
+    onRequestClose={onClose}
+  >
+    <View style={styles.fullscreenPhotoContainer}>
+      <TouchableOpacity style={styles.closePhotoButton} onPress={onClose}>
+        <Ionicons name="close" size={30} color="#FFFFFF" />
+      </TouchableOpacity>
+      {photoUri && (
+        <Image
+          source={{
+            uri: photoUri.startsWith("http")
+              ? photoUri
+              : `${BASE_URL}${photoUri}`,
+          }}
+          style={styles.fullscreenPhoto}
+          resizeMode={photoUri.includes("cover") ? "cover" : "contain"}
+        />
+      )}
+    </View>
+  </Modal>
+);
+
+// Composant principal
 export default function ProfilVendeurPremium() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -230,13 +323,26 @@ export default function ProfilVendeurPremium() {
     settings: generateRandomCount(0, 15)
   });
 
-  // Animations
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(30))[0];
-  const scaleAnim = useState(new Animated.Value(0.9))[0];
+  // Charger token et profil
+  const loadTokenAndUser = useCallback(async () => {
+    try {
+      const savedToken = await AsyncStorage.getItem("userToken");
+      if (!savedToken) {
+        router.push("/splash");
+        return;
+      }
+      setToken(savedToken);
+      await fetchUserProfile(savedToken);
+      await fetchProducts(savedToken);
+    } catch (error) {
+      console.error("Erreur chargement token/profil:", error);
+      Alert.alert("Erreur", "Impossible de récupérer l'utilisateur.");
+    }
+  }, [router]);
 
-  // Calculer les notifications non lues
   useEffect(() => {
+    loadTokenAndUser();
+    
     const updateBadgeCounts = () => {
       setBadgeCounts({
         statistics: generateRandomCount(0, 15),
@@ -248,10 +354,7 @@ export default function ProfilVendeurPremium() {
       });
     };
 
-    // Mettre à jour les badges toutes les 30 secondes (simulation)
     const interval = setInterval(updateBadgeCounts, 30000);
-    
-    // Initialiser les badges au chargement
     updateBadgeCounts();
     
     return () => clearInterval(interval);
@@ -264,7 +367,6 @@ export default function ProfilVendeurPremium() {
       [key]: 0
     }));
     
-    // Marquer les notifications de ce type comme lues
     const typeMap: { [key: string]: Notification['type'] } = {
       statistics: 'statistic',
       orders: 'order',
@@ -280,47 +382,6 @@ export default function ProfilVendeurPremium() {
       )
     );
   };
-
-  // Charger token et profil
-  const loadTokenAndUser = useCallback(async () => {
-    try {
-      const savedToken = await AsyncStorage.getItem("userToken");
-      if (!savedToken) {
-        router.push("/splash");
-        return;
-      }
-      setToken(savedToken);
-      await fetchUserProfile(savedToken);
-      await fetchProducts(savedToken);
-
-      // Lancement des animations
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } catch (error) {
-      console.error("Erreur chargement token/profil:", error);
-      Alert.alert("Erreur", "Impossible de récupérer l'utilisateur.");
-    }
-  }, [router]);
-
-  useEffect(() => {
-    loadTokenAndUser();
-  }, [loadTokenAndUser]);
 
   const fetchUserProfile = async (token: string) => {
     try {
@@ -458,7 +519,7 @@ export default function ProfilVendeurPremium() {
       setUploading(false);
       closePhotoModal();
     }
-  }, [token, photoModalType, closePhotoModal, fetchUserProfile]);
+  }, [token, photoModalType, closePhotoModal]);
 
   const formatDateFR = useCallback((dateStr: string) => {
     try {
@@ -482,16 +543,7 @@ export default function ProfilVendeurPremium() {
 
   const renderProductItem = useCallback(
     ({ item }: { item: Product }) => (
-      <Animated.View
-        style={[
-          styles.productCard,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        {/* Image du produit */}
+      <View style={styles.productCard}>
         <Image
           source={{
             uri:
@@ -503,13 +555,11 @@ export default function ProfilVendeurPremium() {
           resizeMode="cover"
         />
 
-        {/* Badge Pro sur produit */}
         <View style={styles.productProBadge}>
-          <Ionicons name="rocket" size={10} color="#fff" />
+          <Ionicons name="rocket" size={10} color="#FFFFFF" />
           <Text style={styles.productProBadgeText}>PRO</Text>
         </View>
 
-        {/* Info produit */}
         <View style={styles.productInfoContainer}>
           <Text numberOfLines={2} style={styles.productTitle}>
             {item.title}
@@ -519,7 +569,6 @@ export default function ProfilVendeurPremium() {
           </Text>
         </View>
 
-        {/* Bouton trois points */}
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() =>
@@ -537,7 +586,7 @@ export default function ProfilVendeurPremium() {
         >
           <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
         </TouchableOpacity>
-      </Animated.View>
+      </View>
     ),
     [router],
   );
@@ -564,7 +613,6 @@ export default function ProfilVendeurPremium() {
 
   return (
     <View style={styles.mainContainer}>
-      {/* Background Effects */}
       <View style={styles.backgroundEffects}>
         <View style={styles.glowCircle1} />
         <View style={styles.glowCircle2} />
@@ -583,16 +631,8 @@ export default function ProfilVendeurPremium() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section Couverture VIP */}
-        <Animated.View
-          style={[
-            styles.coverSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        {/* Section Couverture */}
+        <View style={styles.coverSection}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => handlePhotoAction("cover")}
@@ -621,24 +661,15 @@ export default function ProfilVendeurPremium() {
             )}
             <View style={styles.coverOverlay} />
 
-            {/* Badge VIP sur couverture */}
             <View style={styles.coverBadge}>
               <Ionicons name="diamond" size={14} color="#0048ffff" />
               <Text style={styles.coverBadgeText}>PROFIL PRO</Text>
             </View>
           </TouchableOpacity>
-        </Animated.View>
+        </View>
 
-        {/* Section Profil Premium */}
-        <Animated.View
-          style={[
-            styles.profileSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        {/* Section Profil */}
+        <View style={styles.profileSection}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => handlePhotoAction("profile")}
@@ -658,9 +689,8 @@ export default function ProfilVendeurPremium() {
                 <FontAwesome5 name="user-tie" size={40} color={PRO_BLUE} />
               </View>
             )}
-            {/* Badge édition photo */}
             <View style={styles.editPhotoBadge}>
-              <Ionicons name="camera" size={14} color="#fff" />
+              <Ionicons name="camera" size={14} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
 
@@ -673,27 +703,21 @@ export default function ProfilVendeurPremium() {
               </View>
             </View>
 
-            <Text style={styles.memberSince}>
-              <Ionicons name="time" size={14} color={PRO_BLUE} /> Membre depuis{" "}
-              {formatDateFR(user.date_inscription)}
-            </Text>
+            <View style={styles.memberSinceContainer}>
+              <Ionicons name="time" size={14} color={PRO_BLUE} />
+              <Text style={styles.memberSince}>
+                Membre depuis {formatDateFR(user.date_inscription)}
+              </Text>
+            </View>
 
             {user.description && (
               <Text style={styles.description}>{user.description}</Text>
             )}
           </View>
-        </Animated.View>
+        </View>
 
-        {/* Statistiques VIP */}
-        <Animated.View
-          style={[
-            styles.statsSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        {/* Statistiques */}
+        <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Performance Business</Text>
           <View style={styles.statsGrid}>
             {[
@@ -740,18 +764,10 @@ export default function ProfilVendeurPremium() {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
-        {/* Tableau de Bord Pro AVEC BADGES */}
-        <Animated.View
-          style={[
-            styles.dashboardSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        {/* Tableau de Bord Pro */}
+        <View style={styles.dashboardSection}>
           <Text style={styles.sectionTitle}>Centre de Commande Pro</Text>
           <View style={styles.dashboardGrid}>
             {[
@@ -783,12 +799,11 @@ export default function ProfilVendeurPremium() {
                 route: "/MisAjour",
               },
               {
-            title: "Boost Pro",
-            subtitle: "Produits premium",
-            icon: "award",
-            color: PRO_BLUE,
-            route: "/(tabs)/Auth/Profiles/PaymentStatus",
-
+                title: "Boost Pro",
+                subtitle: "Produits premium",
+                icon: "award",
+                color: PRO_BLUE,
+                route: "/(tabs)/Auth/Profiles/PaymentStatus",
               },
             ].map((item, index) => (
               <TouchableOpacity
@@ -797,20 +812,22 @@ export default function ProfilVendeurPremium() {
                 onPress={() => handleNavigation(item.route, item.badgeKey)}
               >
                 <View style={styles.dashboardCardContent}>
-                  <View
-                    style={[
-                      styles.dashboardIcon,
-                      { backgroundColor: `${item.color}15` },
-                    ]}
-                  >
-                    <Feather
-                      name={item.icon as any}
-                      size={24}
-                      color={item.color}
-                    />
-                    {item.badgeCount && item.badgeCount > 0 && (
-                      <NotificationBadge count={item.badgeCount} small />
-                    )}
+                  <View style={styles.dashboardIconContainer}>
+                    <View
+                      style={[
+                        styles.dashboardIcon,
+                        { backgroundColor: `${item.color}15` },
+                      ]}
+                    >
+                      <Feather
+                        name={item.icon as any}
+                        size={24}
+                        color={item.color}
+                      />
+                      {item.badgeCount && item.badgeCount > 0 && (
+                        <NotificationBadge count={item.badgeCount} small />
+                      )}
+                    </View>
                   </View>
                   <Text style={styles.dashboardTitle}>{item.title}</Text>
                   <Text style={styles.dashboardSubtitle}>{item.subtitle}</Text>
@@ -818,24 +835,15 @@ export default function ProfilVendeurPremium() {
               </TouchableOpacity>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
-        {/* Menu Actions Rapides AVEC BADGES */}
-        <Animated.View
-          style={[
-            styles.quickActionsSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        {/* Menu Actions Rapides */}
+        <View style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>Actions Rapides</Text>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={async () => {
-                // Réinitialiser le badge boutique
                 resetBadge('boutique');
                 
                 try {
@@ -856,7 +864,6 @@ export default function ProfilVendeurPremium() {
                     },
                   );
 
-
                   const data = await response.json();
 
                   if (response.ok && data.success) {
@@ -873,17 +880,19 @@ export default function ProfilVendeurPremium() {
                 }
               }}
             >
-              <View style={styles.quickActionIconContainer}>
-                <View
-                  style={[
-                    styles.quickActionIcon,
-                    { backgroundColor: `${PRO_BLUE}15` },
-                  ]}
-                >
-                  <MaterialIcons name="store" size={24} color={PRO_BLUE} />
-                  {badgeCounts.boutique > 0 && (
-                    <NotificationBadge count={badgeCounts.boutique} small />
-                  )}
+              <View style={styles.quickActionContent}>
+                <View style={styles.quickActionIconContainer}>
+                  <View
+                    style={[
+                      styles.quickActionIcon,
+                      { backgroundColor: `${PRO_BLUE}15` },
+                    ]}
+                  >
+                    <MaterialIcons name="store" size={24} color={PRO_BLUE} />
+                    {badgeCounts.boutique > 0 && (
+                      <NotificationBadge count={badgeCounts.boutique} small />
+                    )}
+                  </View>
                 </View>
                 <Text style={styles.quickActionText}>Boutique</Text>
               </View>
@@ -893,14 +902,16 @@ export default function ProfilVendeurPremium() {
               style={styles.quickActionButton}
               onPress={() => router.push("/(tabs)/Auth/Produits/Produit")}
             >
-              <View style={styles.quickActionIconContainer}>
-                <View
-                  style={[
-                    styles.quickActionIcon,
-                    { backgroundColor: `${PRO_BLUE}15` },
-                  ]}
-                >
-                  <Ionicons name="add-circle" size={24} color={PRO_BLUE} />
+              <View style={styles.quickActionContent}>
+                <View style={styles.quickActionIconContainer}>
+                  <View
+                    style={[
+                      styles.quickActionIcon,
+                      { backgroundColor: `${PRO_BLUE}15` },
+                    ]}
+                  >
+                    <Ionicons name="add-circle" size={24} color={PRO_BLUE} />
+                  </View>
                 </View>
                 <Text style={styles.quickActionText}>Ajouter</Text>
               </View>
@@ -913,17 +924,19 @@ export default function ProfilVendeurPremium() {
                 router.push("/MisAjour");
               }}
             >
-              <View style={styles.quickActionIconContainer}>
-                <View
-                  style={[
-                    styles.quickActionIcon,
-                    { backgroundColor: `${PRO_BLUE}15` },
-                  ]}
-                >
-                  <MaterialIcons name="local-offer" size={24} color={PRO_BLUE} />
-                  {badgeCounts.promotions > 0 && (
-                    <NotificationBadge count={badgeCounts.promotions} small />
-                  )}
+              <View style={styles.quickActionContent}>
+                <View style={styles.quickActionIconContainer}>
+                  <View
+                    style={[
+                      styles.quickActionIcon,
+                      { backgroundColor: `${PRO_BLUE}15` },
+                    ]}
+                  >
+                    <MaterialIcons name="local-offer" size={24} color={PRO_BLUE} />
+                    {badgeCounts.promotions > 0 && (
+                      <NotificationBadge count={badgeCounts.promotions} small />
+                    )}
+                  </View>
                 </View>
                 <Text style={styles.quickActionText}>Promotions</Text>
               </View>
@@ -936,34 +949,28 @@ export default function ProfilVendeurPremium() {
                 router.push("/Auth/Produits/parametre");
               }}
             >
-              <View style={styles.quickActionIconContainer}>
-                <View
-                  style={[
-                    styles.quickActionIcon,
-                    { backgroundColor: `${PRO_BLUE}15` },
-                  ]}
-                >
-                  <Ionicons name="settings" size={24} color={PRO_BLUE} />
-                  {badgeCounts.settings > 0 && (
-                    <NotificationBadge count={badgeCounts.settings} small />
-                  )}
+              <View style={styles.quickActionContent}>
+                <View style={styles.quickActionIconContainer}>
+                  <View
+                    style={[
+                      styles.quickActionIcon,
+                      { backgroundColor: `${PRO_BLUE}15` },
+                    ]}
+                  >
+                    <Ionicons name="settings" size={24} color={PRO_BLUE} />
+                    {badgeCounts.settings > 0 && (
+                      <NotificationBadge count={badgeCounts.settings} small />
+                    )}
+                  </View>
                 </View>
                 <Text style={styles.quickActionText}>Paramètres</Text>
               </View>
             </TouchableOpacity>
           </View>
-        </Animated.View>
+        </View>
 
-        {/* Section Produits VIP */}
-        <Animated.View
-          style={[
-            styles.productsSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        {/* Section Produits */}
+        <View style={styles.productsSection}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>Mes Produits Pro</Text>
@@ -1008,17 +1015,17 @@ export default function ProfilVendeurPremium() {
                 style={styles.addProductButton}
                 onPress={() => router.push("/(tabs)/Auth/Produits/Produit")}
               >
-                <Ionicons name="add" size={20} color="#fff" />
+                <Ionicons name="add" size={20} color="#FFFFFF" />
                 <Text style={styles.addProductButtonText}>
                   Créer un produit
                 </Text>
               </TouchableOpacity>
             </View>
           )}
-        </Animated.View>
+        </View>
       </ScrollView>
 
-      <PhotoModal
+      <PhotoModalComponent
         visible={photoModalVisible && !viewingPhoto}
         type={photoModalType}
         hasPhoto={
@@ -1032,7 +1039,7 @@ export default function ProfilVendeurPremium() {
         onClose={closePhotoModal}
       />
 
-      <FullscreenPhotoModal
+      <FullscreenPhotoModalComponent
         visible={viewingPhoto}
         photoUri={
           photoModalType === "profile"
@@ -1047,104 +1054,6 @@ export default function ProfilVendeurPremium() {
   );
 }
 
-// Modaux Photo (gardés identiques mais avec styles améliorés)
-const PhotoModal = ({
-  visible,
-  type,
-  hasPhoto,
-  uploading,
-  onView,
-  onChoose,
-  onClose,
-}: {
-  visible: boolean;
-  type: "profile" | "cover" | null;
-  hasPhoto: boolean;
-  uploading: boolean;
-  onView: () => void;
-  onChoose: () => void;
-  onClose: () => void;
-}) => (
-  <Modal
-    visible={visible}
-    transparent
-    animationType="fade"
-    onRequestClose={onClose}
-  >
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContent}>
-        <Text style={styles.modalTitle}>
-          {type === "profile" ? "Photo de profil" : "Photo de couverture"}
-        </Text>
-        <TouchableOpacity
-          style={[styles.modalBtn, !hasPhoto && styles.disabledBtn]}
-          onPress={onView}
-          disabled={uploading || !hasPhoto}
-        >
-          <Ionicons name="eye" size={20} color="#fff" />
-          <Text style={styles.modalBtnText}>Voir la photo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.modalBtn}
-          onPress={onChoose}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="image" size={20} color="#fff" />
-              <Text style={styles.modalBtnText}>Choisir une photo</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modalBtn, styles.cancelBtn]}
-          onPress={onClose}
-          disabled={uploading}
-        >
-          <Text style={styles.modalBtnText}>Annuler</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </Modal>
-);
-
-const FullscreenPhotoModal = ({
-  visible,
-  photoUri,
-  onClose,
-}: {
-  visible: boolean;
-  photoUri: string | null | undefined;
-  onClose: () => void;
-}) => (
-  <Modal
-    visible={visible}
-    transparent={false}
-    animationType="fade"
-    onRequestClose={onClose}
-  >
-    <View style={styles.fullscreenPhotoContainer}>
-      <TouchableOpacity style={styles.closePhotoButton} onPress={onClose}>
-        <Ionicons name="close" size={30} color="#fff" />
-      </TouchableOpacity>
-      {photoUri && (
-        <Image
-          source={{
-            uri: photoUri.startsWith("http")
-              ? photoUri
-              : `${BASE_URL}${photoUri}`,
-          }}
-          style={styles.fullscreenPhoto}
-          resizeMode={photoUri.includes("cover") ? "cover" : "contain"}
-        />
-      )}
-    </View>
-  </Modal>
-);
-
-// Styles VIP Pro avec modifications pour les badges
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -1195,7 +1104,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   errorText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 18,
     marginBottom: 20,
     textAlign: "center",
@@ -1208,12 +1117,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   retryButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
   },
-
-  // Cover Section
   coverSection: {
     marginBottom: 0,
   },
@@ -1256,14 +1163,12 @@ const styles = StyleSheet.create({
     borderColor: PRO_BLUE,
   },
   coverBadgeText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "700",
     marginLeft: 4,
     letterSpacing: 0.5,
   },
-
-  // Profile Section
   profileSection: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1321,7 +1226,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#fff",
+    color: "#FFFFFF",
     marginRight: 8,
   },
   verifiedBadge: {
@@ -1338,19 +1243,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 2,
   },
+  memberSinceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
   memberSince: {
     fontSize: 14,
     color: PRO_BLUE,
-    marginBottom: 10,
     fontWeight: "500",
+    marginLeft: 4,
   },
   description: {
     fontSize: 15,
     color: "#E2E8F0",
     lineHeight: 22,
   },
-
-  // Stats Section
   statsSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -1381,7 +1289,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#fff",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   statLabel: {
@@ -1389,8 +1297,6 @@ const styles = StyleSheet.create({
     color: "#A0AEC0",
     fontWeight: "500",
   },
-
-  // Dashboard Section avec badges
   dashboardSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -1412,6 +1318,8 @@ const styles = StyleSheet.create({
   },
   dashboardCardContent: {
     alignItems: "center",
+  },
+  dashboardIconContainer: {
     position: 'relative',
   },
   dashboardIcon: {
@@ -1421,10 +1329,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
-    position: 'relative',
   },
   dashboardTitle: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
     textAlign: "center",
@@ -1435,8 +1342,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
   },
-
-  // Quick Actions avec badges
   quickActionsSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -1451,8 +1356,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
   },
-  quickActionIconContainer: {
+  quickActionContent: {
     alignItems: "center",
+  },
+  quickActionIconContainer: {
     position: 'relative',
   },
   quickActionIcon: {
@@ -1462,7 +1369,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
-    position: 'relative',
   },
   quickActionText: {
     color: "#E2E8F0",
@@ -1470,8 +1376,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textAlign: "center",
   },
-
-  // Products Section
   productsSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -1485,7 +1389,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#fff",
+    color: "#FFFFFF",
     letterSpacing: 0.5,
   },
   sectionSubtitle: {
@@ -1540,7 +1444,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   productProBadgeText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 8,
     fontWeight: "800",
     marginLeft: 2,
@@ -1584,7 +1488,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyTitle: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 8,
@@ -1596,12 +1500,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
-  emptyText: {
-    color: "#A0AEC0",
-    textAlign: "center",
-    marginTop: 20,
-    fontSize: 16,
-  },
   addProductButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1612,12 +1510,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   addProductButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontWeight: "700",
     marginLeft: 6,
   },
-
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -1635,7 +1531,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#fff",
+    color: "#FFFFFF",
     marginBottom: 20,
     textAlign: "center",
   },
@@ -1645,9 +1541,14 @@ const styles = StyleSheet.create({
     backgroundColor: PRO_BLUE,
     padding: 16,
     borderRadius: 12,
-    alignItems: "center",
     marginBottom: 12,
     elevation: 4,
+  },
+  modalBtnContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
   },
   disabledBtn: {
     backgroundColor: "#3A4A5A",
@@ -1657,12 +1558,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#3A4A5A",
   },
   modalBtnText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
-    flex: 1,
-    textAlign: "center",
   },
   fullscreenPhotoContainer: {
     flex: 1,
@@ -1684,8 +1583,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
   },
-
-  // Styles pour les badges de notification - MODIFIÉS
   badge: {
     position: "absolute",
     top: -5,
@@ -1695,7 +1592,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
-    // SUPPRIMÉ: borderWidth: 1.5, borderColor: "#fff"
   },
   smallBadge: {
     minWidth: 18,
@@ -1710,7 +1606,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   badgeText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -1721,3 +1617,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+
