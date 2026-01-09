@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getToken } from './(tabs)/Auth/authService';
-import jwt_decode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode'; // ✅ CORRECTION ICI
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -29,15 +29,14 @@ export default function Index() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // 🎬 Animation + redirection
   useEffect(() => {
-    // Animation du logo
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 1500,
       useNativeDriver: true,
     }).start();
 
-    // Redirection après 2.5 secondes selon présence du token utilisateur
     const timer = setTimeout(async () => {
       const token = await getToken();
       if (token) router.replace('/Auth/Produits/Fil');
@@ -47,65 +46,80 @@ export default function Index() {
     return () => clearTimeout(timer);
   }, []);
 
+  // 🔔 Notifications + enregistrement token Expo
   useEffect(() => {
     (async () => {
       const expoToken = await registerForPushNotificationsAsync();
-      console.log('Expo Push Token:', expoToken);
+      console.log('📨 Expo Push Token:', expoToken);
 
       if (expoToken) {
         try {
           const token = await getToken();
+
           if (token) {
-            const decoded: DecodedToken = jwt_decode(token);
+            // ✅ CORRECTION jwt-decode
+            const decoded = jwtDecode<DecodedToken>(token);
             const userId = decoded.id;
 
-            // ✅ Envoi automatique du token Expo au serveur
-            // await fetch("http://100.64.134.89:5000/api/save-expo-token", { // Serveur LOCAL (commenté)
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify({ userId, expoPushToken: expoToken }),
-            // });
+            if (!userId) {
+              console.warn('⚠️ userId introuvable dans le JWT');
+              return;
+            }
 
-            await fetch("https://shopnet-backend.onrender.com/api/save-expo-token", { // Serveur Render (production)
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId, expoPushToken: expoToken }),
-            });
-
+            await fetch(
+              'https://shopnet-backend.onrender.com/api/save-expo-token',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId,
+                  expoPushToken: expoToken,
+                }),
+              }
+            );
 
             console.log('✅ Token Expo enregistré sur le serveur');
           }
         } catch (err) {
-          console.error('❌ Erreur en envoyant le token au serveur:', err);
+          console.error(
+            '❌ Erreur en envoyant le token au serveur:',
+            err
+          );
         }
       }
 
-      // Écoute notifications reçues
-      const subscriptionReceived = Notifications.addNotificationReceivedListener(notification => {
-        console.log('🔔 Notification reçue:', notification);
-      });
+      // 🔔 Notification reçue
+      const subscriptionReceived =
+        Notifications.addNotificationReceivedListener(notification => {
+          console.log('🔔 Notification reçue:', notification);
+        });
 
-      // Écoute réponse de l’utilisateur (clic sur notification)
-      const subscriptionResponse = Notifications.addNotificationResponseReceivedListener(response => {
-        console.log('📱 Réponse à la notification:', response);
+      // 📱 Clic sur notification
+      const subscriptionResponse =
+        Notifications.addNotificationResponseReceivedListener(response => {
+          console.log('📱 Réponse notification:', response);
 
-        const data = response.notification.request.content.data;
+          const data = response.notification.request.content.data;
 
-        if (data?.type === 'commande' && data?.commandeId) {
-          router.push(`/(tabs)/Auth/Panier/id`);
-        }
-      });
+          if (data?.type === 'commande' && data?.commandeId) {
+            router.push(`/(tabs)/Auth/Panier/id`);
+          }
+        });
 
-      // Vérifier si l’app était fermée et une notification a été cliquée
+      // 📦 Notification cliquée app fermée
       const checkInitialNotification = async () => {
-        const response = await Notifications.getLastNotificationResponseAsync();
+        const response =
+          await Notifications.getLastNotificationResponseAsync();
+
         if (response) {
           const data = response.notification.request.content.data;
+
           if (data?.type === 'commande' && data?.commandeId) {
             router.push(`/(tabs)/Auth/Panier/id`);
           }
         }
       };
+
       checkInitialNotification();
 
       return () => {
@@ -117,7 +131,9 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.logoContainer, { opacity: fadeAnim }]}>
+      <Animated.View
+        style={[styles.logoContainer, { opacity: fadeAnim }]}
+      >
         <Text style={styles.logo}>S</Text>
       </Animated.View>
       <Text style={styles.title}>SHOPNET</Text>
@@ -125,31 +141,42 @@ export default function Index() {
   );
 }
 
-// 🧩 Fonction pour obtenir le token Expo et gérer les permissions
+// 🔧 Enregistrement notifications
 async function registerForPushNotificationsAsync() {
-  let token;
+  let token: string | undefined;
 
   if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } =
+        await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
 
     if (finalStatus !== 'granted') {
-      Alert.alert('🚫 Permission refusée', 'Impossible de recevoir des notifications.');
+      Alert.alert(
+        '🚫 Permission refusée',
+        'Impossible de recevoir des notifications.'
+      );
       return;
     }
 
     token = (
       await Notifications.getExpoPushTokenAsync({
-        projectId: Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId,
+        projectId:
+          Constants.expoConfig?.extra?.eas?.projectId ||
+          Constants.easConfig?.projectId,
       })
     ).data;
   } else {
-    Alert.alert('⚠️ Notifications non supportées sur l’émulateur.');
+    Alert.alert(
+      '⚠️ Appareil non supporté',
+      'Les notifications ne fonctionnent pas sur un émulateur.'
+    );
   }
 
   if (Platform.OS === 'android') {

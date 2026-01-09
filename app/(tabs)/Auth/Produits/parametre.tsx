@@ -1,5 +1,6 @@
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,7 +15,6 @@ import {
   Dimensions,
   Image,
   TextInput,
-  Modal,
   Switch,
   ActivityIndicator,
 } from "react-native";
@@ -24,8 +24,6 @@ import {
   MaterialIcons,
   FontAwesome,
   Feather,
-  FontAwesome5,
-  MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -38,21 +36,11 @@ const NOTIFICATION_RED = "#FF3B30";
 const CARD_BG = "rgba(30, 42, 59, 0.9)";
 const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
 
-
-
-// Production (Render)
 const BASE_URL = 'https://shopnet-backend.onrender.com';
-// Local (développement)
-// const BASE_URL = 'http://100.64.134.89:5000';
 
-
-// Types pour les paramètres
-type SettingsSection = {
-  title: string;
-  items: SettingsItem[];
-};
-
+// ========== TYPES ==========
 type SettingsItem = {
+  id: string;
   name: string;
   route: string;
   icon: string;
@@ -60,70 +48,181 @@ type SettingsItem = {
   iconFamily?: 'ionicons' | 'material' | 'fontawesome' | 'feather';
 };
 
-const initialSettingsSections: SettingsSection[] = [
+type SettingsSection = {
+  id: string;
+  title: string;
+  items: SettingsItem[];
+};
+
+type UserData = {
+  name: string;
+  email: string;
+  role: string;
+  avatar: string;
+  boutique: string;
+  memberSince: string;
+};
+
+// ========== DATA ==========
+const createSettingsData = (): SettingsSection[] => [
   {
+    id: 'section-1',
     title: "Compte & Profil",
     items: [
-      { name: "Mon profil", route: "/Auth/Produits/profil-edit", icon: "person-circle", badge: 0, iconFamily: 'ionicons' },
-      { name: "Sécurité", route: "/MisAjour", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
-      { name: "Paiements", route: "/MisAjour", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
-      { name: "Badge Pro", route: "/MisAjour", icon: "verified", badge: 0, iconFamily: 'material' },
+      { id: 'item-1-1', name: "Mon profil", route: "/Auth/Produits/profil-edit", icon: "person-circle", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-1-2', name: "Sécurité", route: "/MisAjour", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-1-3', name: "Paiements", route: "/MisAjour", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
+      { id: 'item-1-4', name: "Badge Pro", route: "/MisAjour", icon: "verified", badge: 0, iconFamily: 'material' },
     ],
   },
   {
+    id: 'section-2',
     title: "Notifications & Communications",
     items: [
-      { name: "Notifications", route: "/MisAjour", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
-      { name: "Messages", route: "/MisAjour", icon: "chatbubble", badge: 0, iconFamily: 'ionicons' },
-      { name: "Alertes", route: "/MisAjour", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
-      { name: "Son & Vibration", route: "/MisAjour", icon: "volume-high", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-2-1', name: "Notifications", route: "/MisAjour", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
+      { id: 'item-2-2', name: "Messages", route: "/MisAjour", icon: "chatbubble", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-2-3', name: "Alertes", route: "/MisAjour", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-2-4', name: "Son & Vibration", route: "/MisAjour", icon: "volume-high", badge: 0, iconFamily: 'ionicons' },
     ],
   },
   {
+    id: 'section-3',
     title: "Apparence & Préférences",
     items: [
-      { name: "Thème", route: "/MisAjour", icon: "palette", badge: 0, iconFamily: 'ionicons' },
-      { name: "Langue", route: "/MisAjour", icon: "language", badge: 0, iconFamily: 'ionicons' },
-      { name: "Localisation", route: "/MisAjour", icon: "location", badge: 0, iconFamily: 'ionicons' },
-      { name: "Affichage", route: "/MisAjour", icon: "desktop", badge: 0, iconFamily: 'fontawesome' },
+      { id: 'item-3-1', name: "Thème", route: "/MisAjour", icon: "palette", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-3-2', name: "Langue", route: "/MisAjour", icon: "language", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-3-3', name: "Localisation", route: "/MisAjour", icon: "location", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-3-4', name: "Affichage", route: "/MisAjour", icon: "desktop", badge: 0, iconFamily: 'fontawesome' },
     ],
   },
   {
+    id: 'section-4',
     title: "Boutique & Produits",
     items: [
-      { name: "Paramètres boutique", route: "/MisAjour", icon: "store", badge: 0, iconFamily: 'material' },
-      { name: "Gestion produits", route: "/MisAjour", icon: "cube", badge: 9, iconFamily: 'ionicons' },
-      { name: "Livraison", route: "/MisAjour", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
-      { name: "Promotions", route: "/MisAjour", icon: "pricetag", badge: 2, iconFamily: 'ionicons' },
+      { id: 'item-4-1', name: "Paramètres boutique", route: "/MisAjour", icon: "store", badge: 0, iconFamily: 'material' },
+      { id: 'item-4-2', name: "Gestion produits", route: "/MisAjour", icon: "cube", badge: 9, iconFamily: 'ionicons' },
+      { id: 'item-4-3', name: "Livraison", route: "/MisAjour", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
+      { id: 'item-4-4', name: "Promotions", route: "/MisAjour", icon: "pricetag", badge: 2, iconFamily: 'ionicons' },
     ],
   },
   {
+    id: 'section-5',
     title: "Support & Aide",
     items: [
-      { name: "Centre d'aide", route: "/MisAjour", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
-      { name: "Signaler un problème", route: "/MisAjour", icon: "warning", badge: 0, iconFamily: 'material' },
-      { name: "Nous contacter", route: "/MisAjour", icon: "mail", badge: 0, iconFamily: 'ionicons' },
-      { name: "À propos", route: "/MisAjour", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-5-1', name: "Centre d'aide", route: "/MisAjour", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-5-2', name: "Signaler un problème", route: "/MisAjour", icon: "warning", badge: 0, iconFamily: 'material' },
+      { id: 'item-5-3', name: "Nous contacter", route: "/MisAjour", icon: "mail", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-5-4', name: "À propos", route: "/MisAjour", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
     ],
   },
   {
+    id: 'section-6',
     title: "Confidentialité & Sécurité",
     items: [
-      { name: "Vie privée", route: "/MisAjour", icon: "lock-closed", badge: 0, iconFamily: 'ionicons' },
-      { name: "Sécurité avancée", route: "/MisAjour", icon: "shield", badge: 0, iconFamily: 'ionicons' },
-      { name: "Historique", route: "/MisAjour", icon: "time", badge: 0, iconFamily: 'ionicons' },
-      { name: "Autorisations", route: "/MisAjour", icon: "key", badge: 0, iconFamily: 'fontawesome' },
+      { id: 'item-6-1', name: "Vie privée", route: "/MisAjour", icon: "lock-closed", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-6-2', name: "Sécurité avancée", route: "/MisAjour", icon: "shield", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-6-3', name: "Historique", route: "/MisAjour", icon: "time", badge: 0, iconFamily: 'ionicons' },
+      { id: 'item-6-4', name: "Autorisations", route: "/MisAjour", icon: "key", badge: 0, iconFamily: 'fontawesome' },
     ],
   },
 ];
 
+// ========== COMPONENTS ==========
+const IconRenderer = ({ item }: { item: SettingsItem }) => {
+  const size = 22;
+  const color = PRO_BLUE;
+
+  switch (item.iconFamily) {
+    case 'material':
+      return <MaterialIcons name={item.icon as any} size={size} color={color} />;
+    case 'fontawesome':
+      return <FontAwesome name={item.icon as any} size={size} color={color} />;
+    case 'feather':
+      return <Feather name={item.icon as any} size={size} color={color} />;
+    default:
+      return <Ionicons name={item.icon as any} size={size} color={color} />;
+  }
+};
+
+const SettingItemComponent = ({ 
+  item, 
+  onPress 
+}: { 
+  item: SettingsItem; 
+  onPress: () => void 
+}) => (
+  <TouchableOpacity style={styles.settingItem} onPress={onPress}>
+    <View style={styles.itemLeft}>
+      <View style={styles.itemIconContainer}>
+        <IconRenderer item={item} />
+      </View>
+      <Text style={styles.itemText}>{item.name}</Text>
+    </View>
+    <View style={styles.itemRight}>
+      {item.badge && item.badge > 0 && (
+        <View style={styles.itemBadge}>
+          <Text style={styles.itemBadgeText}>{item.badge}</Text>
+        </View>
+      )}
+      <Feather name="chevron-right" size={20} color={PRO_BLUE} />
+    </View>
+  </TouchableOpacity>
+);
+
+const QuickSettingItem = ({
+  icon,
+  label,
+  subLabel,
+  value,
+  onValueChange
+}: {
+  icon: string;
+  label: string;
+  subLabel: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) => (
+  <View style={styles.quickSettingItem}>
+    <View style={styles.quickSettingHeader}>
+      <Ionicons name={icon as any} size={24} color={PRO_BLUE} />
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
+        thumbColor="#FFFFFF"
+      />
+    </View>
+    <Text style={styles.quickSettingText}>{label}</Text>
+    <Text style={styles.quickSettingSubText}>{subLabel}</Text>
+  </View>
+);
+
+const InfoItem = ({
+  icon,
+  title,
+  value
+}: {
+  icon: string;
+  title: string;
+  value: string;
+}) => (
+  <View style={styles.infoItem}>
+    <Ionicons name={icon as any} size={20} color={PRO_BLUE} />
+    <View style={styles.infoTextContainer}>
+      <Text style={styles.infoTitle}>{title}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  </View>
+);
+
+// ========== MAIN COMPONENT ==========
 const SettingsScreen = () => {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const [userData, setUserData] = useState({
+  const [userData, setUserData] = useState<UserData>({
     name: "SHOPNET Pro",
     email: "entreprise@shopnet.com",
     role: "Vendeur Premium",
@@ -136,7 +235,7 @@ const SettingsScreen = () => {
   const [searchResults, setSearchResults] = useState<SettingsItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [settingsSections, setSettingsSections] = useState<SettingsSection[]>(initialSettingsSections);
+  const [settingsSections] = useState<SettingsSection[]>(createSettingsData());
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
@@ -181,7 +280,7 @@ const SettingsScreen = () => {
           role: "Vendeur Premium",
           avatar: user.profile_photo || "https://res.cloudinary.com/dddr7gb6w/image/upload/v1754689052/shopnet/product_1754689050822_5996.jpg",
           boutique: "SHOPNET Official",
-          memberSince: new Date(user.date_inscription).getFullYear().toString(),
+          memberSince: user.date_inscription ? new Date(user.date_inscription).getFullYear().toString() : "2023",
         });
       }
     } catch (error) {
@@ -239,7 +338,6 @@ const SettingsScreen = () => {
       setLoading(true);
       const token = await AsyncStorage.getItem("userToken");
       
-      // Envoyer les paramètres au backend
       const settingsData = {
         notifications_enabled: notificationsEnabled,
         dark_mode: darkModeEnabled,
@@ -270,7 +368,6 @@ const SettingsScreen = () => {
       setLoading(true);
       const token = await AsyncStorage.getItem("userToken");
       
-      // Synchroniser les données avec le serveur
       await axios.post(
         `${BASE_URL}/api/user/sync`,
         {},
@@ -279,7 +376,6 @@ const SettingsScreen = () => {
         }
       );
 
-      // Recharger les données utilisateur
       await fetchUserData();
       
       Alert.alert("Succès", "Données synchronisées avec succès");
@@ -290,56 +386,6 @@ const SettingsScreen = () => {
       setLoading(false);
     }
   };
-
-  const renderIcon = (item: SettingsItem) => {
-    const size = 22;
-    const color = PRO_BLUE;
-
-    switch (item.iconFamily) {
-      case 'material':
-        return <MaterialIcons name={item.icon as any} size={size} color={color} />;
-      case 'fontawesome':
-        return <FontAwesome name={item.icon as any} size={size} color={color} />;
-      case 'feather':
-        return <Feather name={item.icon as any} size={size} color={color} />;
-      default:
-        return <Ionicons name={item.icon as any} size={size} color={color} />;
-    }
-  };
-
-  const renderSettingsItem = (item: SettingsItem) => (
-    <Animated.View
-      key={item.name}
-      style={{
-        opacity: fadeAnim,
-        transform: [{ translateY: slideAnim }],
-      }}
-    >
-      <TouchableOpacity
-        style={styles.settingItem}
-        onPress={() => {
-          if (item.route) {
-            router.push(item.route);
-          }
-        }}
-      >
-        <View style={styles.itemLeft}>
-          <View style={styles.itemIconContainer}>
-            {renderIcon(item)}
-          </View>
-          <Text style={styles.itemText}>{item.name}</Text>
-        </View>
-        <View style={styles.itemRight}>
-          {item.badge && item.badge > 0 && (
-            <View style={styles.itemBadge}>
-              <Text style={styles.itemBadgeText}>{item.badge}</Text>
-            </View>
-          )}
-          <Feather name="chevron-right" size={20} color={PRO_BLUE} />
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 100],
@@ -383,9 +429,9 @@ const SettingsScreen = () => {
           <View style={styles.headerTop}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.push("/(tabs)/Auth/Produits/profil-debug")}
+              onPress={() => router.back()}
             >
-              <Ionicons name="arrow-back" size={24} color="#ffffffff" />
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Paramètres Pro</Text>
             <TouchableOpacity
@@ -405,7 +451,7 @@ const SettingsScreen = () => {
             <TouchableOpacity onPress={() => router.push("/Auth/Produits/profil-edit")}>
               <Image source={{ uri: userData.avatar }} style={styles.userAvatar} />
               <View style={styles.editAvatarBadge}>
-                <Ionicons name="camera" size={12} color="#fff" />
+                <Ionicons name="camera" size={12} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
             <View style={styles.userInfo}>
@@ -417,9 +463,10 @@ const SettingsScreen = () => {
                   <Ionicons name="checkmark-circle" size={12} color={PRO_BLUE} />
                 </View>
               </View>
-              <Text style={styles.userSince}>
-                <Ionicons name="calendar" size={12} color={PRO_BLUE} /> Membre depuis {userData.memberSince}
-              </Text>
+              <View style={styles.userSinceContainer}>
+                <Ionicons name="calendar" size={12} color={PRO_BLUE} />
+                <Text style={styles.userSince}>Membre depuis {userData.memberSince}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -479,61 +526,34 @@ const SettingsScreen = () => {
         >
           <Text style={styles.sectionTitle}>Réglages rapides</Text>
           <View style={styles.quickSettingsGrid}>
-            <View style={styles.quickSettingItem}>
-              <View style={styles.quickSettingHeader}>
-                <Ionicons name="notifications" size={24} color={PRO_BLUE} />
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={setNotificationsEnabled}
-                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <Text style={styles.quickSettingText}>Notifications</Text>
-              <Text style={styles.quickSettingSubText}>Activer/Désactiver</Text>
-            </View>
-
-            <View style={styles.quickSettingItem}>
-              <View style={styles.quickSettingHeader}>
-                <Ionicons name="moon" size={24} color={PRO_BLUE} />
-                <Switch
-                  value={darkModeEnabled}
-                  onValueChange={setDarkModeEnabled}
-                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <Text style={styles.quickSettingText}>Mode sombre</Text>
-              <Text style={styles.quickSettingSubText}>Thème Shopnet</Text>
-            </View>
-
-            <View style={styles.quickSettingItem}>
-              <View style={styles.quickSettingHeader}>
-                <Ionicons name="location" size={24} color={PRO_BLUE} />
-                <Switch
-                  value={locationEnabled}
-                  onValueChange={setLocationEnabled}
-                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <Text style={styles.quickSettingText}>Localisation</Text>
-              <Text style={styles.quickSettingSubText}>Partager ma position</Text>
-            </View>
-
-            <View style={styles.quickSettingItem}>
-              <View style={styles.quickSettingHeader}>
-                <Ionicons name="shield-checkmark" size={24} color={PRO_BLUE} />
-                <Switch
-                  value={advancedSecurityEnabled}
-                  onValueChange={setAdvancedSecurityEnabled}
-                  trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <Text style={styles.quickSettingText}>Sécurité avancée</Text>
-              <Text style={styles.quickSettingSubText}>Protection renforcée</Text>
-            </View>
+            <QuickSettingItem
+              icon="notifications"
+              label="Notifications"
+              subLabel="Activer/Désactiver"
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+            />
+            <QuickSettingItem
+              icon="moon"
+              label="Mode sombre"
+              subLabel="Thème Shopnet"
+              value={darkModeEnabled}
+              onValueChange={setDarkModeEnabled}
+            />
+            <QuickSettingItem
+              icon="location"
+              label="Localisation"
+              subLabel="Partager ma position"
+              value={locationEnabled}
+              onValueChange={setLocationEnabled}
+            />
+            <QuickSettingItem
+              icon="shield-checkmark"
+              label="Sécurité avancée"
+              subLabel="Protection renforcée"
+              value={advancedSecurityEnabled}
+              onValueChange={setAdvancedSecurityEnabled}
+            />
           </View>
 
           <TouchableOpacity
@@ -542,12 +562,12 @@ const SettingsScreen = () => {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <>
-                <Ionicons name="save" size={20} color="#fff" />
+              <View style={styles.saveSettingsContent}>
+                <Ionicons name="save" size={20} color="#FFFFFF" />
                 <Text style={styles.saveSettingsText}>Sauvegarder les réglages</Text>
-              </>
+              </View>
             )}
           </TouchableOpacity>
         </Animated.View>
@@ -568,7 +588,13 @@ const SettingsScreen = () => {
             </Text>
             <View style={styles.sectionContent}>
               {searchResults.length > 0 ? (
-                searchResults.map((item, index) => renderSettingsItem(item))
+                searchResults.map((item) => (
+                  <SettingItemComponent
+                    key={item.id}
+                    item={item}
+                    onPress={() => router.push(item.route)}
+                  />
+                ))
               ) : (
                 <View style={styles.noResultsContainer}>
                   <Ionicons name="search-outline" size={48} color={PRO_BLUE} />
@@ -582,9 +608,9 @@ const SettingsScreen = () => {
           </Animated.View>
         ) : (
           /* Sections de paramètres */
-          settingsSections.map((section, index) => (
+          settingsSections.map((section) => (
             <Animated.View
-              key={index}
+              key={section.id}
               style={[
                 styles.section,
                 {
@@ -595,7 +621,13 @@ const SettingsScreen = () => {
             >
               <Text style={styles.sectionTitle}>{section.title}</Text>
               <View style={styles.sectionContent}>
-                {section.items.map(renderSettingsItem)}
+                {section.items.map((item) => (
+                  <SettingItemComponent
+                    key={item.id}
+                    item={item}
+                    onPress={() => router.push(item.route)}
+                  />
+                ))}
               </View>
             </Animated.View>
           ))
@@ -611,29 +643,21 @@ const SettingsScreen = () => {
             },
           ]}
         >
-          <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color={PRO_BLUE} />
-            <View style={styles.infoTextContainer}>
-              <Text style={styles.infoTitle}>Version de l'application</Text>
-              <Text style={styles.infoValue}>Shopnet Pro 2.5.1</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoItem}>
-            <Ionicons name="phone-portrait" size={20} color={PRO_BLUE} />
-            <View style={styles.infoTextContainer}>
-              <Text style={styles.infoTitle}>Appareil</Text>
-              <Text style={styles.infoValue}>React Native / Expo</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoItem}>
-            <Ionicons name="cloud" size={20} color={PRO_BLUE} />
-            <View style={styles.infoTextContainer}>
-              <Text style={styles.infoTitle}>Dernière synchronisation</Text>
-              <Text style={styles.infoValue}>À l'instant</Text>
-            </View>
-          </View>
+          <InfoItem
+            icon="information-circle"
+            title="Version de l'application"
+            value="Shopnet Pro 2.5.1"
+          />
+          <InfoItem
+            icon="phone-portrait"
+            title="Appareil"
+            value="React Native / Expo"
+          />
+          <InfoItem
+            icon="cloud"
+            title="Dernière synchronisation"
+            value="À l'instant"
+          />
         </Animated.View>
 
         {/* Bouton déconnexion */}
@@ -642,8 +666,10 @@ const SettingsScreen = () => {
           onPress={handleLogout}
           disabled={loading}
         >
-          <MaterialIcons name="logout" size={22} color={NOTIFICATION_RED} />
-          <Text style={styles.logoutText}>Déconnexion</Text>
+          <View style={styles.logoutContent}>
+            <MaterialIcons name="logout" size={22} color={NOTIFICATION_RED} />
+            <Text style={styles.logoutText}>Déconnexion</Text>
+          </View>
         </TouchableOpacity>
 
         {/* Footer */}
@@ -656,11 +682,12 @@ const SettingsScreen = () => {
   );
 };
 
+// ========== STYLES ==========
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: SHOPNET_BLUE,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0,
   },
   loadingContainer: {
     flex: 1,
@@ -722,7 +749,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#fff",
+    color: "#FFFFFF",
     letterSpacing: 0.5,
   },
   syncButton: {
@@ -767,7 +794,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#fff",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   userEmail: {
@@ -788,9 +815,14 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     marginLeft: 4,
   },
+  userSinceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   userSince: {
     fontSize: 12,
     color: "#A0AEC0",
+    marginLeft: 4,
   },
   container: {
     flex: 1,
@@ -817,7 +849,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     padding: 0,
   },
@@ -836,7 +868,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#fff",
+    color: "#FFFFFF",
     marginBottom: 16,
     letterSpacing: 0.5,
   },
@@ -859,7 +891,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   quickSettingText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 4,
@@ -869,7 +901,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   saveSettingsButton: {
-    flexDirection: "row",
     backgroundColor: PRO_BLUE,
     borderRadius: 12,
     padding: 16,
@@ -877,8 +908,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
   },
+  saveSettingsContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   saveSettingsText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
     marginLeft: 8,
@@ -938,7 +973,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   itemBadgeText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "bold",
     paddingHorizontal: 4,
@@ -949,7 +984,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   noResultsText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "700",
     marginTop: 16,
@@ -985,12 +1020,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   infoValue: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "600",
   },
   logoutButton: {
-    flexDirection: "row",
     backgroundColor: CARD_BG,
     borderRadius: 16,
     padding: 20,
@@ -1000,6 +1034,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: "rgba(255, 107, 107, 0.2)",
+  },
+  logoutContent: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   logoutText: {
     color: NOTIFICATION_RED,
@@ -1026,6 +1064,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
 
 export default SettingsScreen;
