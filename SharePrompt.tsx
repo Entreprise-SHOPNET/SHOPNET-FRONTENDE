@@ -1,6 +1,5 @@
 
 
-// SharePrompt.tsx
 import React, { useEffect, useState } from "react";
 import {
   Modal,
@@ -9,114 +8,46 @@ import {
   TouchableOpacity,
   Share,
   StyleSheet,
-  Dimensions,
-  Animated,
+  useWindowDimensions,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const GOOGLE_PLAY_LINK =
-  "https://entreprise-shopnet.github.io/SHOPNET-CONDITION/";
+const GOOGLE_PLAY_LINK = "https://entreprise-shopnet.github.io/SHOPNET-CONDITION/";
 
-// Couleurs ShopNet officielles
-const SHOPNET_COLORS = {
-  primary: "#00182A", // Bleu ShopNet foncé
-  secondary: "#4DB14E", // Vert ShopNet
-  accent: "#42A5F5", // Bleu clair
-  background: "#FFFFFF", // Fond blanc style Apple
-  surface: "#F8F9FA", // Surface légère
-  text: "#1A1A1A", // Texte principal
-  textSecondary: "#6B7280", // Texte secondaire
-  border: "#E5E7EB", // Bordures
+// Couleurs avec bleu Facebook
+const COLORS = {
+  primary: "#00182A",
+  secondary: "#42A5F5", // Bleu clair pour le badge de vérification
+  accent: "#42A5F5",
+  background: "#FFFFFF",
+  text: "#1A1A1A",
+  textSecondary: "#666666",
+  border: "#DDDDDD",
+  facebookBlue: "#1877F2",
+  white: "#FFFFFF",
 };
 
 const SharePrompt = () => {
   const [visible, setVisible] = useState(false);
-  const [showCount, setShowCount] = useState(0);
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
 
-  // Animations style Apple
-  const scaleAnim = new Animated.Value(0.9);
-  const opacityAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
-
+  // Afficher après 10 secondes
   useEffect(() => {
     const timer = setTimeout(() => {
-      triggerSharePrompt();
+      setVisible(true);
     }, 10000);
 
-    const interval = setInterval(
-      () => {
-        triggerSharePrompt();
-      },
-      6 * 60 * 60 * 1000,
-    );
-
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
+    return () => clearTimeout(timer);
   }, []);
 
-  const triggerSharePrompt = () => {
-    setShowCount((prev) => {
-      if (prev < 3) {
-        setVisible(true);
-        return prev + 1;
-      }
-      return prev;
-    });
-  };
-
-  useEffect(() => {
-    if (visible) {
-      // Animation d'entrée style Apple
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 60,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 60,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
-
   const closeModal = () => {
-    // Animation de sortie fluide
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 50,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setVisible(false));
+    setVisible(false);
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `🛍️ **SHOPNET** - L'application shopping ultime !
+        message: `🛍️ SHOPNET - L'application shopping ultime !
 
 ✨ Découvre une nouvelle façon de shopper :
 ✅ Produits tendance et exclusifs
@@ -127,348 +58,265 @@ const SharePrompt = () => {
 📱 Télécharge l'application ici :
 ${GOOGLE_PLAY_LINK}
 
-#Shopnet #Shopping #Mode #Tech`,
+#SHOPNET #Shopping #Mode #Tech #Application`,
       });
     } catch (error) {
-      console.log(error);
+      console.log("Erreur de partage:", error);
     }
     closeModal();
   };
+
+  // Composant Badge de Vérification (identique à BoutiquePremium)
+  const VerificationBadge = ({ size = 16 }: { size?: number }) => (
+    <View style={[styles.verificationBadge, { width: size, height: size }]}>
+      <MaterialIcons name="verified" size={size * 0.9} color="#42A5F5" />
+    </View>
+  );
 
   return (
     <Modal
       transparent
       visible={visible}
-      animationType="fade"
       onRequestClose={closeModal}
+      animationType="fade"
+      statusBarTranslucent={true}
     >
       <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              opacity: opacityAnim,
-              transform: [{ scale: scaleAnim }, { translateY: slideAnim }],
-            },
-          ]}
-        >
-          {/* Header élégant */}
-          <View style={styles.header}>
+        <View style={[styles.container, { width: Math.min(SCREEN_WIDTH * 0.85, 400) }]}>
+          
+          {/* En-tête avec coins arrondis en haut */}
+          <View style={[styles.header, styles.headerRadius]}>
             <View style={styles.logoContainer}>
               <View style={styles.logo}>
-                <MaterialCommunityIcons
-                  name="shopping"
-                  size={28}
-                  color={SHOPNET_COLORS.secondary}
-                />
+                <MaterialCommunityIcons name="shopping" size={24} color={COLORS.secondary} />
               </View>
               <View style={styles.titleContainer}>
-                <Text style={styles.appName}>SHOPNET</Text>
-                <View style={styles.proBadge}>
-                  <Text style={styles.proText}>PRO</Text>
+                <View style={styles.shopNameRow}>
+                  <Text style={styles.appName}>SHOPNET</Text>
+                  <VerificationBadge size={18} />
                 </View>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={closeModal}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons
-                name="close"
-                size={22}
-                color={SHOPNET_COLORS.textSecondary}
-              />
+            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+              <Ionicons name="close" size={22} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Contenu principal */}
           <View style={styles.content}>
-            {/* Icône animée */}
-            <View style={styles.iconWrapper}>
-              <Animated.View
-                style={[
-                  styles.iconCircle,
-                  {
-                    transform: [
-                      {
-                        scale: opacityAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.8, 1],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="share-social"
-                  size={36}
-                  color={SHOPNET_COLORS.primary}
-                />
-              </Animated.View>
+            <View style={styles.iconContainer}>
+              <Ionicons name="share-social" size={48} color={COLORS.secondary} />
             </View>
 
-            {/* Titre et description */}
-            <Text style={styles.title}>Partagez ShopNet 🚀</Text>
-
+            <Text style={styles.title}>Partagez SHOPNET</Text>
             <Text style={styles.subtitle}>
-              Faites découvrir l'expérience à vos proches
+              Partagez SHOPNET avec vos amis, clients ou partenaires et bénéficiez d'avantages exclusifs
             </Text>
 
-            {/* Points forts */}
-            <View style={styles.features}>
-              <View style={styles.featureItem}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={20}
-                  color={SHOPNET_COLORS.secondary}
-                />
-                <Text style={styles.featureText}>
-                  Interface intuitive et moderne
-                </Text>
+            {/* Liste des avantages */}
+            <View style={styles.benefits}>
+              <View style={styles.benefitItem}>
+                <View style={styles.checkmarkCircle}>
+                  <Ionicons name="checkmark" size={14} color={COLORS.secondary} />
+                </View>
+                <Text style={styles.benefitText}>Interface intuitive et moderne</Text>
               </View>
-              <View style={styles.featureItem}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={20}
-                  color={SHOPNET_COLORS.secondary}
-                />
-                <Text style={styles.featureText}>
-                  Produits sélectionnés avec soin
-                </Text>
+              <View style={styles.benefitItem}>
+                <View style={styles.checkmarkCircle}>
+                  <Ionicons name="checkmark" size={14} color={COLORS.secondary} />
+                </View>
+                <Text style={styles.benefitText}>Produits sélectionnés avec soin</Text>
               </View>
-              <View style={styles.featureItem}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={20}
-                  color={SHOPNET_COLORS.secondary}
-                />
-                <Text style={styles.featureText}>
-                  Expérience shopping fluide
-                </Text>
+              <View style={styles.benefitItem}>
+                <View style={styles.checkmarkCircle}>
+                  <Ionicons name="checkmark" size={14} color={COLORS.secondary} />
+                </View>
+                <Text style={styles.benefitText}>Expérience shopping fluide</Text>
               </View>
-            </View>
-
-            {/* Message d'invitation */}
-            <View style={styles.invitationCard}>
-              <Ionicons
-                name="people"
-                size={18}
-                color={SHOPNET_COLORS.accent}
-                style={styles.invitationIcon}
-              />
-              <Text style={styles.invitationText}>
-                Recommandez SHOPNET à vos amis, clients ou partenaires
-              </Text>
+              <View style={styles.benefitItem}>
+                <View style={styles.checkmarkCircle}>
+                  <Ionicons name="checkmark" size={14} color={COLORS.secondary} />
+                </View>
+                <Text style={styles.benefitText}>Application officielle vérifiée</Text>
+              </View>
             </View>
           </View>
 
-          {/* Actions */}
+          {/* Boutons d'action */}
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleShare}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>
-                Partager l'application
-              </Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleShare}>
+              <Ionicons name="share-outline" size={18} color={COLORS.white} />
+              <Text style={styles.primaryButtonText}>Partager SHOPNET</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={closeModal}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.secondaryButton} onPress={closeModal}>
               <Text style={styles.secondaryButtonText}>Plus tard</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Footer léger */}
-          <View style={styles.footer}>
+          {/* Pied de page simplifié sans badge */}
+          <View style={[styles.footer, styles.footerRadius]}>
             <Text style={styles.footerText}>
-              Plus d’1M de shoppers dans le monde nous font confiance. SHOPNET
-              le coeur de vos achats.
+              Rejoignez des millions d'utilisateurs satisfaits
             </Text>
           </View>
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );
 };
 
+const BORDER_RADIUS = 16;
+
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   container: {
-    width: SCREEN_WIDTH * 0.85,
-    maxWidth: 380,
-    backgroundColor: SHOPNET_COLORS.background,
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS,
+    maxWidth: 400,
     borderWidth: 1,
-    borderColor: SHOPNET_COLORS.border,
+    borderColor: COLORS.border,
+    overflow: "hidden",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
-    paddingBottom: 16,
-    backgroundColor: SHOPNET_COLORS.surface,
+    padding: 16,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: SHOPNET_COLORS.border,
+    borderBottomColor: COLORS.border,
+  },
+  headerRadius: {
+    borderTopLeftRadius: BORDER_RADIUS,
+    borderTopRightRadius: BORDER_RADIUS,
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
   logo: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "rgba(77, 177, 78, 0.1)",
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 10,
   },
   titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  shopNameRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   appName: {
     fontSize: 18,
     fontWeight: "700",
-    color: SHOPNET_COLORS.primary,
+    color: COLORS.primary,
     letterSpacing: 0.5,
   },
-  proBadge: {
-    backgroundColor: SHOPNET_COLORS.secondary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  proText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
+  // Style du badge de vérification (uniquement en haut)
+  verificationBadge: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 6,
   },
   closeButton: {
     padding: 4,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   content: {
-    padding: 24,
+    padding: 20,
     alignItems: "center",
+    backgroundColor: COLORS.white,
   },
-  iconWrapper: {
-    marginBottom: 20,
-  },
-  iconCircle: {
+  iconContainer: {
     width: 70,
     height: 70,
     borderRadius: 35,
     backgroundColor: "rgba(66, 165, 245, 0.1)",
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "rgba(66, 165, 245, 0.2)",
   },
   title: {
     fontSize: 22,
     fontWeight: "700",
-    color: SHOPNET_COLORS.text,
+    color: COLORS.text,
     textAlign: "center",
-    marginBottom: 6,
-    lineHeight: 28,
+    marginBottom: 8,
+    letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 15,
-    color: SHOPNET_COLORS.textSecondary,
+    fontSize: 14,
+    color: COLORS.textSecondary,
     textAlign: "center",
-    marginBottom: 24,
-    fontWeight: "500",
+    marginBottom: 20,
     lineHeight: 20,
   },
-  features: {
+  benefits: {
     width: "100%",
-    marginBottom: 20,
+    marginBottom: 10,
   },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  featureText: {
-    fontSize: 14,
-    color: SHOPNET_COLORS.text,
-    marginLeft: 10,
-    fontWeight: "500",
-    flex: 1,
-    lineHeight: 18,
-  },
-  invitationCard: {
+  benefitItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(66, 165, 245, 0.05)",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
-    width: "100%",
+    marginBottom: 10,
+    paddingHorizontal: 4,
   },
-  invitationIcon: {
+  checkmarkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 10,
   },
-  invitationText: {
+  benefitText: {
     fontSize: 14,
-    color: SHOPNET_COLORS.text,
-    fontWeight: "500",
+    color: COLORS.text,
     flex: 1,
     lineHeight: 18,
   },
   actions: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 20,
+    backgroundColor: COLORS.white,
   },
   primaryButton: {
-    backgroundColor: SHOPNET_COLORS.primary,
-    borderRadius: 14,
+    backgroundColor: COLORS.facebookBlue,
+    borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 20,
     marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: SHOPNET_COLORS.primary,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
+    shadowColor: COLORS.facebookBlue,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
   primaryButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
@@ -476,27 +324,31 @@ const styles = StyleSheet.create({
   secondaryButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: SHOPNET_COLORS.border,
-    backgroundColor: "transparent",
+    borderColor: COLORS.border,
+    alignItems: "center",
+    backgroundColor: COLORS.white,
   },
   secondaryButtonText: {
-    color: SHOPNET_COLORS.textSecondary,
+    color: COLORS.textSecondary,
     fontSize: 15,
     fontWeight: "500",
-    textAlign: "center",
   },
   footer: {
     padding: 16,
     paddingTop: 12,
-    backgroundColor: SHOPNET_COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: SHOPNET_COLORS.border,
+    borderTopColor: COLORS.border,
+    backgroundColor: "#F8F9FA",
+  },
+  footerRadius: {
+    borderBottomLeftRadius: BORDER_RADIUS,
+    borderBottomRightRadius: BORDER_RADIUS,
   },
   footerText: {
     fontSize: 12,
-    color: SHOPNET_COLORS.textSecondary,
+    color: COLORS.textSecondary,
     textAlign: "center",
     fontWeight: "500",
   },
