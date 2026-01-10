@@ -236,8 +236,10 @@ const PhotoModalComponent = ({
           onPress={onView}
           disabled={uploading || !hasPhoto}
         >
-          <Ionicons name="eye" size={20} color="#FFFFFF" />
-          <Text style={styles.modalBtnText}>Voir la photo</Text>
+          <View style={styles.modalBtnContent}>
+            <Ionicons name="eye" size={20} color="#FFFFFF" />
+            <Text style={styles.modalBtnText}>Voir la photo</Text>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.modalBtn}
@@ -284,7 +286,7 @@ const FullscreenPhotoModalComponent = ({
       <TouchableOpacity style={styles.closePhotoButton} onPress={onClose}>
         <Ionicons name="close" size={30} color="#FFFFFF" />
       </TouchableOpacity>
-      {photoUri && (
+      {photoUri ? (
         <Image
           source={{
             uri: photoUri.startsWith("http")
@@ -294,6 +296,11 @@ const FullscreenPhotoModalComponent = ({
           style={styles.fullscreenPhoto}
           resizeMode={photoUri.includes("cover") ? "cover" : "contain"}
         />
+      ) : (
+        <View style={styles.fullscreenPlaceholder}>
+          <Ionicons name="image" size={60} color="#FFFFFF" />
+          <Text style={styles.fullscreenPlaceholderText}>Image non disponible</Text>
+        </View>
       )}
     </View>
   </Modal>
@@ -430,9 +437,12 @@ export default function ProfilVendeurPremium() {
   };
 
   const onRefresh = useCallback(() => {
+    setRefreshing(true);
     if (token) {
       fetchUserProfile(token);
       fetchProducts(token);
+    } else {
+      loadTokenAndUser();
     }
   }, [token]);
 
@@ -613,11 +623,6 @@ export default function ProfilVendeurPremium() {
 
   return (
     <View style={styles.mainContainer}>
-      <View style={styles.backgroundEffects}>
-        <View style={styles.glowCircle1} />
-        <View style={styles.glowCircle2} />
-      </View>
-
       <ScrollView
         style={styles.container}
         refreshControl={
@@ -824,7 +829,8 @@ export default function ProfilVendeurPremium() {
                         size={24}
                         color={item.color}
                       />
-                      {item.badgeCount && item.badgeCount > 0 && (
+                      {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 au lieu de && avec un nombre */}
+                      {item.badgeCount > 0 && (
                         <NotificationBadge count={item.badgeCount} small />
                       )}
                     </View>
@@ -889,6 +895,7 @@ export default function ProfilVendeurPremium() {
                     ]}
                   >
                     <MaterialIcons name="store" size={24} color={PRO_BLUE} />
+                    {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 */}
                     {badgeCounts.boutique > 0 && (
                       <NotificationBadge count={badgeCounts.boutique} small />
                     )}
@@ -933,6 +940,7 @@ export default function ProfilVendeurPremium() {
                     ]}
                   >
                     <MaterialIcons name="local-offer" size={24} color={PRO_BLUE} />
+                    {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 */}
                     {badgeCounts.promotions > 0 && (
                       <NotificationBadge count={badgeCounts.promotions} small />
                     )}
@@ -958,6 +966,7 @@ export default function ProfilVendeurPremium() {
                     ]}
                   >
                     <Ionicons name="settings" size={24} color={PRO_BLUE} />
+                    {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 */}
                     {badgeCounts.settings > 0 && (
                       <NotificationBadge count={badgeCounts.settings} small />
                     )}
@@ -1064,31 +1073,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
-  },
-  backgroundEffects: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  glowCircle1: {
-    position: "absolute",
-    top: "10%",
-    right: "10%",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(66, 165, 245, 0.03)",
-  },
-  glowCircle2: {
-    position: "absolute",
-    bottom: "20%",
-    left: "5%",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(66, 165, 245, 0.02)",
   },
   centered: {
     flex: 1,
@@ -1263,10 +1247,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
   statsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 16,
   },
   statCard: {
     alignItems: "center",
@@ -1305,7 +1295,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginTop: 16,
   },
   dashboardCard: {
     width: "48%",
@@ -1349,7 +1338,6 @@ const styles = StyleSheet.create({
   quickActionsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 16,
   },
   quickActionButton: {
     alignItems: "center",
@@ -1385,12 +1373,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
   },
   sectionSubtitle: {
     fontSize: 14,
@@ -1536,8 +1518,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   modalBtn: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: PRO_BLUE,
     padding: 16,
     borderRadius: 12,
@@ -1547,7 +1527,6 @@ const styles = StyleSheet.create({
   modalBtnContent: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
     justifyContent: "center",
   },
   disabledBtn: {
@@ -1573,6 +1552,15 @@ const styles = StyleSheet.create({
   fullscreenPhoto: {
     width: "100%",
     height: "100%",
+  },
+  fullscreenPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullscreenPlaceholderText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    marginTop: 20,
   },
   closePhotoButton: {
     position: "absolute",
@@ -1617,4 +1605,3 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
-
