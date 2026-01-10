@@ -1,3 +1,5 @@
+
+
 {
   "expo": {
     "name": "SHOPNET",
@@ -18,7 +20,7 @@
       "bundleIdentifier": "com.shopai.app"
     },
     "android": {
-      "package": "com.shopai.app",
+      "package": "com.shopai.test",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -39,13 +41,8 @@
     "extra": {
       "router": {
         "origin": false
-      },
-      "eas": {
-        "projectId": "3bad8973-d565-4d75-b0b2-5eb69ffddf20"
       }
     },
-    "owner": "shopia"
+    "owner": "shopnet_test"
   }
 }
-
-
