@@ -41,6 +41,9 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "f0e964ca-ce24-40ca-ada6-666e86e898f6"
       }
     },
     "owner": "shopnet_test"
