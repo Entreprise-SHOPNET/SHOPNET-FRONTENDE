@@ -1,9 +1,7 @@
-
-
 {
   "expo": {
     "name": "SHOPNET",
-    "slug": "shopnet",
+    "slug": "shopnettest",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
