@@ -6,7 +6,6 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  FlatList,
   Image,
   TouchableOpacity,
   ScrollView,
@@ -14,11 +13,10 @@ import {
   RefreshControl,
   StatusBar,
   SafeAreaView,
-  Platform,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons, MaterialIcons, FontAwesome, Feather } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
@@ -43,8 +41,6 @@ type TopProduct = {
   title: string;
   ventes?: number;
   vues?: number;
-  likes?: number;
-  commentaires?: number;
   image: string | null;
 };
 
@@ -115,7 +111,7 @@ const SellerStatsScreen = () => {
     fetchStats();
   };
 
-  // Formater les nombres en K et M
+  // Formater les nombres
   const formatNumber = (num: number | string) => {
     const n = typeof num === "string" ? parseInt(num) : num;
     if (isNaN(n)) return "0";
@@ -134,6 +130,7 @@ const SellerStatsScreen = () => {
     return `$${amount.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
+  // Écran de chargement
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
@@ -143,6 +140,7 @@ const SellerStatsScreen = () => {
     );
   }
 
+  // Écran d'erreur
   if (error) {
     return (
       <View style={styles.errorContainer}>
@@ -157,14 +155,13 @@ const SellerStatsScreen = () => {
     );
   }
 
+  // Écran si pas de données
   if (!data || !data.success) {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="stats-chart" size={80} color={TEXT_SECONDARY} />
         <Text style={styles.errorTitle}>Aucune donnée</Text>
-        <Text style={styles.errorText}>
-          Aucune statistique disponible pour le moment
-        </Text>
+        <Text style={styles.errorText}>Aucune statistique disponible pour le moment</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchStats}>
           <Ionicons name="refresh" size={20} color={TEXT_WHITE} />
           <Text style={styles.retryButtonText}>Actualiser</Text>
@@ -175,79 +172,6 @@ const SellerStatsScreen = () => {
 
   const stats = data.statistiques;
 
-  // Composant de carte de statistique
-  const StatCard = ({ icon, title, value, color = PRO_BLUE }: { 
-    icon: string; 
-    title: string; 
-    value: string | number; 
-    color?: string; 
-  }) => (
-    <View style={[styles.statCard, { borderColor: color + '40' }]}>
-      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
-        <FontAwesome name={icon as any} size={16} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-    </View>
-  );
-
-  // Composant de produit
-  const ProductCard = ({ item, type, rank }: { 
-    item: TopProduct; 
-    type: "vendu" | "vu"; 
-    rank: number; 
-  }) => (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() => {
-        if (item.id) {
-          router.push({
-            pathname: "/(tabs)/Auth/Panier/DetailId",
-            params: { id: item.id.toString() },
-          });
-        }
-      }}
-      activeOpacity={0.8}
-    >
-      <View style={[
-        styles.rankBadge,
-        rank === 1 ? styles.rankFirst :
-        rank === 2 ? styles.rankSecond :
-        styles.rankThird
-      ]}>
-        <Text style={styles.rankText}>#{rank}</Text>
-      </View>
-      <Image
-        source={{
-          uri: item.image || "https://via.placeholder.com/80",
-        }}
-        style={styles.productImage}
-        resizeMode="cover"
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productTitle} numberOfLines={2}>
-          {item.title || "Produit sans nom"}
-        </Text>
-        <View style={styles.productStats}>
-          <View style={styles.statRow}>
-            <Ionicons
-              name={type === "vendu" ? "cart" : "eye"}
-              size={16}
-              color={type === "vendu" ? SUCCESS_GREEN : PRO_BLUE}
-            />
-            <Text style={styles.statCount}>
-              {formatNumber(type === "vendu" ? (item.ventes || 0) : (item.vues || 0))}
-            </Text>
-            <Text style={styles.statLabel}>
-              {type === "vendu" ? "ventes" : "vues"}
-            </Text>
-          </View>
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={TEXT_SECONDARY} />
-    </TouchableOpacity>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
@@ -256,9 +180,7 @@ const SellerStatsScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Tableau de Bord</Text>
-          <Text style={styles.headerSubtitle}>
-            Vue d'ensemble de votre activité
-          </Text>
+          <Text style={styles.headerSubtitle}>Vue d'ensemble de votre activité</Text>
         </View>
         <TouchableOpacity
           style={styles.refreshButton}
@@ -298,33 +220,37 @@ const SellerStatsScreen = () => {
             style={styles.horizontalStatsScroll}
             contentContainerStyle={styles.horizontalStatsContent}
           >
-            <StatCard
-              icon="dollar"
-              title="Revenu Total"
-              value={formatCurrency(stats.ventes.revenu_total)}
-              color={PRO_GREEN}
-            />
+            <View style={[styles.statCard, { borderColor: PRO_GREEN + '40' }]}>
+              <View style={[styles.statIcon, { backgroundColor: PRO_GREEN + '20' }]}>
+                <FontAwesome name="dollar" size={16} color={PRO_GREEN} />
+              </View>
+              <Text style={[styles.statValue, { color: PRO_GREEN }]}>{formatCurrency(stats.ventes.revenu_total)}</Text>
+              <Text style={styles.statTitle}>Revenu Total</Text>
+            </View>
             
-            <StatCard
-              icon="shopping-cart"
-              title="Ventes Total"
-              value={formatNumber(stats.ventes.total_produits_vendus)}
-              color={PRO_RED}
-            />
+            <View style={[styles.statCard, { borderColor: PRO_RED + '40' }]}>
+              <View style={[styles.statIcon, { backgroundColor: PRO_RED + '20' }]}>
+                <FontAwesome name="shopping-cart" size={16} color={PRO_RED} />
+              </View>
+              <Text style={[styles.statValue, { color: PRO_RED }]}>{formatNumber(stats.ventes.total_produits_vendus)}</Text>
+              <Text style={styles.statTitle}>Ventes Total</Text>
+            </View>
             
-            <StatCard
-              icon="eye"
-              title="Produits en vente"
-              value={formatNumber(stats.produits.total_produits_en_vente)}
-              color={PRO_BLUE}
-            />
+            <View style={[styles.statCard, { borderColor: PRO_BLUE + '40' }]}>
+              <View style={[styles.statIcon, { backgroundColor: PRO_BLUE + '20' }]}>
+                <FontAwesome name="eye" size={16} color={PRO_BLUE} />
+              </View>
+              <Text style={[styles.statValue, { color: PRO_BLUE }]}>{formatNumber(stats.produits.total_produits_en_vente)}</Text>
+              <Text style={styles.statTitle}>Produits en vente</Text>
+            </View>
             
-            <StatCard
-              icon="calendar"
-              title="Ce Mois"
-              value={formatCurrency(stats.ventes.revenu_mensuel)}
-              color={PREMIUM_GOLD}
-            />
+            <View style={[styles.statCard, { borderColor: PRO_ORANGE + '40' }]}>
+              <View style={[styles.statIcon, { backgroundColor: PRO_ORANGE + '20' }]}>
+                <FontAwesome name="calendar" size={16} color={PRO_ORANGE} />
+              </View>
+              <Text style={[styles.statValue, { color: PRO_ORANGE }]}>{formatCurrency(stats.ventes.revenu_mensuel)}</Text>
+              <Text style={styles.statTitle}>Ce Mois</Text>
+            </View>
           </ScrollView>
         </View>
 
@@ -339,9 +265,7 @@ const SellerStatsScreen = () => {
               <View style={[styles.engagementIcon, { backgroundColor: PRO_RED + '20' }]}>
                 <Ionicons name="heart-outline" size={24} color={PRO_RED} />
               </View>
-              <Text style={styles.engagementValue}>
-                {formatNumber(stats.interactions.likes)}
-              </Text>
+              <Text style={styles.engagementValue}>{formatNumber(stats.interactions.likes)}</Text>
               <Text style={styles.engagementLabel}>Likes</Text>
             </View>
             
@@ -349,9 +273,7 @@ const SellerStatsScreen = () => {
               <View style={[styles.engagementIcon, { backgroundColor: PRO_GREEN + '20' }]}>
                 <Ionicons name="share-social-outline" size={24} color={PRO_GREEN} />
               </View>
-              <Text style={styles.engagementValue}>
-                {formatNumber(stats.interactions.partages)}
-              </Text>
+              <Text style={styles.engagementValue}>{formatNumber(stats.interactions.partages)}</Text>
               <Text style={styles.engagementLabel}>Partages</Text>
             </View>
             
@@ -359,9 +281,7 @@ const SellerStatsScreen = () => {
               <View style={[styles.engagementIcon, { backgroundColor: PRO_BLUE + '20' }]}>
                 <Ionicons name="chatbubble-outline" size={24} color={PRO_BLUE} />
               </View>
-              <Text style={styles.engagementValue}>
-                {formatNumber(stats.interactions.commentaires || 0)}
-              </Text>
+              <Text style={styles.engagementValue}>{formatNumber(stats.interactions.commentaires || 0)}</Text>
               <Text style={styles.engagementLabel}>Commentaires</Text>
             </View>
           </View>
@@ -377,7 +297,44 @@ const SellerStatsScreen = () => {
           {stats.produits.top_vendus && stats.produits.top_vendus.length > 0 ? (
             <View style={styles.productsList}>
               {stats.produits.top_vendus.map((item, index) => (
-                <ProductCard key={item.id.toString()} item={item} type="vendu" rank={index + 1} />
+                <TouchableOpacity
+                  key={item.id.toString()}
+                  style={styles.productCard}
+                  onPress={() => {
+                    router.push({
+                      pathname: "/(tabs)/Auth/Panier/DetailId",
+                      params: { id: item.id.toString() },
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[
+                    styles.rankBadge,
+                    index === 0 ? styles.rankFirst :
+                    index === 1 ? styles.rankSecond :
+                    styles.rankThird
+                  ]}>
+                    <Text style={styles.rankText}>#{index + 1}</Text>
+                  </View>
+                  <Image
+                    source={{ uri: item.image || "https://via.placeholder.com/80" }}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productTitle} numberOfLines={2}>
+                      {item.title || "Produit sans nom"}
+                    </Text>
+                    <View style={styles.productStats}>
+                      <View style={styles.statRow}>
+                        <Ionicons name="cart" size={16} color={SUCCESS_GREEN} />
+                        <Text style={styles.statCount}>{formatNumber(item.ventes || 0)}</Text>
+                        <Text style={styles.statLabel}>ventes</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={TEXT_SECONDARY} />
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
@@ -398,7 +355,44 @@ const SellerStatsScreen = () => {
           {stats.produits.top_vus && stats.produits.top_vus.length > 0 ? (
             <View style={styles.productsList}>
               {stats.produits.top_vus.map((item, index) => (
-                <ProductCard key={item.id.toString()} item={item} type="vu" rank={index + 1} />
+                <TouchableOpacity
+                  key={item.id.toString()}
+                  style={styles.productCard}
+                  onPress={() => {
+                    router.push({
+                      pathname: "/(tabs)/Auth/Panier/DetailId",
+                      params: { id: item.id.toString() },
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[
+                    styles.rankBadge,
+                    index === 0 ? styles.rankFirst :
+                    index === 1 ? styles.rankSecond :
+                    styles.rankThird
+                  ]}>
+                    <Text style={styles.rankText}>#{index + 1}</Text>
+                  </View>
+                  <Image
+                    source={{ uri: item.image || "https://via.placeholder.com/80" }}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productTitle} numberOfLines={2}>
+                      {item.title || "Produit sans nom"}
+                    </Text>
+                    <View style={styles.productStats}>
+                      <View style={styles.statRow}>
+                        <Ionicons name="eye" size={16} color={PRO_BLUE} />
+                        <Text style={styles.statCount}>{formatNumber(item.vues || 0)}</Text>
+                        <Text style={styles.statLabel}>vues</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={TEXT_SECONDARY} />
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
