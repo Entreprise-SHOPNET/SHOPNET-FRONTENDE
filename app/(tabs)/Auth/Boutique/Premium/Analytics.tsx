@@ -36,13 +36,8 @@ const CHART_PURPLE = "#9C27B0";
 const CHART_ORANGE = "#FF9800";
 const DANGER_RED = "#F44336";
 
-
 // 🔹 Serveur Render en production
 const LOCAL_API = "https://shopnet-backend.onrender.com/api";
-
-// 🔹 Serveur local pour développement (commenté)
-// const LOCAL_API = "http://100.64.134.89:5000/api";
-
 
 // Types basés sur le backend
 interface Boutique {
@@ -214,23 +209,42 @@ export default function Analytics() {
   };
 
   const formatNumber = (num: number): string => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    if (typeof num !== 'number' || isNaN(num)) {
+      return '0';
+    }
+    
+    if (num >= 1000000) {
+      const formatted = (num / 1000000).toFixed(1);
+      return formatted.replace('.0', '') + 'M';
+    }
+    
+    if (num >= 1000) {
+      const formatted = (num / 1000).toFixed(1);
+      return formatted.replace('.0', '') + 'K';
+    }
+    
     return num.toString();
+  };
+
+  const safeToFixed = (value: any, decimals: number = 1): string => {
+    if (typeof value === 'number' && !isNaN(value)) {
+      return value.toFixed(decimals);
+    }
+    return '0';
   };
 
   const getEngagementRate = () => {
     if (!analytics) return "0.0";
     const totalEngagement = analytics.totalLikes + analytics.totalComments + analytics.totalShares;
     const totalViews = analytics.totalViews || 1;
-    return ((totalEngagement / totalViews) * 100).toFixed(1);
+    return safeToFixed((totalEngagement / totalViews) * 100, 1);
   };
 
   const getConversionRate = () => {
     if (!analytics) return "0.00";
     const totalSales = analytics.totalSales || 0;
     const totalViews = analytics.totalViews || 1;
-    return ((totalSales / totalViews) * 100).toFixed(2);
+    return safeToFixed((totalSales / totalViews) * 100, 2);
   };
 
   const renderOverview = () => {
@@ -238,12 +252,17 @@ export default function Analytics() {
 
     // Préparer les données pour le graphique
     const chartLabels = dailyStats.slice(-7).map(stat => {
-      const date = new Date(stat.date);
-      return `${date.getDate()}/${date.getMonth() + 1}`;
+      try {
+        const date = new Date(stat.date);
+        return `${date.getDate()}/${date.getMonth() + 1}`;
+      } catch {
+        return '01/01';
+      }
     });
     
-    const chartViews = dailyStats.slice(-7).map(stat => stat.views);
-    const chartSales = dailyStats.slice(-7).map(stat => stat.sales);
+    // S'assurer que toutes les données sont des nombres
+    const chartViews = dailyStats.slice(-7).map(stat => Number(stat.views) || 0);
+    const chartSales = dailyStats.slice(-7).map(stat => Number(stat.sales) || 0);
 
     return (
       <ScrollView showsVerticalScrollIndicator={false} style={styles.tabContent}>
@@ -278,7 +297,7 @@ export default function Analytics() {
         </View>
 
         {/* Graphique de performance (si données disponibles) */}
-        {dailyStats.length > 0 && (
+        {dailyStats.length > 0 && chartViews.length > 0 && (
           <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
               <MaterialIcons name="trending-up" size={18} color={PREMIUM_GOLD} />
@@ -324,6 +343,8 @@ export default function Analytics() {
                 marginVertical: 8,
                 borderRadius: 16
               }}
+              fromZero={true}
+              yAxisSuffix=""
             />
           </View>
         )}
@@ -395,7 +416,7 @@ export default function Analytics() {
               <Text style={styles.summaryLabel}>Moyenne engagement par vue</Text>
               <Text style={styles.summaryValue}>
                 {analytics.totalViews > 0 ? 
-                  ((analytics.totalLikes + analytics.totalComments + analytics.totalShares) / analytics.totalViews).toFixed(2) : "0.00"}
+                  safeToFixed((analytics.totalLikes + analytics.totalComments + analytics.totalShares) / analytics.totalViews, 2) : "0.00"}
               </Text>
             </View>
             <Text style={styles.summarySubLabel}>interactions par vue</Text>
@@ -420,18 +441,22 @@ export default function Analytics() {
 
     // Préparer les données pour le graphique d'engagement
     const chartLabels = dailyStats.slice(-7).map(stat => {
-      const date = new Date(stat.date);
-      return `${date.getDate()}/${date.getMonth() + 1}`;
+      try {
+        const date = new Date(stat.date);
+        return `${date.getDate()}/${date.getMonth() + 1}`;
+      } catch {
+        return '01/01';
+      }
     });
     
-    const chartLikes = dailyStats.slice(-7).map(stat => stat.likes);
-    const chartComments = dailyStats.slice(-7).map(stat => stat.comments);
-    const chartShares = dailyStats.slice(-7).map(stat => stat.shares);
+    const chartLikes = dailyStats.slice(-7).map(stat => Number(stat.likes) || 0);
+    const chartComments = dailyStats.slice(-7).map(stat => Number(stat.comments) || 0);
+    const chartShares = dailyStats.slice(-7).map(stat => Number(stat.shares) || 0);
 
     return (
       <ScrollView showsVerticalScrollIndicator={false} style={styles.tabContent}>
         {/* Graphique d'engagement */}
-        {dailyStats.length > 0 && (
+        {dailyStats.length > 0 && chartLikes.length > 0 && (
           <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
               <MaterialIcons name="insights" size={18} color={PREMIUM_GOLD} />
@@ -482,6 +507,8 @@ export default function Analytics() {
                 marginVertical: 8,
                 borderRadius: 16
               }}
+              fromZero={true}
+              yAxisSuffix=""
             />
           </View>
         )}
@@ -496,7 +523,7 @@ export default function Analytics() {
             <Text style={styles.engagementRateValue}>{getEngagementRate()}%</Text>
             <Text style={styles.engagementRateLabel}>
               {analytics.totalViews > 0 ? 
-                (((analytics.totalLikes + analytics.totalComments + analytics.totalShares) / analytics.totalViews) * 100).toFixed(2) : "0.00"}% des vues génèrent de l'engagement
+                safeToFixed(((analytics.totalLikes + analytics.totalComments + analytics.totalShares) / analytics.totalViews) * 100, 2) : "0.00"}% des vues génèrent de l'engagement
             </Text>
           </View>
         </View>
@@ -527,7 +554,7 @@ export default function Analytics() {
             <View style={styles.detailValueContainer}>
               <Text style={styles.detailValue}>{formatNumber(analytics.totalLikes)}</Text>
               <Text style={styles.detailPercentage}>
-                ({analytics.totalViews > 0 ? ((analytics.totalLikes / analytics.totalViews) * 100).toFixed(1) : "0.0"}%)
+                ({analytics.totalViews > 0 ? safeToFixed((analytics.totalLikes / analytics.totalViews) * 100, 1) : "0.0"}%)
               </Text>
             </View>
           </View>
@@ -542,7 +569,7 @@ export default function Analytics() {
             <View style={styles.detailValueContainer}>
               <Text style={styles.detailValue}>{formatNumber(analytics.totalComments)}</Text>
               <Text style={styles.detailPercentage}>
-                ({analytics.totalViews > 0 ? ((analytics.totalComments / analytics.totalViews) * 100).toFixed(1) : "0.0"}%)
+                ({analytics.totalViews > 0 ? safeToFixed((analytics.totalComments / analytics.totalViews) * 100, 1) : "0.0"}%)
               </Text>
             </View>
           </View>
@@ -557,7 +584,7 @@ export default function Analytics() {
             <View style={styles.detailValueContainer}>
               <Text style={styles.detailValue}>{formatNumber(analytics.totalShares)}</Text>
               <Text style={styles.detailPercentage}>
-                ({analytics.totalViews > 0 ? ((analytics.totalShares / analytics.totalViews) * 100).toFixed(1) : "0.0"}%)
+                ({analytics.totalViews > 0 ? safeToFixed((analytics.totalShares / analytics.totalViews) * 100, 1) : "0.0"}%)
               </Text>
             </View>
           </View>
@@ -651,7 +678,7 @@ export default function Analytics() {
                     {product.name}
                   </Text>
                   <View style={styles.productPrice}>
-                    <Text style={styles.priceText}>{product.prix.toFixed(0)} $</Text>
+                    <Text style={styles.priceText}>{safeToFixed(product.prix, 0)} $</Text>
                   </View>
                 </View>
                 
@@ -746,16 +773,20 @@ export default function Analytics() {
 
     // Préparer les données pour le graphique des ventes
     const chartLabels = dailyStats.slice(-7).map(stat => {
-      const date = new Date(stat.date);
-      return `${date.getDate()}/${date.getMonth() + 1}`;
+      try {
+        const date = new Date(stat.date);
+        return `${date.getDate()}/${date.getMonth() + 1}`;
+      } catch {
+        return '01/01';
+      }
     });
     
-    const chartSales = dailyStats.slice(-7).map(stat => stat.sales);
+    const chartSales = dailyStats.slice(-7).map(stat => Number(stat.sales) || 0);
 
     return (
       <ScrollView showsVerticalScrollIndicator={false} style={styles.tabContent}>
         {/* Graphique des ventes */}
-        {dailyStats.length > 0 && (
+        {dailyStats.length > 0 && chartSales.length > 0 && (
           <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
               <MaterialIcons name="trending-up" size={18} color={VALID_GREEN} />
@@ -797,6 +828,8 @@ export default function Analytics() {
                 marginVertical: 8,
                 borderRadius: 16
               }}
+              fromZero={true}
+              yAxisSuffix=""
             />
           </View>
         )}
@@ -816,7 +849,7 @@ export default function Analytics() {
             <View style={styles.salesStat}>
               <Text style={styles.salesStatValue}>
                 {analytics.totalProducts > 0 ? 
-                  (analytics.totalSales / analytics.totalProducts).toFixed(1) : "0.0"}
+                  safeToFixed(analytics.totalSales / analytics.totalProducts, 1) : "0.0"}
               </Text>
               <Text style={styles.salesStatLabel}>Ventes/produit</Text>
               <Text style={styles.salesStatSubLabel}>moyenne</Text>
@@ -846,7 +879,7 @@ export default function Analytics() {
               </View>
               <Text style={styles.conversionValue}>
                 {analytics.popularProducts.length > 0 ? 
-                  (analytics.popularProducts.reduce((sum, p) => sum + p.prix, 0) / analytics.popularProducts.length).toFixed(0) : "0"} $
+                  safeToFixed(analytics.popularProducts.reduce((sum, p) => sum + p.prix, 0) / analytics.popularProducts.length, 0) : "0"} $
               </Text>
             </View>
           </View>
@@ -938,9 +971,9 @@ export default function Analytics() {
 
     const product = selectedProduct;
     const engagementRate = product.views > 0 ? 
-      (((product.likes + product.comments + product.shares) / product.views) * 100).toFixed(2) : "0.00";
+      (((product.likes + product.comments + product.shares) / product.views) * 100) : 0;
     const conversionRate = product.views > 0 ? 
-      ((product.sales / product.views) * 100).toFixed(2) : "0.00";
+      ((product.sales / product.views) * 100) : 0;
 
     return (
       <Modal
@@ -971,7 +1004,7 @@ export default function Analytics() {
                 <View style={styles.modalInfoGrid}>
                   <View style={styles.modalInfoItem}>
                     <Text style={styles.modalInfoLabel}>Prix</Text>
-                    <Text style={styles.modalInfoValue}>{product.prix.toFixed(0)} $</Text>
+                    <Text style={styles.modalInfoValue}>{safeToFixed(product.prix, 0)} $</Text>
                   </View>
                   <View style={styles.modalInfoItem}>
                     <Text style={styles.modalInfoLabel}>Catégorie</Text>
@@ -1038,7 +1071,7 @@ export default function Analytics() {
                       <MaterialIcons name="trending-up" size={16} color={PREMIUM_GOLD} />
                     </View>
                     <Text style={styles.modalStatValue}>
-                      {conversionRate}%
+                      {safeToFixed(conversionRate, 2)}%
                     </Text>
                     <Text style={styles.modalStatLabel}>Conversion</Text>
                   </View>
@@ -1092,7 +1125,7 @@ export default function Analytics() {
                   </View>
                 )}
 
-                {product.views > 0 && parseFloat(engagementRate) < 5 && (
+                {product.views > 0 && engagementRate < 5 && (
                   <View style={styles.modalRecommendation}>
                     <View style={[styles.modalRecommendationIcon, { backgroundColor: `${CHART_ORANGE}20` }]}>
                       <MaterialIcons name="trending-up" size={16} color={CHART_ORANGE} />
@@ -1100,7 +1133,7 @@ export default function Analytics() {
                     <View style={styles.modalRecommendationContent}>
                       <Text style={styles.modalRecommendationTitle}>Taux d'engagement faible</Text>
                       <Text style={styles.modalRecommendationText}>
-                        Taux d'engagement de {engagementRate}%. Essayez d'interagir plus avec les clients.
+                        Taux d'engagement de {safeToFixed(engagementRate, 2)}%. Essayez d'interagir plus avec les clients.
                       </Text>
                     </View>
                   </View>
@@ -2107,3 +2140,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
