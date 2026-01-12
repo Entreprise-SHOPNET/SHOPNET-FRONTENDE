@@ -11,8 +11,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
-  Modal,
-  TextInput,
   Dimensions,
   Platform,
   SafeAreaView,
@@ -24,25 +22,27 @@ import {
   FontAwesome, 
   Ionicons, 
   MaterialIcons,
-  Feather 
+  Feather,
+  MaterialCommunityIcons 
 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Couleurs premium SHOPNET
-const PRIMARY_BLUE = '#00182A';
-const PRO_BLUE = '#42A5F5';
-const PRO_GREEN = '#4CAF50';
-const PRO_ORANGE = '#FF9800';
-const PRO_RED = '#F44336';
-const PRO_PURPLE = '#9C27B0';
-const PREMIUM_GOLD = '#FFD700';
-const CARD_BG = 'rgba(30, 42, 59, 0.9)';
-const BORDER_COLOR = 'rgba(66, 165, 245, 0.1)';
-const TEXT_WHITE = '#FFFFFF';
-const TEXT_SECONDARY = '#A0AEC0';
+// Couleurs SHOPNET
+const SHOPNET_BLUE = "#00182A";
+const PRO_BLUE = "#42A5F5";
+const SHOPNET_WHITE = "#FFFFFF";
+const SHOPNET_GRAY = "#1A2B3C";
+const SHOPNET_LIGHT_GRAY = "#2A3B4C";
+const SHOPNET_DARK_GRAY = "#B0B3B8";
+const SHOPNET_BLACK = "#000000";
+const SHOPNET_GREEN = "#25D366";
+const SHOPNET_RED = "#FA383E";
+const SHOPNET_BORDER = "#0A1B2C";
+const SHOPNET_CARD_BG = "#0A1B2C";
+const TEXT_WHITE = "#FFFFFF";
 
 interface Product {
   id: number;
@@ -55,16 +55,6 @@ interface Product {
   condition: string;
   created_at: string;
   images: string[];
-  is_boosted: boolean;
-}
-
-interface Review {
-  id: number;
-  user_name: string;
-  user_avatar: string;
-  rating: number;
-  comment: string;
-  created_at: string;
 }
 
 interface Seller {
@@ -72,27 +62,14 @@ interface Seller {
   name: string;
   companyName: string | null;
   address: string | null;
+  ville: string | null;
+  phone: string | null;
+  email: string | null;
   profilePhoto: string | null;
   coverPhoto: string | null;
   description: string | null;
   memberSince: string;
   products: Product[];
-  socialLinks: {
-    facebook?: string;
-    whatsapp?: string;
-    instagram?: string;
-    tiktok?: string;
-  };
-  followersCount: number;
-  rating: number;
-  reviewsCount: number;
-  isFollowing: boolean;
-  reviews?: Review[];
-}
-
-interface RatingData {
-  rating: number;
-  comment: string;
 }
 
 const SellerProfile = () => {
@@ -101,15 +78,28 @@ const SellerProfile = () => {
   const numericSellerId = Number(sellerId);
   const [seller, setSeller] = useState<Seller | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [ratingModalVisible, setRatingModalVisible] = useState(false);
-  const [ratingData, setRatingData] = useState<RatingData>({
-    rating: 5,
-    comment: ''
-  });
-  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [activeTab, setActiveTab] = useState<'publications' | 'about' | 'products'>('publications');
+  const [following, setFollowing] = useState(false);
 
-  // Vérifier si l'ID est valide
+  // Fonction pour formater le numéro de téléphone
+  const formatPhoneNumber = (rawPhone: string) => {
+    if (!rawPhone) return "";
+    
+    // Nettoyer le numéro
+    let phone = rawPhone.replace(/\s+/g, '').replace(/\D/g, '');
+    
+    // Si le numéro commence par 0, le remplacer par +243
+    if (phone.startsWith('0')) {
+      phone = '+243' + phone.substring(1);
+    }
+    // Si le numéro n'a pas d'indicatif, ajouter +243
+    else if (!phone.startsWith('+')) {
+      phone = '+243' + phone;
+    }
+    
+    return phone;
+  };
+
   useEffect(() => {
     if (!sellerId || isNaN(numericSellerId)) {
       Toast.show({
@@ -132,18 +122,7 @@ const SellerProfile = () => {
       );
       
       if (res.data.success && res.data.seller) {
-        // Assurer que reviews existe
-        const sellerData = {
-          ...res.data.seller,
-          reviews: res.data.seller.reviews || [],
-          products: res.data.seller.products || [],
-          socialLinks: res.data.seller.socialLinks || {},
-          followersCount: res.data.seller.followersCount || 0,
-          rating: res.data.seller.rating || 0,
-          reviewsCount: res.data.seller.reviewsCount || 0,
-          isFollowing: res.data.seller.isFollowing || false
-        };
-        setSeller(sellerData);
+        setSeller(res.data.seller);
       } else {
         Toast.show({
           type: 'error',
@@ -169,165 +148,80 @@ const SellerProfile = () => {
     }
   }, [fetchSeller, numericSellerId]);
 
-  const handleFollowToggle = async () => {
-    if (!seller) return;
+  // Fonction pour formater les nombres (1K, 1M, etc.)
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    }
+    return num.toString();
+  };
+
+  const handleFollowToggle = () => {
+    setFollowing(!following);
     
-    try {
-      setActionLoading(true);
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        Toast.show({
-          type: 'error',
-          text1: 'Connexion requise',
-          text2: 'Connectez-vous pour suivre ce vendeur'
-        });
-        router.push('/Auth/auth');
-        return;
-      }
-
-      const endpoint = seller.isFollowing 
-        ? `https://shopnet-backend.onrender.com/api/sellers/${numericSellerId}/unfollow`
-        : `https://shopnet-backend.onrender.com/api/sellers/${numericSellerId}/follow`;
-      
-      const res = await axios.post(endpoint, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (res.data.success) {
-        setSeller(prev => prev ? {
-          ...prev,
-          isFollowing: !prev.isFollowing,
-          followersCount: prev.isFollowing 
-            ? Math.max(0, prev.followersCount - 1)
-            : prev.followersCount + 1
-        } : null);
-        
-        Toast.show({
-          type: 'success',
-          text1: 'Succès',
-          text2: seller.isFollowing 
-            ? 'Vous ne suivez plus ce vendeur' 
-            : 'Vous suivez maintenant ce vendeur'
-        });
-      }
-    } catch (error: any) {
-      console.error('Erreur follow toggle:', error.message);
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: error.message || 'Impossible de modifier l\'abonnement'
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRateSeller = async () => {
-    if (!seller || !ratingData.rating) {
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: 'Veuillez sélectionner une note'
-      });
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        Toast.show({
-          type: 'error',
-          text1: 'Connexion requise',
-          text2: 'Connectez-vous pour noter ce vendeur'
-        });
-        router.push('/Auth/auth');
-        return;
-      }
-
-      const res = await axios.post(
-        `https://shopnet-backend.onrender.com/api/sellers/${numericSellerId}/reviews`,
-        ratingData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (res.data.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Merci !',
-          text2: 'Votre avis a été enregistré'
-        });
-        setRatingModalVisible(false);
-        setRatingData({ rating: 5, comment: '' });
-        // Recharger les données du vendeur
-        fetchSeller();
-      }
-    } catch (error: any) {
-      console.error('Erreur rating:', error.message);
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: error.message || 'Impossible d\'enregistrer votre avis'
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleSocialLink = (platform: string, url?: string) => {
-    if (!url) {
-      Toast.show({
-        type: 'info',
-        text1: 'Lien indisponible',
-        text2: `Le vendeur n'a pas fourni de lien ${platform}`
-      });
-      return;
-    }
-
-    // Formater l'URL selon la plateforme
-    let formattedUrl = url;
-    if (platform === 'whatsapp' && !url.startsWith('http')) {
-      formattedUrl = `https://wa.me/${url.replace(/\D/g, '')}`;
-    } else if (platform === 'instagram' && !url.startsWith('http')) {
-      formattedUrl = `https://instagram.com/${url}`;
-    } else if (platform === 'facebook' && !url.startsWith('http')) {
-      formattedUrl = `https://facebook.com/${url}`;
-    } else if (platform === 'tiktok' && !url.startsWith('http')) {
-      formattedUrl = `https://tiktok.com/@${url}`;
-    }
-
-    Linking.openURL(formattedUrl).catch(() => {
-      Toast.show({
-        type: 'error',
-        text1: 'Erreur',
-        text2: 'Impossible d\'ouvrir le lien'
-      });
+    Toast.show({
+      type: 'success',
+      text1: following ? 'Désabonné' : 'Abonné',
+      text2: following ? 'Vous ne suivez plus ce vendeur' : 'Vous suivez maintenant ce vendeur'
     });
   };
 
-  const handleOpenAddress = () => {
-    if (!seller?.address) {
+  const openWhatsApp = () => {
+    const rawPhone = seller?.phone || "";
+    if (!rawPhone) {
       Toast.show({
         type: 'info',
         text1: 'Information',
-        text2: 'Adresse non disponible'
+        text2: 'Numéro WhatsApp non disponible'
       });
       return;
     }
     
-    const mapsUrl = Platform.select({
-      ios: `maps:?q=${encodeURIComponent(seller.address)}`,
-      android: `geo:?q=${encodeURIComponent(seller.address)}`,
-      default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(seller.address)}`
-    });
-
-    Linking.openURL(mapsUrl).catch(() => {
+    const phone = formatPhoneNumber(rawPhone);
+    
+    // Vérifier si le numéro est valide
+    if (!phone || phone.length < 10) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: 'Impossible d\'ouvrir la carte'
+        text2: `Impossible de chercher le numéro de téléphone ${rawPhone} car il manque l'indicatif pays ou le numéro est erroné`
       });
+      return;
+    }
+    
+    const message = `Bonjour ${seller?.name}, je suis intéressé(e) par vos produits sur SHOPNET. Pouvez-vous me donner plus d'informations ?`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    
+    Linking.openURL(url).catch(() => {
+      const webUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+      Linking.openURL(webUrl).catch(() =>
+        Toast.show({
+          type: 'error',
+          text1: 'Erreur',
+          text2: '❌ Impossible d\'ouvrir WhatsApp'
+        })
+      );
     });
+  };
+
+  const handleEmail = () => {
+    if (!seller?.email) {
+      Toast.show({
+        type: 'info',
+        text1: 'Information',
+        text2: 'Email non disponible'
+      });
+      return;
+    }
+
+    const subject = `Demande d'informations - SHOPNET`;
+    const body = `Bonjour ${seller.name},\n\nJe suis intéressé(e) par vos produits sur SHOPNET. Pouvez-vous me donner plus d'informations ?\n\nCordialement,\n[Votre nom]`;
+    const mailtoUrl = `mailto:${seller.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    Linking.openURL(mailtoUrl);
   };
 
   const handleProductPress = (productId: number) => {
@@ -337,137 +231,104 @@ const SellerProfile = () => {
     });
   };
 
+  const handleSearchPress = () => {
+    router.push('/(tabs)/Auth/Produits/Recherche');
+  };
+
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return "Aujourd'hui";
+      if (diffDays === 1) return 'Hier';
+      if (diffDays < 7) return `Il y a ${diffDays} jours`;
+      if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} semaines`;
+      if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
+      return `Il y a ${Math.floor(diffDays / 365)} ans`;
     } catch {
       return 'Date inconnue';
     }
   };
 
-  const renderStars = (rating: number = 0, size: number = 16) => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Ionicons
-            key={star}
-            name={star <= Math.floor(rating) ? 'star' : 
-                  star - 0.5 <= rating ? 'star-half' : 'star-outline'}
-            size={size}
-            color={star <= rating ? PREMIUM_GOLD : TEXT_SECONDARY}
-            style={styles.star}
-          />
-        ))}
-      </View>
-    );
-  };
-
-  const renderSocialIcon = (platform: string, url?: string) => {
-    const icons: any = {
-      facebook: { name: 'facebook', color: '#1877F2', icon: 'facebook' },
-      whatsapp: { name: 'whatsapp', color: '#25D366', icon: 'whatsapp' },
-      instagram: { name: 'instagram', color: '#E4405F', icon: 'instagram' },
-      tiktok: { name: 'tiktok', color: '#000000', icon: 'music' }
-    };
-
-    const icon = icons[platform];
-    if (!icon) return null;
-
-    return (
-      <TouchableOpacity
-        key={platform}
-        style={[styles.socialIcon, { backgroundColor: url ? `${icon.color}20` : '#3A4A5A' }]}
-        onPress={() => handleSocialLink(platform, url)}
-        disabled={!url}
-      >
-        <FontAwesome 
-          name={icon.icon as any} 
-          size={20} 
-          color={url ? icon.color : TEXT_SECONDARY} 
-        />
-      </TouchableOpacity>
-    );
-  };
-
-  const renderProduct = ({ item }: { item: Product }) => (
-    <TouchableOpacity
-      style={styles.productCard}
+  // Rendu des publications (produits sous forme de posts)
+  const renderPublication = ({ item }: { item: Product }) => (
+    <TouchableOpacity 
+      style={styles.publicationCard}
       onPress={() => handleProductPress(item.id)}
       activeOpacity={0.8}
     >
-      <View style={styles.productImageContainer}>
-        <Image
-          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/200x150' }}
-          style={styles.productImage}
-          resizeMode="cover"
-        />
-        {item.is_boosted && (
-          <View style={styles.boostedBadge}>
-            <Ionicons name="rocket" size={12} color="#fff" />
+      <View style={styles.publicationHeader}>
+        <View style={styles.publicationProfile}>
+          {seller?.profilePhoto ? (
+            <Image source={{ uri: seller.profilePhoto }} style={styles.publicationProfileImage} />
+          ) : (
+            <View style={styles.publicationProfilePlaceholder}>
+              <Ionicons name="person" size={24} color={TEXT_WHITE} />
+            </View>
+          )}
+          <View>
+            <Text style={styles.publicationName}>{seller?.name || 'Vendeur'}</Text>
+            <Text style={styles.publicationDate}>{formatDate(item.created_at)} · 🌍</Text>
           </View>
-        )}
-        {item.original_price && item.original_price > item.price && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>
-              -{Math.round((1 - item.price / item.original_price) * 100)}%
-            </Text>
-          </View>
-        )}
+        </View>
       </View>
       
-      <View style={styles.productInfo}>
-        <Text style={styles.productTitle} numberOfLines={2}>
-          {item.title || 'Produit sans titre'}
+      <Text style={styles.publicationTitle} numberOfLines={2}>{item.title}</Text>
+      
+      {item.description && (
+        <Text style={styles.publicationDescription} numberOfLines={3}>
+          {item.description}
         </Text>
-        
-        <View style={styles.productPriceContainer}>
-          <Text style={styles.productPrice}>${item.price?.toFixed(2) || '0.00'}</Text>
-          {item.original_price && item.original_price > item.price && (
-            <Text style={styles.originalPrice}>${item.original_price.toFixed(2)}</Text>
-          )}
-        </View>
-        
-        <View style={styles.productStats}>
-          <View style={styles.productStat}>
-            <Ionicons name="cube-outline" size={12} color={PRO_GREEN} />
-            <Text style={styles.productStatText}>{item.stock || 0} en stock</Text>
-          </View>
-        </View>
+      )}
+      
+      {item.images?.[0] && (
+        <Image
+          source={{ uri: item.images[0] }}
+          style={styles.publicationImage}
+          resizeMode="cover"
+        />
+      )}
+      
+      <View style={styles.publicationPriceContainer}>
+        <Text style={styles.publicationPrice}>${item.price?.toFixed(2)}</Text>
+        {item.original_price && item.original_price > item.price && (
+          <Text style={styles.publicationOriginalPrice}>${item.original_price.toFixed(2)}</Text>
+        )}
       </View>
     </TouchableOpacity>
   );
 
-  const renderReview = ({ item }: { item: Review }) => (
-    <View style={styles.reviewCard}>
-      <View style={styles.reviewHeader}>
-        <View style={styles.reviewUser}>
-          {item.user_avatar ? (
-            <Image source={{ uri: item.user_avatar }} style={styles.reviewAvatar} />
-          ) : (
-            <View style={styles.reviewAvatarPlaceholder}>
-              <Ionicons name="person" size={20} color="#fff" />
-            </View>
-          )}
-          <View>
-            <Text style={styles.reviewUserName}>{item.user_name || 'Utilisateur'}</Text>
-            <Text style={styles.reviewDate}>{formatDate(item.created_at)}</Text>
-          </View>
-        </View>
-        {renderStars(item.rating || 0, 14)}
+  // Rendu des produits sous forme de grille
+  const renderProductGrid = ({ item }: { item: Product }) => (
+    <TouchableOpacity
+      style={styles.productGridItem}
+      onPress={() => handleProductPress(item.id)}
+      activeOpacity={0.8}
+    >
+      <Image
+        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/200x200' }}
+        style={styles.productGridImage}
+        resizeMode="cover"
+      />
+      <View style={styles.productGridInfo}>
+        <Text style={styles.productGridTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.productGridPrice}>${item.price?.toFixed(2)}</Text>
+        {item.original_price && item.original_price > item.price && (
+          <Text style={styles.productGridOriginalPrice}>${item.original_price.toFixed(2)}</Text>
+        )}
       </View>
-      <Text style={styles.reviewComment}>{item.comment || 'Pas de commentaire'}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar backgroundColor={PRIMARY_BLUE} barStyle="light-content" />
+        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={PRO_BLUE} />
           <Text style={styles.loadingText}>Chargement du profil...</Text>
@@ -479,18 +340,15 @@ const SellerProfile = () => {
   if (!seller) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar backgroundColor={PRIMARY_BLUE} barStyle="light-content" />
+        <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
         <View style={styles.errorContainer}>
-          <Ionicons name="person-remove-outline" size={80} color={TEXT_SECONDARY} />
+          <Ionicons name="person-remove-outline" size={80} color={PRO_BLUE} />
           <Text style={styles.errorTitle}>Vendeur non trouvé</Text>
-          <Text style={styles.errorText}>
-            Le vendeur que vous recherchez n'existe pas ou a été supprimé.
-          </Text>
           <TouchableOpacity 
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color={TEXT_WHITE} />
             <Text style={styles.backButtonText}>Retour</Text>
           </TouchableOpacity>
         </View>
@@ -498,35 +356,27 @@ const SellerProfile = () => {
     );
   }
 
-  const reviews = seller.reviews || [];
-  const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 3);
-  const socialLinks = seller.socialLinks || {};
+  const products = seller.products || [];
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor={PRIMARY_BLUE} barStyle="light-content" />
+      <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
       
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header fixe */}
+      <View style={styles.fixedHeader}>
         <TouchableOpacity 
           style={styles.backButtonHeader}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={TEXT_WHITE} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profil Vendeur</Text>
+        <Text style={styles.headerTitle}>{seller.name}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity 
             style={styles.headerActionButton}
-            onPress={() => {
-              Toast.show({
-                type: 'info',
-                text1: 'Partage',
-                text2: 'Fonctionnalité bientôt disponible'
-              });
-            }}
+            onPress={handleSearchPress}
           >
-            <Ionicons name="share-outline" size={22} color="#fff" />
+            <Ionicons name="search" size={22} color={TEXT_WHITE} />
           </TouchableOpacity>
         </View>
       </View>
@@ -534,6 +384,7 @@ const SellerProfile = () => {
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
       >
         {/* Cover Photo */}
         <View style={styles.coverContainer}>
@@ -541,266 +392,247 @@ const SellerProfile = () => {
             <Image source={{ uri: seller.coverPhoto }} style={styles.coverPhoto} />
           ) : (
             <View style={styles.coverPlaceholder}>
-              <Ionicons name="storefront-outline" size={60} color="#3A4A5A" />
+              <Ionicons name="storefront-outline" size={60} color={PRO_BLUE} />
             </View>
           )}
-          <View style={styles.coverOverlay} />
         </View>
 
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
+        {/* Profile Info Bar */}
+        <View style={styles.profileInfoBar}>
           <View style={styles.profileImageContainer}>
             {seller.profilePhoto ? (
               <Image source={{ uri: seller.profilePhoto }} style={styles.profileImage} />
             ) : (
               <View style={styles.profileImagePlaceholder}>
-                <Ionicons name="person" size={40} color="#fff" />
+                <Ionicons name="person" size={40} color={TEXT_WHITE} />
               </View>
             )}
-            <View style={styles.verificationBadge}>
-              <Ionicons name="checkmark-circle" size={20} color={PRO_GREEN} />
-            </View>
           </View>
-
-          <View style={styles.profileInfo}>
-            <Text style={styles.sellerName}>{seller.name || 'Vendeur'}</Text>
-            {seller.companyName && (
-              <Text style={styles.companyName}>{seller.companyName}</Text>
-            )}
+          
+          <View style={styles.profileActions}>
+            <TouchableOpacity
+              style={[styles.actionButtonLarge, following ? styles.followingButton : styles.followButton]}
+              onPress={handleFollowToggle}
+            >
+              <Ionicons 
+                name={following ? 'checkmark' : 'person-add'} 
+                size={20} 
+                color={following ? PRO_BLUE : TEXT_WHITE} 
+              />
+              <Text style={[styles.actionButtonText, following && styles.followingButtonText]}>
+                {following ? 'Suivi' : 'Suivre'}
+              </Text>
+            </TouchableOpacity>
             
-            <View style={styles.followersContainer}>
-              <Ionicons name="people" size={16} color={PRO_BLUE} />
-              <Text style={styles.followersCount}>
-                {seller.followersCount || 0} abonnés
-              </Text>
-            </View>
-
-            <View style={styles.locationContainer}>
-              <Ionicons name="location-outline" size={16} color={TEXT_SECONDARY} />
-              <Text style={styles.locationText}>
-                {seller.address || 'Localisation non précisée'}
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={[styles.actionButtonLarge, styles.whatsappButton]}
+              onPress={openWhatsApp}
+            >
+              <FontAwesome name="whatsapp" size={20} color={TEXT_WHITE} />
+              <Text style={[styles.actionButtonText, styles.whatsappButtonText]}>WhatsApp</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.emailButton}
+              onPress={handleEmail}
+            >
+              <MaterialIcons name="email" size={24} color={TEXT_WHITE} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Follow Button */}
-        <View style={styles.followContainer}>
-          <TouchableOpacity
-            style={[
-              styles.followButton,
-              seller.isFollowing && styles.followingButton
-            ]}
-            onPress={handleFollowToggle}
-            disabled={actionLoading}
-          >
-            {actionLoading ? (
-              <ActivityIndicator size="small" color={seller.isFollowing ? PRO_BLUE : '#fff'} />
-            ) : (
-              <>
-                <Ionicons 
-                  name={seller.isFollowing ? 'checkmark-circle' : 'person-add'} 
-                  size={20} 
-                  color={seller.isFollowing ? PRO_BLUE : '#fff'} 
-                />
-                <Text style={[
-                  styles.followButtonText,
-                  seller.isFollowing && styles.followingButtonText
-                ]}>
-                  {seller.isFollowing ? 'Abonné' : 'S\'abonner'}
+        {/* Profile Details */}
+        <View style={styles.profileDetails}>
+          <Text style={styles.profileName}>{seller.name}</Text>
+          {seller.companyName && (
+            <Text style={styles.companyName}>{seller.companyName}</Text>
+          )}
+          <Text style={styles.profileCategory}>Boutique en ligne · Vendeur SHOPNET</Text>
+          
+          <View style={styles.profileStats}>
+            <View style={styles.statContainer}>
+              <Text style={styles.statNumber}>{products.length}</Text>
+              <Text style={styles.statLabel}>produits</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statContainer}>
+              <Ionicons name="star" size={16} color="#FFB800" />
+              <Text style={styles.statNumber}>4.8</Text>
+              <Text style={styles.statLabel}>(124)</Text>
+            </View>
+          </View>
+          
+          <View style={styles.contactInfo}>
+            <TouchableOpacity style={styles.contactItem} onPress={openWhatsApp}>
+              <FontAwesome name="whatsapp" size={16} color={SHOPNET_GREEN} />
+              <Text style={styles.contactText}>{seller.phone || 'Non disponible'}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.contactItem} onPress={handleEmail}>
+              <MaterialIcons name="email" size={16} color={PRO_BLUE} />
+              <Text style={styles.contactText}>{seller.email || 'Non disponible'}</Text>
+            </TouchableOpacity>
+            
+            {(seller.address || seller.ville) && (
+              <View style={styles.contactItem}>
+                <Ionicons name="location-outline" size={16} color={PRO_BLUE} />
+                <Text style={styles.contactText}>
+                  {seller.address && seller.ville 
+                    ? `${seller.address}, ${seller.ville}`
+                    : seller.address || seller.ville}
                 </Text>
-              </>
+              </View>
             )}
+          </View>
+        </View>
+
+        {/* Tabs Navigation */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'publications' && styles.activeTab]}
+            onPress={() => setActiveTab('publications')}
+          >
+            <Ionicons 
+              name="newspaper-outline" 
+              size={20} 
+              color={activeTab === 'publications' ? PRO_BLUE : TEXT_WHITE} 
+            />
+            <Text style={[styles.tabText, activeTab === 'publications' && styles.activeTabText]}>
+              Publications
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'about' && styles.activeTab]}
+            onPress={() => setActiveTab('about')}
+          >
+            <Ionicons 
+              name="information-circle-outline" 
+              size={20} 
+              color={activeTab === 'about' ? PRO_BLUE : TEXT_WHITE} 
+            />
+            <Text style={[styles.tabText, activeTab === 'about' && styles.activeTabText]}>
+              À propos
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'products' && styles.activeTab]}
+            onPress={() => setActiveTab('products')}
+          >
+            <Ionicons 
+              name="cart-outline" 
+              size={20} 
+              color={activeTab === 'products' ? PRO_BLUE : TEXT_WHITE} 
+            />
+            <Text style={[styles.tabText, activeTab === 'products' && styles.activeTabText]}>
+              Produits
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Social Links */}
-        <View style={styles.socialSection}>
-          <Text style={styles.sectionTitle}>Réseaux sociaux</Text>
-          <View style={styles.socialLinksContainer}>
-            {renderSocialIcon('facebook', socialLinks.facebook)}
-            {renderSocialIcon('whatsapp', socialLinks.whatsapp)}
-            {renderSocialIcon('instagram', socialLinks.instagram)}
-            {renderSocialIcon('tiktok', socialLinks.tiktok)}
+        {/* Tab Content */}
+        {activeTab === 'publications' && (
+          <View style={styles.tabContent}>
+            {products.length === 0 ? (
+              <View style={styles.emptyContent}>
+                <Ionicons name="newspaper-outline" size={60} color={SHOPNET_DARK_GRAY} />
+                <Text style={styles.emptyText}>Aucune publication</Text>
+                <Text style={styles.emptySubtext}>Ce vendeur n'a pas encore publié de contenu</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={products}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={renderPublication}
+                scrollEnabled={false}
+                ItemSeparatorComponent={() => <View style={styles.publicationSeparator} />}
+              />
+            )}
           </View>
-        </View>
+        )}
 
-        {/* Description */}
-        {seller.description && (
-          <View style={styles.descriptionSection}>
-            <Text style={styles.sectionTitle}>À propos</Text>
-            <View style={styles.descriptionCard}>
-              <Text style={styles.descriptionText}>{seller.description}</Text>
+        {activeTab === 'about' && (
+          <View style={styles.tabContent}>
+            <View style={styles.aboutSection}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              {seller.description ? (
+                <Text style={styles.aboutText}>{seller.description}</Text>
+              ) : (
+                <Text style={styles.noInfoText}>Aucune description fournie</Text>
+              )}
+            </View>
+            
+            <View style={styles.aboutSection}>
+              <Text style={styles.sectionTitle}>Informations</Text>
+              <View style={styles.infoList}>
+                <View style={styles.infoItem}>
+                  <Ionicons name="calendar-outline" size={20} color={PRO_BLUE} />
+                  <View>
+                    <Text style={styles.infoLabel}>Membre depuis</Text>
+                    <Text style={styles.infoValue}>
+                      {new Date(seller.memberSince).toLocaleDateString('fr-FR', {
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </Text>
+                  </View>
+                </View>
+                
+                <View style={styles.infoItem}>
+                  <Ionicons name="call-outline" size={20} color={PRO_BLUE} />
+                  <View>
+                    <Text style={styles.infoLabel}>Téléphone</Text>
+                    <Text style={styles.infoValue}>{seller.phone || 'Non disponible'}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.infoItem}>
+                  <MaterialIcons name="email" size={20} color={PRO_BLUE} />
+                  <View>
+                    <Text style={styles.infoLabel}>Email</Text>
+                    <Text style={styles.infoValue}>{seller.email || 'Non disponible'}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.infoItem}>
+                  <Ionicons name="location-outline" size={20} color={PRO_BLUE} />
+                  <View>
+                    <Text style={styles.infoLabel}>Adresse</Text>
+                    <Text style={styles.infoValue}>
+                      {seller.address && seller.ville 
+                        ? `${seller.address}, ${seller.ville}`
+                        : seller.address || seller.ville || 'Non disponible'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
         )}
 
-        {/* Products Section */}
-        <View style={styles.productsSection}>
-          <Text style={styles.sectionTitle}>Produits en vente</Text>
-          
-          {!seller.products || seller.products.length === 0 ? (
-            <View style={styles.emptySection}>
-              <Ionicons name="cube-outline" size={60} color={TEXT_SECONDARY} />
-              <Text style={styles.emptyText}>Aucun produit disponible</Text>
-              <Text style={styles.emptySubtext}>
-                Ce vendeur n'a pas encore publié de produits
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={seller.products}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderProduct}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.productsList}
-              decelerationRate="fast"
-              snapToInterval={width * 0.7 + 16}
-              snapToAlignment="center"
-            />
-          )}
-        </View>
-
-        {/* Reviews Section */}
-        <View style={styles.reviewsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Avis des clients</Text>
-            <TouchableOpacity
-              style={styles.addReviewButton}
-              onPress={() => setRatingModalVisible(true)}
-            >
-              <Ionicons name="add-circle-outline" size={20} color={PRO_BLUE} />
-              <Text style={styles.addReviewText}>Ajouter un avis</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.ratingSummary}>
-            <Text style={styles.ratingNumber}>{(seller.rating || 0).toFixed(1)}</Text>
-            <View>
-              {renderStars(seller.rating || 0, 20)}
-              <Text style={styles.reviewsCountText}>
-                Basé sur {seller.reviewsCount || 0} avis
-              </Text>
-            </View>
-          </View>
-
-          {reviews.length === 0 ? (
-            <View style={styles.emptySection}>
-              <Ionicons name="star-outline" size={60} color={TEXT_SECONDARY} />
-              <Text style={styles.emptyText}>Aucun avis pour l'instant</Text>
-              <Text style={styles.emptySubtext}>
-                Soyez le premier à noter ce vendeur
-              </Text>
-              <TouchableOpacity
-                style={styles.rateButton}
-                onPress={() => setRatingModalVisible(true)}
-              >
-                <Text style={styles.rateButtonText}>Noter ce vendeur</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
+        {activeTab === 'products' && (
+          <View style={styles.tabContent}>
+            {products.length === 0 ? (
+              <View style={styles.emptyContent}>
+                <Ionicons name="cart-outline" size={60} color={SHOPNET_DARK_GRAY} />
+                <Text style={styles.emptyText}>Aucun produit</Text>
+                <Text style={styles.emptySubtext}>Ce vendeur n'a pas encore ajouté de produits</Text>
+              </View>
+            ) : (
               <FlatList
-                data={visibleReviews}
+                data={products}
                 keyExtractor={(item) => item.id.toString()}
-                renderItem={renderReview}
+                renderItem={renderProductGrid}
+                numColumns={2}
                 scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={styles.reviewSeparator} />}
+                columnWrapperStyle={styles.productGridRow}
+                contentContainerStyle={styles.productGridContainer}
               />
-              {reviews.length > 3 && (
-                <TouchableOpacity
-                  style={styles.showMoreButton}
-                  onPress={() => setShowAllReviews(!showAllReviews)}
-                >
-                  <Text style={styles.showMoreText}>
-                    {showAllReviews ? 'Voir moins' : `Voir tous les avis (${reviews.length})`}
-                  </Text>
-                  <Ionicons 
-                    name={showAllReviews ? 'chevron-up' : 'chevron-down'} 
-                    size={20} 
-                    color={PRO_BLUE} 
-                  />
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Rating Modal */}
-      <Modal
-        visible={ratingModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setRatingModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Noter {seller.name}</Text>
-              <TouchableOpacity
-                onPress={() => setRatingModalVisible(false)}
-              >
-                <Ionicons name="close" size={24} color={TEXT_SECONDARY} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.ratingStarsModal}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity
-                  key={star}
-                  onPress={() => setRatingData({...ratingData, rating: star})}
-                >
-                  <Ionicons
-                    name={star <= ratingData.rating ? 'star' : 'star-outline'}
-                    size={40}
-                    color={PREMIUM_GOLD}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.ratingLabel}>
-              {ratingData.rating === 5 ? 'Excellent' :
-               ratingData.rating === 4 ? 'Très bon' :
-               ratingData.rating === 3 ? 'Bon' :
-               ratingData.rating === 2 ? 'Moyen' : 'Médiocre'}
-            </Text>
-
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Partagez votre expérience avec ce vendeur..."
-              placeholderTextColor={TEXT_SECONDARY}
-              multiline
-              numberOfLines={4}
-              value={ratingData.comment}
-              onChangeText={(text) => setRatingData({...ratingData, comment: text})}
-            />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setRatingModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Annuler</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
-                onPress={handleRateSeller}
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.submitButtonText}>Publier l'avis</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            )}
           </View>
-        </View>
-      </Modal>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -808,52 +640,45 @@ const SellerProfile = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PRIMARY_BLUE,
+    backgroundColor: SHOPNET_BLUE,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: SHOPNET_BLUE,
   },
   loadingText: {
-    color: PRO_BLUE,
+    color: TEXT_WHITE,
     fontSize: 16,
     marginTop: 12,
-    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    backgroundColor: SHOPNET_BLUE,
   },
   errorTitle: {
     color: TEXT_WHITE,
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '600',
     marginTop: 16,
     marginBottom: 8,
   },
-  errorText: {
-    color: TEXT_SECONDARY,
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  header: {
+  fixedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-    backgroundColor: PRIMARY_BLUE,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: SHOPNET_BLUE,
     borderBottomWidth: 1,
-    borderBottomColor: BORDER_COLOR,
+    borderBottomColor: SHOPNET_BORDER,
   },
   backButtonHeader: {
-    padding: 8,
+    padding: 4,
   },
   headerTitle: {
     fontSize: 18,
@@ -866,14 +691,14 @@ const styles = StyleSheet.create({
   },
   headerActionButton: {
     padding: 8,
-    marginLeft: 8,
   },
   scrollView: {
     flex: 1,
+    backgroundColor: SHOPNET_BLUE,
   },
   coverContainer: {
-    position: 'relative',
-    height: 180,
+    height: 200,
+    backgroundColor: SHOPNET_GRAY,
   },
   coverPhoto: {
     width: '100%',
@@ -883,380 +708,351 @@ const styles = StyleSheet.create({
   coverPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#1A2332',
+    backgroundColor: SHOPNET_GRAY,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  coverOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginTop: -40,
-    alignItems: 'flex-end',
-    marginBottom: 20,
+  profileInfoBar: {
+    backgroundColor: SHOPNET_GRAY,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: SHOPNET_BORDER,
   },
   profileImageContainer: {
-    position: 'relative',
+    marginTop: -40,
   },
   profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: PRIMARY_BLUE,
-    backgroundColor: CARD_BG,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: SHOPNET_GRAY,
+    backgroundColor: SHOPNET_GRAY,
   },
   profileImagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: PRO_BLUE,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: PRIMARY_BLUE,
+    borderWidth: 4,
+    borderColor: SHOPNET_GRAY,
   },
-  verificationBadge: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: PRIMARY_BLUE,
-    borderRadius: 10,
-    padding: 2,
-  },
-  profileInfo: {
-    flex: 1,
-    marginLeft: 16,
-    marginBottom: 10,
-  },
-  sellerName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: TEXT_WHITE,
-    marginBottom: 4,
-  },
-  companyName: {
-    fontSize: 14,
-    color: PRO_BLUE,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  followersContainer: {
+  profileActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 6,
-  },
-  followersCount: {
-    color: PRO_BLUE,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationText: {
-    color: TEXT_SECONDARY,
-    fontSize: 13,
-    marginLeft: 6,
-    flex: 1,
-  },
-  followContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  followButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: PRO_BLUE,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
+    marginTop: 12,
     gap: 8,
   },
+  actionButtonLarge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 6,
+    gap: 6,
+  },
+  followButton: {
+    backgroundColor: PRO_BLUE,
+  },
   followingButton: {
-    backgroundColor: 'rgba(66, 165, 245, 0.1)',
+    backgroundColor: SHOPNET_LIGHT_GRAY,
     borderWidth: 1,
     borderColor: PRO_BLUE,
   },
-  followButtonText: {
-    color: TEXT_WHITE,
-    fontSize: 16,
+  whatsappButton: {
+    backgroundColor: SHOPNET_GREEN,
+  },
+  actionButtonText: {
+    fontSize: 15,
     fontWeight: '600',
+    color: TEXT_WHITE,
   },
   followingButtonText: {
     color: PRO_BLUE,
   },
-  socialSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  whatsappButtonText: {
     color: TEXT_WHITE,
-    marginBottom: 12,
   },
-  socialLinksContainer: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  socialIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  emailButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: PRO_BLUE,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
   },
-  descriptionSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  descriptionCard: {
-    backgroundColor: CARD_BG,
+  profileDetails: {
+    backgroundColor: SHOPNET_GRAY,
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
+    borderBottomWidth: 1,
+    borderBottomColor: SHOPNET_BORDER,
   },
-  descriptionText: {
-    color: TEXT_SECONDARY,
-    fontSize: 14,
-    lineHeight: 22,
+  profileName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: TEXT_WHITE,
+    marginBottom: 4,
   },
-  productsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+  companyName: {
+    fontSize: 16,
+    color: PRO_BLUE,
+    marginBottom: 4,
   },
-  productsList: {
-    paddingRight: 20,
+  profileCategory: {
+    fontSize: 15,
+    color: SHOPNET_DARK_GRAY,
+    marginBottom: 16,
   },
-  productCard: {
-    width: width * 0.65,
-    backgroundColor: CARD_BG,
-    borderRadius: 12,
-    marginRight: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
+  profileStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    justifyContent: 'center',
   },
-  productImageContainer: {
-    position: 'relative',
-    height: 140,
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
-  },
-  boostedBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: PRO_ORANGE,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 8,
+  statContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  discountBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: PRO_RED,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  discountText: {
-    color: TEXT_WHITE,
-    fontSize: 11,
+  statNumber: {
+    fontSize: 17,
     fontWeight: '700',
+    color: TEXT_WHITE,
   },
-  productInfo: {
+  statLabel: {
+    fontSize: 15,
+    color: SHOPNET_DARK_GRAY,
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: SHOPNET_BORDER,
+    marginHorizontal: 16,
+  },
+  contactInfo: {
+    gap: 8,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contactText: {
+    fontSize: 15,
+    color: TEXT_WHITE,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: SHOPNET_GRAY,
+    borderBottomWidth: 1,
+    borderBottomColor: SHOPNET_BORDER,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: PRO_BLUE,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: TEXT_WHITE,
+  },
+  activeTabText: {
+    color: PRO_BLUE,
+  },
+  tabContent: {
+    backgroundColor: SHOPNET_BLUE,
+    minHeight: 400,
+  },
+  publicationCard: {
+    backgroundColor: SHOPNET_CARD_BG,
+    marginBottom: 1,
+    padding: 0,
+    width: '100%',
+  },
+  publicationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: SHOPNET_BORDER,
+  },
+  publicationProfile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  publicationProfileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  publicationProfilePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PRO_BLUE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  publicationName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: TEXT_WHITE,
+  },
+  publicationDate: {
+    fontSize: 13,
+    color: SHOPNET_DARK_GRAY,
+    marginTop: 2,
+  },
+  publicationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: TEXT_WHITE,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  publicationDescription: {
+    fontSize: 14,
+    color: SHOPNET_DARK_GRAY,
+    lineHeight: 20,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  publicationImage: {
+    width: '100%',
+    height: 300,
+    marginBottom: 12,
+  },
+  publicationPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  publicationPrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: SHOPNET_RED,
+  },
+  publicationOriginalPrice: {
+    fontSize: 14,
+    color: SHOPNET_DARK_GRAY,
+    textDecorationLine: 'line-through',
+  },
+  publicationSeparator: {
+    height: 0,
+  },
+  aboutSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: SHOPNET_BORDER,
+    backgroundColor: SHOPNET_GRAY,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: TEXT_WHITE,
+    marginBottom: 12,
+  },
+  aboutText: {
+    fontSize: 15,
+    color: TEXT_WHITE,
+    lineHeight: 22,
+  },
+  noInfoText: {
+    fontSize: 15,
+    color: SHOPNET_DARK_GRAY,
+    fontStyle: 'italic',
+  },
+  infoList: {
+    gap: 16,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  infoLabel: {
+    fontSize: 13,
+    color: SHOPNET_DARK_GRAY,
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 15,
+    color: TEXT_WHITE,
+  },
+  productGridContainer: {
+    padding: 8,
+  },
+  productGridRow: {
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  productGridItem: {
+    width: (width - 24) / 2,
+    backgroundColor: SHOPNET_CARD_BG,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: SHOPNET_BORDER,
+  },
+  productGridImage: {
+    width: '100%',
+    height: 150,
+  },
+  productGridInfo: {
     padding: 12,
   },
-  productTitle: {
-    fontSize: 15,
+  productGridTitle: {
+    fontSize: 14,
     fontWeight: '600',
     color: TEXT_WHITE,
     marginBottom: 6,
     lineHeight: 18,
   },
-  productPriceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  productPrice: {
+  productGridPrice: {
     fontSize: 16,
-    fontWeight: '800',
-    color: PRO_GREEN,
+    fontWeight: '700',
+    color: SHOPNET_RED,
   },
-  originalPrice: {
+  productGridOriginalPrice: {
     fontSize: 13,
-    color: TEXT_SECONDARY,
+    color: SHOPNET_DARK_GRAY,
     textDecorationLine: 'line-through',
-    marginLeft: 6,
   },
-  productStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  productStat: {
-    flexDirection: 'row',
+  emptyContent: {
     alignItems: 'center',
-    gap: 4,
-  },
-  productStatText: {
-    fontSize: 11,
-    color: TEXT_SECONDARY,
-  },
-  emptySection: {
-    alignItems: 'center',
-    paddingVertical: 30,
-    backgroundColor: CARD_BG,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
+    paddingVertical: 60,
+    paddingHorizontal: 20,
   },
   emptyText: {
-    color: TEXT_SECONDARY,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
+    color: TEXT_WHITE,
     marginTop: 16,
+    marginBottom: 8,
   },
   emptySubtext: {
-    color: TEXT_SECONDARY,
-    fontSize: 13,
-    marginTop: 4,
+    fontSize: 15,
+    color: SHOPNET_DARK_GRAY,
     textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 20,
-  },
-  reviewsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  addReviewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    padding: 8,
-  },
-  addReviewText: {
-    color: PRO_BLUE,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  ratingSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CARD_BG,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  ratingNumber: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: TEXT_WHITE,
-    marginRight: 16,
-  },
-  reviewsCountText: {
-    color: TEXT_SECONDARY,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  reviewCard: {
-    backgroundColor: CARD_BG,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  reviewUser: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  reviewAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 10,
-  },
-  reviewAvatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: PRO_BLUE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  reviewUserName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: TEXT_WHITE,
-    marginBottom: 2,
-  },
-  reviewDate: {
-    fontSize: 11,
-    color: TEXT_SECONDARY,
-  },
-  reviewComment: {
-    color: TEXT_SECONDARY,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  reviewSeparator: {
-    height: 8,
-  },
-  showMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
-  },
-  showMoreText: {
-    color: PRO_BLUE,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  star: {
-    marginRight: 2,
+    lineHeight: 20,
   },
   backButton: {
     flexDirection: 'row',
@@ -1264,103 +1060,16 @@ const styles = StyleSheet.create({
     backgroundColor: PRO_BLUE,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 6,
     gap: 8,
+    marginTop: 20,
   },
   backButtonText: {
     color: TEXT_WHITE,
     fontSize: 16,
     fontWeight: '600',
   },
-  rateButton: {
-    backgroundColor: PRO_BLUE,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginTop: 16,
-  },
-  rateButtonText: {
-    color: TEXT_WHITE,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: PRIMARY_BLUE,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: TEXT_WHITE,
-  },
-  ratingStarsModal: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  ratingLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: TEXT_WHITE,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  commentInput: {
-    backgroundColor: CARD_BG,
-    borderRadius: 12,
-    padding: 16,
-    color: TEXT_WHITE,
-    fontSize: 15,
-    minHeight: 120,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-    textAlignVertical: 'top',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  cancelButtonText: {
-    color: TEXT_SECONDARY,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: PRO_BLUE,
-  },
-  submitButtonText: {
-    color: TEXT_WHITE,
-    fontSize: 15,
-    fontWeight: '600',
-  },
 });
 
 export default SellerProfile;
+
