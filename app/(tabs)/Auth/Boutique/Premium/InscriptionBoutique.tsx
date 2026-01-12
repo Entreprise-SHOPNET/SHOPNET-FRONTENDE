@@ -2,7 +2,7 @@
 
 // app/(tabs)/Auth/Boutique/CreerBoutique.tsx
 // app/(tabs)/Auth/Boutique/CreerBoutique.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,7 @@ import {
   StatusBar,
   Dimensions,
   TextInput,
-  Animated,
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -28,7 +26,6 @@ import {
   MaterialIcons, 
   Ionicons, 
   MaterialCommunityIcons,
-  FontAwesome5,
 } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
@@ -109,11 +106,6 @@ export default function CreerBoutique() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [descriptionLength, setDescriptionLength] = useState(0);
   
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const stepAnim = useRef(new Animated.Value(0)).current;
-  
   // Fonction pour afficher une notification
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotification({ visible: true, message, type });
@@ -126,19 +118,6 @@ export default function CreerBoutique() {
   
   // Initialisation
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-    
     checkLocationPermission();
     
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -361,26 +340,8 @@ export default function CreerBoutique() {
       return;
     }
     
-    Animated.sequence([
-      Animated.timing(stepAnim, {
-        toValue: -SCREEN_WIDTH,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(stepAnim, {
-        toValue: SCREEN_WIDTH,
-        duration: 0,
-        useNativeDriver: true,
-      }),
-      Animated.timing(stepAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setCurrentStep(prev => prev + 1);
-      setErrors({});
-    });
+    setCurrentStep(prev => prev + 1);
+    setErrors({});
   };
   
   // Revenir à l'étape précédente
@@ -390,26 +351,8 @@ export default function CreerBoutique() {
       return;
     }
     
-    Animated.sequence([
-      Animated.timing(stepAnim, {
-        toValue: SCREEN_WIDTH,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(stepAnim, {
-        toValue: -SCREEN_WIDTH,
-        duration: 0,
-        useNativeDriver: true,
-      }),
-      Animated.timing(stepAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setCurrentStep(prev => prev - 1);
-      setErrors({});
-    });
+    setCurrentStep(prev => prev - 1);
+    setErrors({});
   };
   
   // Soumettre le formulaire
@@ -458,24 +401,13 @@ export default function CreerBoutique() {
       }
 
       // Envoyer les données au backend
-    // 🔹 Serveur Render en production
-    const response = await fetch('https://shopnet-backend.onrender.com/api/boutique/premium/create', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formDataToSend,
-    });
-
-    // 🔹 Serveur local pour développement (commenté)
-    // const response = await fetch('http://100.64.134.89:5000/api/boutique/premium/create', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${token}`,
-    //   },
-    //   body: formDataToSend,
-    // });
-
+      const response = await fetch('https://shopnet-backend.onrender.com/api/boutique/premium/create', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formDataToSend,
+      });
 
       const responseText = await response.text();
       console.log('Réponse brute:', responseText);
@@ -597,12 +529,7 @@ export default function CreerBoutique() {
   
   // Étape 1: Informations de base
   const renderStep1 = () => (
-    <Animated.View 
-      style={[
-        styles.stepContainer,
-        { transform: [{ translateX: stepAnim }] }
-      ]}
-    >
+    <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Informations de votre boutique</Text>
       
       {/* Logo */}
@@ -767,17 +694,12 @@ export default function CreerBoutique() {
         />
         {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
       </View>
-    </Animated.View>
+    </View>
   );
   
   // Étape 2: Localisation
   const renderStep2 = () => (
-    <Animated.View 
-      style={[
-        styles.stepContainer,
-        { transform: [{ translateX: stepAnim }] }
-      ]}
-    >
+    <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Localisation de votre boutique</Text>
       
       <View style={styles.locationHelpCard}>
@@ -904,7 +826,7 @@ export default function CreerBoutique() {
           Pour une meilleure visibilité, assurez-vous que votre adresse est précise.
         </Text>
       </View>
-    </Animated.View>
+    </View>
   );
   
   // Étape 3: Récapitulatif Premium
@@ -1047,12 +969,7 @@ export default function CreerBoutique() {
     ];
     
     return (
-      <Animated.View 
-        style={[
-          styles.stepContainer,
-          { transform: [{ translateX: stepAnim }] }
-        ]}
-      >
+      <View style={styles.stepContainer}>
         {/* En-tête premium */}
         <View style={styles.premiumHeader}>
           <View style={styles.premiumHeaderIcon}>
@@ -1150,7 +1067,7 @@ export default function CreerBoutique() {
             </Text>
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
     );
   };
   
@@ -1262,15 +1179,7 @@ export default function CreerBoutique() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
-        <Animated.View 
-          style={[
-            styles.header,
-            { 
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
+        <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
             onPress={handlePrevStep}
@@ -1286,16 +1195,18 @@ export default function CreerBoutique() {
           <View style={styles.headerRight}>
             {loading && <ActivityIndicator size="small" color={PREMIUM_GOLD} />}
           </View>
-        </Animated.View>
+        </View>
         
         {/* Notification */}
         {notification.visible && (
-          <View style={[
-            styles.notification,
-            notification.type === 'success' ? styles.notificationSuccess :
-            notification.type === 'error' ? styles.notificationError :
-            styles.notificationInfo
-          ]}>
+          <View 
+            style={[
+              styles.notification,
+              notification.type === 'success' ? styles.notificationSuccess :
+              notification.type === 'error' ? styles.notificationError :
+              styles.notificationInfo
+            ]}
+          >
             <View style={styles.notificationContent}>
               <MaterialIcons 
                 name={
@@ -1324,6 +1235,7 @@ export default function CreerBoutique() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
@@ -1331,7 +1243,7 @@ export default function CreerBoutique() {
           
           {/* Boutons de navigation */}
           <View style={styles.navigationButtonsContainer}>
-            <View style={styles.navigationButtons}>
+            <View style={[styles.navigationButtons, { justifyContent: currentStep > 1 ? 'space-between' : 'center' }]}>
               {currentStep > 1 && (
                 <TouchableOpacity 
                   style={styles.prevButton}
@@ -1347,7 +1259,7 @@ export default function CreerBoutique() {
                 style={[
                   styles.nextButton,
                   currentStep === 3 && styles.submitButton,
-                  !(currentStep > 1) && styles.nextButtonFullWidth
+                  currentStep === 1 && styles.nextButtonFullWidth
                 ]}
                 onPress={handleNextStep}
                 disabled={loading}
@@ -1367,6 +1279,9 @@ export default function CreerBoutique() {
               </TouchableOpacity>
             </View>
           </View>
+          
+          {/* Espace supplémentaire pour le clavier */}
+          <View style={{ height: Platform.OS === 'ios' ? 100 : 50 }} />
         </ScrollView>
       </KeyboardAvoidingView>
       
@@ -1512,6 +1427,7 @@ const styles = StyleSheet.create({
   stepContainer: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 10,
   },
   stepTitle: {
     color: '#fff',
@@ -1931,7 +1847,6 @@ const styles = StyleSheet.create({
   },
   navigationButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
   },
@@ -2047,3 +1962,4 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
