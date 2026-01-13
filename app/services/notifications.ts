@@ -1,11 +1,14 @@
 
 
 // app/services/notifications.ts
+// app/services/notifications.ts
+
 import * as Notifications from 'expo-notifications';
 import { Platform, Alert } from 'react-native';
-import { router } from 'expo-router'; // si tu utilises expo-router
+import Constants from 'expo-constants';
+import { router } from 'expo-router';
 
-// 1️⃣ Configurer l'affichage des notifications
+// 🔔 Configuration globale d’affichage des notifications
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -14,20 +17,18 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// 2️⃣ Fonction pour récupérer le token Expo Push
+// ✅ Génération DU token Expo (fonctionne Expo Go + APK + AAB)
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
   try {
-    // Android: config du channel
+    // 👉 Android : channel obligatoire
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
       });
     }
 
-    // Permissions
+    // 👉 Permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
@@ -37,31 +38,42 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     }
 
     if (finalStatus !== 'granted') {
-      Alert.alert('Permission refusée', 'Impossible de recevoir les notifications push.');
+      Alert.alert(
+        'Notifications désactivées',
+        'Vous devez autoriser les notifications pour recevoir les alertes.'
+      );
       return;
     }
 
-    // Récupérer le token
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    console.log('Expo Push Token:', tokenData.data);
-    return tokenData.data;
+    // 🚨 LIGNE CRITIQUE (CAUSE DU PROBLÈME AVANT)
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({
+      projectId:
+        Constants.expoConfig?.extra?.eas?.projectId ||
+        Constants.easConfig?.projectId,
+    });
+
+    const expoPushToken = tokenResponse.data;
+
+    console.log('✅ Expo Push Token (APK/AAB):', expoPushToken);
+
+    return expoPushToken;
   } catch (error) {
-    console.error('Erreur notifications :', error);
+    console.error('❌ Erreur génération Expo Push Token:', error);
   }
 }
 
-// 3️⃣ Écoute les notifications reçues quand l'app est en foreground
+// 👂 Écoute des notifications (optionnel mais propre)
 export function listenNotifications() {
   Notifications.addNotificationReceivedListener(notification => {
-    console.log('Notification reçue en foreground :', notification);
-    // Ici tu peux mettre à jour ton état local pour afficher un badge ou message en temps réel
+    console.log('📩 Notification reçue (foreground):', notification);
   });
 
   Notifications.addNotificationResponseReceivedListener(response => {
-    console.log('Notification cliquée :', response);
-    // Navigation vers la page de détail de la notification
+    console.log('👉 Notification cliquée:', response);
+
     const data = response.notification.request.content.data;
-    if (data?.type === 'product') {
+
+    if (data?.type === 'product' && data.productId) {
       router.push(`/Auth/Produits/Detail?id=${data.productId}`);
     }
   });

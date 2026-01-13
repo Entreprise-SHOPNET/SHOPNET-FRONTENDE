@@ -1,6 +1,8 @@
 
 
 
+// app/(tabs)/Auth/Inscription.tsx
+// app/(tabs)/Auth/Inscription.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -15,55 +17,14 @@ import {
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { saveToken } from '../authService'; // 🆕 Import du token service
+import { saveToken } from '../authService';
 
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
+// ✅ SERVICE CENTRAL DES NOTIFICATIONS
+import { registerForPushNotificationsAsync } from '@/app/services/notifications';
 
-
-
-// const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token'; // Serveur LOCAL (commenté)
-const EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token'; // Serveur Render (production)
-
-
-
-async function registerExpoToken(userId: string) {
-  try {
-    if (!Device.isDevice) return;
-
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') return;
-
-    const expoToken = (await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId,
-    })).data;
-
-    await fetch(EXPO_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, expoPushToken: expoToken }),
-    });
-
-    console.log(`✅ Token Expo envoyé pour l’utilisateur ${userId}`);
-  } catch (err) {
-    console.error('❌ Erreur lors de l’envoi du token Expo:', err);
-  }
-}
-
-
-
-// const API_URL = 'http://100.64.134.89:5000/api/auth'; // Serveur LOCAL (commenté)
-const API_URL = 'https://shopnet-backend.onrender.com/api/auth'; // Serveur Render (production)
-
-
-
+// URLs
+const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
+const EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token';
 
 export default function Inscription() {
   const router = useRouter();
@@ -81,15 +42,11 @@ export default function Inscription() {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email.toLowerCase());
-  };
+  const validateEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.toLowerCase());
 
-  const validatePhone = (phone: string) => {
-    const re = /^\d{10,15}$/;
-    return re.test(phone);
-  };
+  const validatePhone = (phone: string) =>
+    /^\d{10,15}$/.test(phone);
 
   const validateStep1 = () => {
     if (!fullName.trim()) {
@@ -117,102 +74,79 @@ export default function Inscription() {
 
   const nextStep = () => {
     setErrorMessage('');
-    if (validateStep1()) {
-      setStep(2);
-    }
+    if (validateStep1()) setStep(2);
   };
 
   const prevStep = () => {
     setErrorMessage('');
     setStep(1);
   };
-const handleRegister = async () => {
-  setErrorMessage('');
-  setSuccessMessage('');
-  setIsLoading(true);
 
-  try {
-    const response = await axios.post(`${API_URL}/register`, {
-      fullName,
-      email,
-      phone,
-      password,
-      companyName: companyName.trim() || null,
-      nif: nif.trim() || null,
-      address: address.trim() || null,
-    });
+  const handleRegister = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsLoading(true);
 
-    if (response.data.success) {
-      const registrationId = response.data.userId.toString();
+    try {
+      const response = await axios.post(`${API_URL}/register`, {
+        fullName,
+        email,
+        phone,
+        password,
+        companyName: companyName.trim() || null,
+        nif: nif.trim() || null,
+        address: address.trim() || null,
+      });
 
-      // Stockage user/token local
+      if (!response.data.success) {
+        setErrorMessage(response.data.message || 'Erreur inconnue');
+        Vibration.vibrate(500);
+        return;
+      }
+
+      const userId = response.data.userId?.toString();
       const user = response.data.user || null;
-      const token = response.data.token || null;
-      if (user) await AsyncStorage.setItem('user', JSON.stringify(user));
-      if (token) await saveToken(token);
+      const authToken = response.data.token || null;
 
-      // ✅ Envoyer le token Expo automatiquement
-      await registerExpoToken(registrationId);
+      if (user) {
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+      }
+      if (authToken) {
+        await saveToken(authToken);
+      }
 
-      // Redirection vers CodeConfirmation
+      // 🔥 GÉNÉRATION TOKEN PUSH (FIABLE APK/AAB)
+      const expoPushToken = await registerForPushNotificationsAsync();
+
+      if (expoPushToken && userId) {
+        await axios.post(EXPO_TOKEN_URL, {
+          userId,
+          expoPushToken,
+        });
+      }
+
       router.push({
         pathname: '/Auth/Inscription/CodeConfirmation',
         params: {
           email,
           phone,
-          registrationId,
+          registrationId: userId,
           otp: response.data.otp,
         },
       });
 
-      setSuccessMessage('Compte créé avec succès!');
-    } else {
-      setErrorMessage(response.data.message || 'Erreur inconnue');
+      setSuccessMessage('Compte créé avec succès !');
+    } catch (err: any) {
+      setErrorMessage(
+        err.response?.data?.message ||
+        err.message ||
+        "Erreur lors de l'inscription"
+      );
       Vibration.vibrate(500);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error: any) {
-    setErrorMessage(
-      error.response?.data?.message ||
-      error.message ||
-      'Erreur lors de l\'inscription'
-    );
-    Vibration.vibrate(500);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-// ---------------------------
-// Fonction pour envoyer le token Expo au serveur
-const registerExpoToken = async (userId: string) => {
-  try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') return;
-
-    const expoToken = (await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId,
-    })).data;
-
-    if (expoToken) {
-      // await axios.post('http://100.64.134.89:5000/api/save-expo-token', { // Serveur LOCAL (commenté)
-      await axios.post('https://shopnet-backend.onrender.com/api/save-expo-token', { // Serveur Render (production)
-        userId,
-        expoPushToken: expoToken,
-      });
-
-      console.log('✅ Expo Token enregistré pour l’utilisateur', userId);
-    }
-  } catch (err) {
-    console.error('❌ Erreur en envoyant le token Expo:', err);
-  }
-};
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -252,7 +186,6 @@ const registerExpoToken = async (userId: string) => {
             secureTextEntry
             onChangeText={setPassword}
           />
-
           <TouchableOpacity style={styles.button} onPress={nextStep}>
             <Text style={styles.buttonText}>Suivant</Text>
           </TouchableOpacity>
@@ -286,14 +219,16 @@ const registerExpoToken = async (userId: string) => {
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={[styles.button, styles.buttonSecondary]}
-              onPress={prevStep}>
+              onPress={prevStep}
+            >
               <Text style={styles.buttonText}>Précédent</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.button, { flex: 1, marginLeft: 10 }]}
               onPress={handleRegister}
-              disabled={isLoading}>
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
@@ -305,7 +240,9 @@ const registerExpoToken = async (userId: string) => {
       )}
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-      {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
+      {successMessage ? (
+        <Text style={styles.successText}>{successMessage}</Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -365,3 +302,4 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 });
+

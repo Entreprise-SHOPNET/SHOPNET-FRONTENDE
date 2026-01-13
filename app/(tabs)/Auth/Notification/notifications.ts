@@ -16,7 +16,7 @@ Notifications.setNotificationHandler({
 // Fonction pour récupérer le token Expo Push
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
   try {
-    // Config Android channel
+    // Configuration Android channel
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -26,7 +26,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
       });
     }
 
-    // Permissions
+    // Vérification des permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
@@ -36,15 +36,18 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     }
 
     if (finalStatus !== 'granted') {
-      Alert.alert('Permission refusée', 'Impossible de recevoir les notifications push.');
+      Alert.alert(
+        'Permission refusée',
+        'Vous devez autoriser les notifications pour recevoir toutes les notifications de l’application.'
+      );
       return;
     }
 
-    // Récupérer le token
+    // Récupérer le token Expo
     const tokenData = await Notifications.getExpoPushTokenAsync();
-    console.log('Expo Push Token:', tokenData.data);
+    console.log('✅ Expo Push Token:', tokenData.data);
     return tokenData.data;
   } catch (error) {
-    console.error('Erreur notifications :', error);
+    console.error('❌ Erreur lors de la récupération du token notifications :', error);
   }
 }

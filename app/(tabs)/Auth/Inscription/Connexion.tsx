@@ -1,7 +1,7 @@
 
 
-
-// app/(tabs)/Auth/connexion.tsx
+// app/(tabs)/Auth/Connexion.tsx
+// app/(tabs)/Auth/Connexion.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -16,50 +16,20 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { saveToken } from '../authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
+import { saveToken } from '../authService';
 
-// Configuration API
-// const API_URL = 'http://100.64.134.89:5000/api/auth'; // Serveur LOCAL (commenté)
-// const EXPO_TOKEN_URL = 'http://100.64.134.89:5000/api/save-expo-token'; // Serveur LOCAL (commenté)
+// ✅ SERVICE CENTRAL DES NOTIFICATIONS (CHEMIN ABSOLU)
+import { registerForPushNotificationsAsync } from '@/app/services/notifications';
 
-const API_URL = 'https://shopnet-backend.onrender.com/api/auth'; // Serveur Render (production)
-const EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token'; // Serveur Render (production)
-
-
-// Fonction pour récupérer et envoyer le token Expo
-const registerExpoToken = async (userId: string) => {
-  try {
-    if (!Device.isDevice) return;
-
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') return;
-
-    const expoPushToken = (await Notifications.getExpoPushTokenAsync()).data;
-
-    await axios.post(EXPO_TOKEN_URL, {
-      userId,
-      expoPushToken,
-    });
-
-    console.log('✅ Token Expo envoyé avec succès:', expoPushToken);
-  } catch (error) {
-    console.error('❌ Erreur lors de l’envoi du token Expo:', error);
-  }
-};
+// URL API
+const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
+const SAVE_EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token';
 
 export default function Connexion() {
   const router = useRouter();
+
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -67,19 +37,23 @@ export default function Connexion() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // -------------------
+  // Validation
   const validateIdentifier = (input: string) => {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
     const isPhone = /^\d{9,15}$/.test(input);
     return isEmail || isPhone;
   };
 
+  // -------------------
+  // LOGIN
   const handleLogin = async () => {
     setIsLoading(true);
     setErrorMessage('');
     setSuccessMessage('');
 
     if (!identifier || !password) {
-      setErrorMessage("Veuillez remplir tous les champs.");
+      setErrorMessage('Veuillez remplir tous les champs.');
       Vibration.vibrate(300);
       setIsLoading(false);
       return;
@@ -98,36 +72,55 @@ export default function Connexion() {
         password,
       });
 
-      if (response.data.success) {
-        const token = response.data.token;
-        const user = response.data.user;
-
-        if (token && user) {
-          await saveToken(token);
-          await AsyncStorage.setItem('user', JSON.stringify(user));
-          setSuccessMessage('Connexion réussie !');
-
-          // Envoyer le token Expo pour notifications
-          await registerExpoToken(user.id.toString());
-
-          setTimeout(() => {
-            router.push({
-              pathname: '/(tabs)/Auth/Inscription/Chargement',
-              params: {
-                user: JSON.stringify(user),
-                company: user.companyName,
-                nif: user.nif,
-              },
-            });
-          }, 1000);
-        }
+      if (!response.data?.success) {
+        setErrorMessage(response.data?.message || 'Erreur de connexion.');
+        Vibration.vibrate(500);
+        setIsLoading(false);
+        return;
       }
-    } catch (error: any) {
-      const msg =
-        error.response?.data?.message ||
-        error.message ||
-        'Erreur de connexion.';
-      setErrorMessage(msg);
+
+      const user = response.data.user;
+      const authToken = response.data.token;
+
+      if (!user || !authToken) {
+        setErrorMessage('Données utilisateur invalides.');
+        setIsLoading(false);
+        return;
+      }
+
+      // 🔐 Sauvegarde session
+      await saveToken(authToken);
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      setSuccessMessage('Connexion réussie !');
+
+      // 🔥 GÉNÉRATION TOKEN EXPO (FIABLE EN BUILD)
+      const expoPushToken = await registerForPushNotificationsAsync();
+
+      if (expoPushToken) {
+        await axios.post(SAVE_EXPO_TOKEN_URL, {
+          userId: user.id,
+          expoPushToken,
+        });
+      }
+
+      // 🚀 Navigation
+      setTimeout(() => {
+        router.replace({
+          pathname: '/(tabs)/Auth/Inscription/Chargement',
+          params: {
+            user: JSON.stringify(user),
+            company: user.companyName,
+            nif: user.nif,
+          },
+        });
+      }, 600);
+
+    } catch (err: any) {
+      setErrorMessage(
+        err.response?.data?.message ||
+        err.message ||
+        'Erreur de connexion.'
+      );
       Vibration.vibrate(500);
     } finally {
       setIsLoading(false);
@@ -194,6 +187,8 @@ export default function Connexion() {
   );
 }
 
+// -------------------
+// STYLES
 const styles = StyleSheet.create({
   container: {
     flex: 1,
