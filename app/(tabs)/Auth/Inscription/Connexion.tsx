@@ -25,7 +25,6 @@ import { registerForPushNotificationsAsync } from '@/app/services/notifications'
 
 // URL API
 const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
-const SAVE_EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token';
 
 export default function Connexion() {
   const router = useRouter();
@@ -93,14 +92,9 @@ export default function Connexion() {
       await AsyncStorage.setItem('user', JSON.stringify(user));
       setSuccessMessage('Connexion réussie !');
 
-      // 🔥 GÉNÉRATION TOKEN EXPO (FIABLE EN BUILD)
-      const expoPushToken = await registerForPushNotificationsAsync();
-
-      if (expoPushToken) {
-        await axios.post(SAVE_EXPO_TOKEN_URL, {
-          userId: user.id,
-          expoPushToken,
-        });
+      // 🔥 GÉNÉRATION & ENVOI DU TOKEN PUSH (FIABLE APK/AAB)
+      if (user.id) {
+        await registerForPushNotificationsAsync(user.id.toString());
       }
 
       // 🚀 Navigation
