@@ -6,14 +6,17 @@
 
 import * as Notifications from 'expo-notifications';
 import { Platform, Alert } from 'react-native';
-import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import axios from 'axios';
 
-// URL backend pour sauvegarder le token
-const SAVE_EXPO_TOKEN_URL = 'https://shopnet-backend.onrender.com/api/save-expo-token';
+// 🔥 PROJECT ID FORCÉ (OBLIGATOIRE POUR APK / AAB)
+const EXPO_PROJECT_ID = 'f0e964ca-ce24-40ca-ada6-666e86e898f6';
 
-// 🔔 Configuration globale d’affichage des notifications
+// 🌐 URL backend pour sauvegarder le token
+const SAVE_EXPO_TOKEN_URL =
+  'https://shopnet-backend.onrender.com/api/save-expo-token';
+
+// 🔔 Configuration globale des notifications (APK + foreground)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -23,21 +26,27 @@ Notifications.setNotificationHandler({
 });
 
 /**
- * ✅ Génère le token Expo et l'envoie au backend si userId fourni
- * @param userId Id de l'utilisateur pour lier le token sur le backend
+ * ✅ Génère le token Expo (APK/AAB/Expo Go)
+ * ✅ Force le projectId
+ * ✅ Envoie automatiquement le token au backend
  */
-export async function registerForPushNotificationsAsync(userId?: string): Promise<string | undefined> {
+export async function registerForPushNotificationsAsync(
+  userId?: string
+): Promise<string | undefined> {
   try {
-    // 👉 Android : channel obligatoire
+    // 👉 ANDROID : channel OBLIGATOIRE en build
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
+        sound: 'default',
       });
     }
 
-    // 👉 Permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    // 👉 Permissions notifications
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
@@ -48,42 +57,46 @@ export async function registerForPushNotificationsAsync(userId?: string): Promis
     if (finalStatus !== 'granted') {
       Alert.alert(
         'Notifications désactivées',
-        'Vous devez autoriser les notifications pour recevoir les alertes.'
+        'Autorisez les notifications pour recevoir les alertes SHOPNET.'
       );
       return;
     }
 
-    // 🚨 Récupération du token Expo
-    const tokenResponse = await Notifications.getExpoPushTokenAsync({
-      projectId:
-        Constants.expoConfig?.extra?.eas?.projectId ||
-        Constants.easConfig?.projectId,
-    });
+    // 🔥🔥🔥 TOKEN EXPO FORCÉ (LA CLÉ DU PROBLÈME)
+    const { data: expoPushToken } =
+      await Notifications.getExpoPushTokenAsync({
+        projectId: EXPO_PROJECT_ID,
+      });
 
-    const expoPushToken = tokenResponse.data;
+    if (!expoPushToken) {
+      console.warn('⚠️ Token Expo NON généré');
+      return;
+    }
 
-    console.log('✅ Expo Push Token (APK/AAB):', expoPushToken);
+    console.log('✅ Expo Push Token (APK OK):', expoPushToken);
 
-    // 🔥 Envoi du token au backend si userId fourni
-    if (userId && expoPushToken) {
-      try {
-        await axios.post(SAVE_EXPO_TOKEN_URL, {
-          userId,
-          expoPushToken,
-        });
-        console.log('✅ Token envoyé au backend pour userId:', userId);
-      } catch (err) {
-        console.error('❌ Erreur envoi token au backend:', err);
-      }
+    // 🚀 Envoi vers le backend
+    if (userId) {
+      await axios.post(SAVE_EXPO_TOKEN_URL, {
+        userId,
+        expoPushToken,
+      });
+
+      console.log('✅ Token envoyé au backend pour userId:', userId);
+    } else {
+      console.warn('⚠️ userId manquant — token non envoyé');
     }
 
     return expoPushToken;
   } catch (error) {
-    console.error('❌ Erreur génération Expo Push Token:', error);
+    console.error(
+      '❌ ERREUR CRITIQUE notifications / token Expo:',
+      error
+    );
   }
 }
 
-// 👂 Écoute des notifications (optionnel)
+// 👂 Écoute notifications (foreground + clic)
 export function listenNotifications() {
   Notifications.addNotificationReceivedListener(notification => {
     console.log('📩 Notification reçue (foreground):', notification);
