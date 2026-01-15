@@ -23,7 +23,7 @@
     },
 
     "android": {
-      "package": "com.shopai.test",
+      "package": "com.shopai.app",
 
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
