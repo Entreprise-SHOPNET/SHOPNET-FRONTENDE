@@ -20,10 +20,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { saveToken } from '../authService';
 
-// ✅ SERVICE CENTRAL DES NOTIFICATIONS (CHEMIN ABSOLU)
-import { registerForPushNotificationsAsync } from '@/app/services/notifications';
+// ❌ SUPPRIMÉ ICI
+// import { registerForPushNotificationsAsync } from '@/app/services/notifications';
 
-// URL API
 const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
 
 export default function Connexion() {
@@ -36,16 +35,12 @@ export default function Connexion() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // -------------------
-  // Validation
   const validateIdentifier = (input: string) => {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
     const isPhone = /^\d{9,15}$/.test(input);
     return isEmail || isPhone;
   };
 
-  // -------------------
-  // LOGIN
   const handleLogin = async () => {
     setIsLoading(true);
     setErrorMessage('');
@@ -87,27 +82,16 @@ export default function Connexion() {
         return;
       }
 
-      // 🔐 Sauvegarde session
+      // ✅ SAUVEGARDE SESSION
       await saveToken(authToken);
       await AsyncStorage.setItem('user', JSON.stringify(user));
+
       setSuccessMessage('Connexion réussie !');
 
-      // 🔥 GÉNÉRATION & ENVOI DU TOKEN PUSH (FIABLE APK/AAB)
-      if (user.id) {
-        await registerForPushNotificationsAsync(user.id.toString());
-      }
-
-      // 🚀 Navigation
+      // ✅ NAVIGATION SEULEMENT
       setTimeout(() => {
-        router.replace({
-          pathname: '/(tabs)/Auth/Inscription/Chargement',
-          params: {
-            user: JSON.stringify(user),
-            company: user.companyName,
-            nif: user.nif,
-          },
-        });
-      }, 600);
+        router.replace('/(tabs)');
+      }, 400);
 
     } catch (err: any) {
       setErrorMessage(
@@ -181,8 +165,6 @@ export default function Connexion() {
   );
 }
 
-// -------------------
-// STYLES
 const styles = StyleSheet.create({
   container: {
     flex: 1,
