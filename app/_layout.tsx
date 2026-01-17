@@ -10,6 +10,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import 'react-native-reanimated';
 import { useColorScheme } from '../components/useColorScheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import * as Notifications from 'expo-notifications';
+import axios from 'axios';
 
 import { notificationService } from './notificationService';
 import SharePrompt from '../SharePrompt';
@@ -21,6 +25,13 @@ export const unstable_settings = {
 };
 
 SplashScreen.preventAutoHideAsync();
+
+// 🔥 PROJECT ID EXPO (OBLIGATOIRE EN BUILD)
+const EXPO_PROJECT_ID = 'f0e964ca-ce24-40ca-ada6-666e86e898f6';
+
+// 🌐 BACKEND
+const SAVE_EXPO_TOKEN_URL =
+  'https://shopnet-backend.onrender.com/api/save-expo-token';
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -47,16 +58,62 @@ function RootLayoutNav() {
   const [notifVisible, setNotifVisible] = useState(false);
   const [notifMessage, setNotifMessage] = useState('');
 
+  // 🔔 CONFIG NOTIFICATIONS
   useEffect(() => {
-    // Initialisation globale du socket
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  }, []);
+
+  // 🚀 GÉNÉRATION TOKEN EXPO (UNIQUE)
+  useEffect(() => {
+    const registerPushToken = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('user');
+        if (!userStr) return;
+
+        const user = JSON.parse(userStr);
+        if (!user?.id) return;
+
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') {
+          const req = await Notifications.requestPermissionsAsync();
+          if (req.status !== 'granted') return;
+        }
+
+        const { data: expoPushToken } =
+          await Notifications.getExpoPushTokenAsync({
+            projectId: EXPO_PROJECT_ID,
+          });
+
+        if (!expoPushToken) return;
+
+        // 🚀 ENVOI BACKEND
+        await axios.post(SAVE_EXPO_TOKEN_URL, {
+          userId: user.id,
+          expoPushToken,
+        });
+
+        console.log('✅ Expo Push Token enregistré:', expoPushToken);
+      } catch (err) {
+        console.error('❌ Erreur push token:', err);
+      }
+    };
+
+    registerPushToken();
+  }, []);
+
+  // 🔔 SOCKET + BANNIÈRE
+  useEffect(() => {
     notificationService.initSocket();
 
-    // Bannière globale pour toutes notifications
     globalThis.triggerBanner = (msg: string) => {
       setNotifMessage(msg);
       setNotifVisible(true);
-
-      // Masquer automatiquement après 4 secondes
       setTimeout(() => setNotifVisible(false), 4000);
     };
 
@@ -67,7 +124,6 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {/* Bannière notification */}
       {notifVisible && (
         <View
           style={{
@@ -90,36 +146,17 @@ function RootLayoutNav() {
         </View>
       )}
 
-      {/* SharePrompt sur toutes les pages */}
       <SharePrompt />
 
-      {/* Navigation stack */}
-      <Stack
-        initialRouteName="index"
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="splash" />
-        <Stack.Screen name="Auth/Produits/Fil" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        <Stack.Screen
-          name="Auth/Questionnaire"
-          options={{
-            title: 'Questionnaire',
-            presentation: 'card',
-            headerBackTitle: 'Retour',
-          }}
-        />
-        <Stack.Screen
-          name="Auth"
-          options={{
-            presentation: 'modal',
-          }}
-        />
+        <Stack.Screen name="Auth" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );
 }
+
+
