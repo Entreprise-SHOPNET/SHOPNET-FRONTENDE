@@ -1,6 +1,7 @@
 
 
 // app/_layout.tsx
+// app/_layout.tsx
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -10,13 +11,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import 'react-native-reanimated';
 import { useColorScheme } from '../components/useColorScheme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import * as Notifications from 'expo-notifications';
-import axios from 'axios';
-
-import { notificationService } from './notificationService';
 import SharePrompt from '../SharePrompt';
+import { notificationService } from './notificationService';
+import { PushService } from './PushService'; // 🔥 Nouveau service
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -25,13 +22,6 @@ export const unstable_settings = {
 };
 
 SplashScreen.preventAutoHideAsync();
-
-// 🔥 PROJECT ID EXPO (OBLIGATOIRE EN BUILD)
-const EXPO_PROJECT_ID = 'f0e964ca-ce24-40ca-ada6-666e86e898f6';
-
-// 🌐 BACKEND
-const SAVE_EXPO_TOKEN_URL =
-  'https://shopnet-backend.onrender.com/api/save-expo-token';
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -60,6 +50,7 @@ function RootLayoutNav() {
 
   // 🔔 CONFIG NOTIFICATIONS
   useEffect(() => {
+    PushService.init(); // ✅ Initialise les notifications et token
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowAlert: true,
@@ -67,44 +58,6 @@ function RootLayoutNav() {
         shouldSetBadge: false,
       }),
     });
-  }, []);
-
-  // 🚀 GÉNÉRATION TOKEN EXPO (UNIQUE)
-  useEffect(() => {
-    const registerPushToken = async () => {
-      try {
-        const userStr = await AsyncStorage.getItem('user');
-        if (!userStr) return;
-
-        const user = JSON.parse(userStr);
-        if (!user?.id) return;
-
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') {
-          const req = await Notifications.requestPermissionsAsync();
-          if (req.status !== 'granted') return;
-        }
-
-        const { data: expoPushToken } =
-          await Notifications.getExpoPushTokenAsync({
-            projectId: EXPO_PROJECT_ID,
-          });
-
-        if (!expoPushToken) return;
-
-        // 🚀 ENVOI BACKEND
-        await axios.post(SAVE_EXPO_TOKEN_URL, {
-          userId: user.id,
-          expoPushToken,
-        });
-
-        console.log('✅ Expo Push Token enregistré:', expoPushToken);
-      } catch (err) {
-        console.error('❌ Erreur push token:', err);
-      }
-    };
-
-    registerPushToken();
   }, []);
 
   // 🔔 SOCKET + BANNIÈRE
@@ -158,5 +111,3 @@ function RootLayoutNav() {
     </ThemeProvider>
   );
 }
-
-
