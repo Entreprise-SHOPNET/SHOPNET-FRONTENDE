@@ -24,14 +24,13 @@
 
     "android": {
       "package": "com.shopai.app",
-
+      "googleServicesFile": "./google-services.json",
+      "useNextNotificationsApi": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-
       "permissions": ["POST_NOTIFICATIONS"],
-
       "notification": {
         "icon": "./assets/images/notification-icon.png",
         "color": "#4CB050"
@@ -46,7 +45,14 @@
 
     "plugins": [
       "expo-router",
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#4CB050"
+        }
+      ]
     ],
 
     "experiments": {
@@ -65,3 +71,4 @@
     "owner": "shopnet_test"
   }
 }
+
