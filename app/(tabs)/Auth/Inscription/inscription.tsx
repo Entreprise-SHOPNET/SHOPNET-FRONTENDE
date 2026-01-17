@@ -2,7 +2,7 @@
 
 
 // app/(tabs)/Auth/Inscription.tsx
-/// app/(tabs)/Auth/Inscription.tsx
+/// app/(tabs)/Auth/Inscription.tsx// app/(tabs)/Auth/Inscription.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -19,10 +19,8 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveToken } from '../authService';
 
-// ✅ SERVICE CENTRAL DES NOTIFICATIONS
-import { registerForPushNotificationsAsync } from '@/app/services/notifications';
+// ❌ SUPPRIMÉ : notifications ici
 
-// URL API
 const API_URL = 'https://shopnet-backend.onrender.com/api/auth';
 
 export default function Inscription() {
@@ -103,7 +101,6 @@ export default function Inscription() {
         return;
       }
 
-      const userId = response.data.userId?.toString();
       const user = response.data.user || null;
       const authToken = response.data.token || null;
 
@@ -114,17 +111,12 @@ export default function Inscription() {
         await saveToken(authToken);
       }
 
-      // 🔥 GÉNÉRATION & ENVOI DU TOKEN PUSH (APK/AAB)
-      if (userId) {
-        await registerForPushNotificationsAsync(userId);
-      }
-
       router.push({
         pathname: '/Auth/Inscription/CodeConfirmation',
         params: {
           email,
           phone,
-          registrationId: userId,
+          registrationId: response.data.userId,
           otp: response.data.otp,
         },
       });
