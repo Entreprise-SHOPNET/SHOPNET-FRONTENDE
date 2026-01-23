@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "SHOPNET",
+    "slug": "shopnet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.shopai.app"
+    },
+    "android": {
+      "package": "com.shopai.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fe245751-941a-466e-b23d-22db7a3b8ed8"
+      },
+      "router": {
+        "origin": false
+      }
+    },
+    "owner": "shopnetcd-organization"
+  }
+}

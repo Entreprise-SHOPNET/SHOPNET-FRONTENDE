@@ -1,0 +1,9 @@
+
+
+
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">100.64.134.89</domain>
+        <domain includeSubdomains="true">10.191.237.113</domain>
+    </domain-config>
+</network-security-config>

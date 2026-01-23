@@ -1,0 +1,32 @@
+workflows:
+  android:
+    name: Build Android APK & AAB
+    environment:
+      vars:
+        # Utilisation des variables Codemagic
+        EXPO_TOKEN: $EXPO_TOKEN
+        ANDROID_KEYSTORE_PATH: $ANDROID_KEYSTORE_PATH
+        ANDROID_KEYSTORE_PASSWORD: $ANDROID_KEYSTORE_PASSWORD
+        ANDROID_KEY_ALIAS: $ANDROID_KEY_ALIAS
+        ANDROID_KEY_PASSWORD: $ANDROID_KEY_PASSWORD
+
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Install EAS CLI globally
+        script: npm install -g eas-cli
+
+      - name: Prebuild Expo
+        script: npx expo prebuild --no-install
+
+      # Plus besoin de "Login to Expo" : Codemagic utilisera EXPO_TOKEN automatiquement
+      - name: Build APK
+        script: eas build --platform android --profile production-apk --non-interactive --clear-cache
+
+      - name: Build AAB
+        script: eas build --platform android --profile production-aab --non-interactive --clear-cache
+
+    artifacts:
+      - build/**/*.apk
+      - build/**/*.aab
