@@ -6,13 +6,18 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Platform } from "react-native";
 import "react-native-reanimated";
 import { useColorScheme } from "../components/useColorScheme";
-import { notificationService } from "./notificationService";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import {
+  registerForPushNotificationsAsync,
+  listenNotifications,
+} from "../services/notifications";
 import SharePrompt from "../SharePrompt";
 
 export { ErrorBoundary } from "expo-router";
@@ -44,26 +49,59 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
 
   const [notifVisible, setNotifVisible] = useState(false);
   const [notifMessage, setNotifMessage] = useState("");
 
   useEffect(() => {
-    // 🔹 Initialisation globale du socket
-    notificationService.initSocket();
+    const initNotifications = async () => {
+      if (!Device.isDevice) {
+        console.log("ℹ️ Pas un vrai appareil → notifications désactivées");
+        return;
+      }
 
-    // 🔹 Bannière globale pour toutes notifications internes
-    globalThis.triggerBanner = (msg: string) => {
-      setNotifMessage(msg);
-      setNotifVisible(true);
+      // 🔹 Enregistrement token push pour l'utilisateur connecté
+      if (globalThis.currentUser?.id) {
+        await registerForPushNotificationsAsync(globalThis.currentUser.id);
+      }
 
-      // Masquer automatiquement après 4 secondes
-      setTimeout(() => setNotifVisible(false), 4000);
+      // 🔹 Channel Android
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#FF231F7C",
+        });
+      }
+
+      // 🔹 Écoute notifications (reçues et cliquées)
+      listenNotifications(
+        // Notifications reçues en premier plan
+        (notification) => {
+          const message = notification.request.content.body || "";
+          setNotifMessage(message);
+          setNotifVisible(true);
+          setTimeout(() => setNotifVisible(false), 4000);
+        },
+        // Notifications cliquées (arrière-plan ou fermée)
+        (response) => {
+          const data = response.notification.request.content.data || {};
+          const productId = data.productId;
+
+          if (productId) {
+            // Navigation vers la page produit si productId existe
+            router.push(`/(tabs)/Auth/Panier/DetailId`);
+          } else {
+            // Sinon ouvre l'accueil
+            router.push("/Auth/Produits/Fil");
+          }
+        }
+      );
     };
 
-    return () => {
-      notificationService.disconnect();
-    };
+    initNotifications();
   }, []);
 
   return (
@@ -97,13 +135,12 @@ function RootLayoutNav() {
       {/* Navigation stack */}
       <Stack
         initialRouteName="index"
-        screenOptions={{
-          headerShown: false,
-        }}
+        screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="splash" />
         <Stack.Screen name="Auth/Produits/Fil" />
+        <Stack.Screen name="Auth/Produits/Detail" /> {/* Pour notifications */}
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
         <Stack.Screen
@@ -116,9 +153,7 @@ function RootLayoutNav() {
         />
         <Stack.Screen
           name="Auth"
-          options={{
-            presentation: "modal",
-          }}
+          options={{ presentation: "modal" }}
         />
       </Stack>
     </ThemeProvider>
