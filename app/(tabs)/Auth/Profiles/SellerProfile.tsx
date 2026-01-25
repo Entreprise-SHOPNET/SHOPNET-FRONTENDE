@@ -70,6 +70,7 @@ interface Seller {
   description: string | null;
   memberSince: string;
   products: Product[];
+  followersCount?: number;
 }
 
 const SellerProfile = () => {
@@ -80,25 +81,7 @@ const SellerProfile = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'publications' | 'about' | 'products'>('publications');
   const [following, setFollowing] = useState(false);
-
-  // Fonction pour formater le numéro de téléphone
-  const formatPhoneNumber = (rawPhone: string) => {
-    if (!rawPhone) return "";
-    
-    // Nettoyer le numéro
-    let phone = rawPhone.replace(/\s+/g, '').replace(/\D/g, '');
-    
-    // Si le numéro commence par 0, le remplacer par +243
-    if (phone.startsWith('0')) {
-      phone = '+243' + phone.substring(1);
-    }
-    // Si le numéro n'a pas d'indicatif, ajouter +243
-    else if (!phone.startsWith('+')) {
-      phone = '+243' + phone;
-    }
-    
-    return phone;
-  };
+  const [followersCount, setFollowersCount] = useState(0);
 
   useEffect(() => {
     if (!sellerId || isNaN(numericSellerId)) {
@@ -122,7 +105,11 @@ const SellerProfile = () => {
       );
       
       if (res.data.success && res.data.seller) {
-        setSeller(res.data.seller);
+        const sellerData = res.data.seller;
+        setSeller(sellerData);
+        
+        // Simuler un nombre d'abonnés (à remplacer par une vraie API)
+        setFollowersCount(125);
       } else {
         Toast.show({
           type: 'error',
@@ -160,13 +147,62 @@ const SellerProfile = () => {
   };
 
   const handleFollowToggle = () => {
-    setFollowing(!following);
+    const newFollowing = !following;
+    setFollowing(newFollowing);
+    
+    // Mettre à jour le compteur d'abonnés
+    if (newFollowing) {
+      setFollowersCount(prev => prev + 1);
+    } else {
+      setFollowersCount(prev => Math.max(0, prev - 1));
+    }
     
     Toast.show({
       type: 'success',
-      text1: following ? 'Désabonné' : 'Abonné',
-      text2: following ? 'Vous ne suivez plus ce vendeur' : 'Vous suivez maintenant ce vendeur'
+      text1: newFollowing ? 'Abonné' : 'Désabonné',
+      text2: newFollowing ? 'Vous suivez maintenant ce vendeur' : 'Vous ne suivez plus ce vendeur'
     });
+  };
+
+  const formatPhoneForDisplay = (rawPhone: string | null): string => {
+    if (!rawPhone) return "";
+    
+    // Nettoyer le numéro
+    let phone = rawPhone.replace(/\s+/g, '').replace(/\D/g, '');
+    
+    // Formatage pour affichage : +243 XXX XXX XXX
+    if (phone.startsWith('243')) {
+      phone = phone.substring(3);
+    } else if (phone.startsWith('0')) {
+      phone = phone.substring(1);
+    }
+    
+    // Format: +243 XXX XXX XXX
+    if (phone.length >= 9) {
+      const part1 = phone.substring(0, 3);
+      const part2 = phone.substring(3, 6);
+      const part3 = phone.substring(6, 9);
+      return `+243 ${part1} ${part2} ${part3}`.trim();
+    }
+    
+    return `+243 ${phone}`;
+  };
+
+  const formatPhoneForWhatsApp = (rawPhone: string | null): string => {
+    if (!rawPhone) return "";
+    
+    let phone = rawPhone.replace(/\s+/g, '').replace(/\D/g, '');
+    
+    // Si le numéro commence par 0, le remplacer par +243
+    if (phone.startsWith('0')) {
+      phone = '+243' + phone.substring(1);
+    }
+    // Si le numéro n'a pas d'indicatif, ajouter +243
+    else if (!phone.startsWith('+')) {
+      phone = '+243' + phone;
+    }
+    
+    return phone;
   };
 
   const openWhatsApp = () => {
@@ -180,23 +216,23 @@ const SellerProfile = () => {
       return;
     }
     
-    const phone = formatPhoneNumber(rawPhone);
+    const phone = formatPhoneForWhatsApp(rawPhone);
     
     // Vérifier si le numéro est valide
-    if (!phone || phone.length < 10) {
+    if (!phone || phone.length < 13) {
       Toast.show({
         type: 'error',
         text1: 'Erreur',
-        text2: `Impossible de chercher le numéro de téléphone ${rawPhone} car il manque l'indicatif pays ou le numéro est erroné`
+        text2: `Numéro de téléphone invalide`
       });
       return;
     }
     
     const message = `Bonjour ${seller?.name}, je suis intéressé(e) par vos produits sur SHOPNET. Pouvez-vous me donner plus d'informations ?`;
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(message)}`;
     
     Linking.openURL(url).catch(() => {
-      const webUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+      const webUrl = `https://web.whatsapp.com/send?phone=${phone.replace('+', '')}&text=${encodeURIComponent(message)}`;
       Linking.openURL(webUrl).catch(() =>
         Toast.show({
           type: 'error',
@@ -207,8 +243,32 @@ const SellerProfile = () => {
     });
   };
 
+  const makePhoneCall = () => {
+    const rawPhone = seller?.phone || "";
+    if (!rawPhone) {
+      Toast.show({
+        type: 'info',
+        text1: 'Information',
+        text2: 'Numéro de téléphone non disponible'
+      });
+      return;
+    }
+    
+    const phone = formatPhoneForWhatsApp(rawPhone);
+    const url = `tel:${phone}`;
+    
+    Linking.openURL(url).catch(() => {
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: '❌ Impossible de passer un appel'
+      });
+    });
+  };
+
   const handleEmail = () => {
-    if (!seller?.email) {
+    const email = seller?.email;
+    if (!email) {
       Toast.show({
         type: 'info',
         text1: 'Information',
@@ -218,10 +278,16 @@ const SellerProfile = () => {
     }
 
     const subject = `Demande d'informations - SHOPNET`;
-    const body = `Bonjour ${seller.name},\n\nJe suis intéressé(e) par vos produits sur SHOPNET. Pouvez-vous me donner plus d'informations ?\n\nCordialement,\n[Votre nom]`;
-    const mailtoUrl = `mailto:${seller.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const body = `Bonjour ${seller?.name},\n\nJe suis intéressé(e) par vos produits sur SHOPNET. Pouvez-vous me donner plus d'informations ?\n\nCordialement,\n[Votre nom]`;
+    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
-    Linking.openURL(mailtoUrl);
+    Linking.openURL(mailtoUrl).catch(() => {
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: '❌ Impossible d\'ouvrir l\'application email'
+      });
+    });
   };
 
   const handleProductPress = (productId: number) => {
@@ -357,6 +423,8 @@ const SellerProfile = () => {
   }
 
   const products = seller.products || [];
+  const displayPhone = seller.phone ? formatPhoneForDisplay(seller.phone) : "";
+  const displayEmail = seller.email || "";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -425,18 +493,22 @@ const SellerProfile = () => {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.actionButtonLarge, styles.whatsappButton]}
+              style={[styles.actionButtonLarge, styles.whatsappButton, !seller.phone && styles.disabledButton]}
               onPress={openWhatsApp}
+              disabled={!seller.phone}
             >
-              <FontAwesome name="whatsapp" size={20} color={TEXT_WHITE} />
-              <Text style={[styles.actionButtonText, styles.whatsappButtonText]}>WhatsApp</Text>
+              <FontAwesome name="whatsapp" size={20} color={seller.phone ? TEXT_WHITE : SHOPNET_DARK_GRAY} />
+              <Text style={[styles.actionButtonText, styles.whatsappButtonText, !seller.phone && styles.disabledButtonText]}>
+                WhatsApp
+              </Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.emailButton}
+              style={[styles.emailButton, !seller.email && styles.disabledButton]}
               onPress={handleEmail}
+              disabled={!seller.email}
             >
-              <MaterialIcons name="email" size={24} color={TEXT_WHITE} />
+              <MaterialIcons name="email" size={24} color={seller.email ? TEXT_WHITE : SHOPNET_DARK_GRAY} />
             </TouchableOpacity>
           </View>
         </View>
@@ -456,34 +528,72 @@ const SellerProfile = () => {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statContainer}>
+              <Text style={styles.statNumber}>{formatNumber(followersCount)}</Text>
+              <Text style={styles.statLabel}>abonnés</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statContainer}>
               <Ionicons name="star" size={16} color="#FFB800" />
               <Text style={styles.statNumber}>4.8</Text>
               <Text style={styles.statLabel}>(124)</Text>
             </View>
           </View>
           
-          <View style={styles.contactInfo}>
-            <TouchableOpacity style={styles.contactItem} onPress={openWhatsApp}>
-              <FontAwesome name="whatsapp" size={16} color={SHOPNET_GREEN} />
-              <Text style={styles.contactText}>{seller.phone || 'Non disponible'}</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.contactItem} onPress={handleEmail}>
-              <MaterialIcons name="email" size={16} color={PRO_BLUE} />
-              <Text style={styles.contactText}>{seller.email || 'Non disponible'}</Text>
-            </TouchableOpacity>
-            
-            {(seller.address || seller.ville) && (
-              <View style={styles.contactItem}>
-                <Ionicons name="location-outline" size={16} color={PRO_BLUE} />
-                <Text style={styles.contactText}>
-                  {seller.address && seller.ville 
-                    ? `${seller.address}, ${seller.ville}`
-                    : seller.address || seller.ville}
-                </Text>
-              </View>
-            )}
-          </View>
+          {/* Contact Info Section */}
+          {(seller.phone || seller.email) && (
+            <View style={styles.contactInfo}>
+              {seller.phone && (
+                <View style={styles.contactRow}>
+                  <View style={styles.contactIconContainer}>
+                    <Ionicons name="call-outline" size={20} color={PRO_BLUE} />
+                  </View>
+                  <View style={styles.contactDetails}>
+                    <Text style={styles.contactLabel}>Téléphone</Text>
+                    <TouchableOpacity onPress={makePhoneCall}>
+                      <Text style={styles.contactValue}>{displayPhone}</Text>
+                    </TouchableOpacity>
+                    <View style={styles.contactButtons}>
+                      <TouchableOpacity 
+                        style={[styles.contactActionButton, styles.callButton]}
+                        onPress={makePhoneCall}
+                      >
+                        <Ionicons name="call" size={14} color={TEXT_WHITE} />
+                        <Text style={styles.contactActionText}>Appeler</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.contactActionButton, styles.whatsappContactButton]}
+                        onPress={openWhatsApp}
+                      >
+                        <FontAwesome name="whatsapp" size={14} color={TEXT_WHITE} />
+                        <Text style={styles.contactActionText}>WhatsApp</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+              
+              {seller.email && (
+                <View style={styles.contactRow}>
+                  <View style={styles.contactIconContainer}>
+                    <MaterialIcons name="email" size={20} color={PRO_BLUE} />
+                  </View>
+                  <View style={styles.contactDetails}>
+                    <Text style={styles.contactLabel}>Email</Text>
+                    <TouchableOpacity onPress={handleEmail}>
+                      <Text style={styles.contactValue}>{displayEmail}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.contactActionButton, styles.emailContactButton]}
+                      onPress={handleEmail}
+                    >
+                      <MaterialIcons name="email" size={14} color={TEXT_WHITE} />
+                      <Text style={styles.contactActionText}>Envoyer Email</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Tabs Navigation */}
@@ -564,8 +674,46 @@ const SellerProfile = () => {
             </View>
             
             <View style={styles.aboutSection}>
-              <Text style={styles.sectionTitle}>Informations</Text>
+              <Text style={styles.sectionTitle}>Informations de contact</Text>
               <View style={styles.infoList}>
+                {seller.phone && (
+                  <View style={styles.infoItem}>
+                    <Ionicons name="call-outline" size={20} color={PRO_BLUE} />
+                    <View>
+                      <Text style={styles.infoLabel}>Téléphone</Text>
+                      <TouchableOpacity onPress={makePhoneCall}>
+                        <Text style={styles.infoValue}>{displayPhone}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                
+                {seller.email && (
+                  <View style={styles.infoItem}>
+                    <MaterialIcons name="email" size={20} color={PRO_BLUE} />
+                    <View>
+                      <Text style={styles.infoLabel}>Email</Text>
+                      <TouchableOpacity onPress={handleEmail}>
+                        <Text style={styles.infoValue}>{displayEmail}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                
+                {(seller.address || seller.ville) && (
+                  <View style={styles.infoItem}>
+                    <Ionicons name="location-outline" size={20} color={PRO_BLUE} />
+                    <View>
+                      <Text style={styles.infoLabel}>Adresse</Text>
+                      <Text style={styles.infoValue}>
+                        {seller.address && seller.ville 
+                          ? `${seller.address}, ${seller.ville}`
+                          : seller.address || seller.ville}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+                
                 <View style={styles.infoItem}>
                   <Ionicons name="calendar-outline" size={20} color={PRO_BLUE} />
                   <View>
@@ -575,34 +723,6 @@ const SellerProfile = () => {
                         month: 'long',
                         year: 'numeric'
                       })}
-                    </Text>
-                  </View>
-                </View>
-                
-                <View style={styles.infoItem}>
-                  <Ionicons name="call-outline" size={20} color={PRO_BLUE} />
-                  <View>
-                    <Text style={styles.infoLabel}>Téléphone</Text>
-                    <Text style={styles.infoValue}>{seller.phone || 'Non disponible'}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.infoItem}>
-                  <MaterialIcons name="email" size={20} color={PRO_BLUE} />
-                  <View>
-                    <Text style={styles.infoLabel}>Email</Text>
-                    <Text style={styles.infoValue}>{seller.email || 'Non disponible'}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.infoItem}>
-                  <Ionicons name="location-outline" size={20} color={PRO_BLUE} />
-                  <View>
-                    <Text style={styles.infoLabel}>Adresse</Text>
-                    <Text style={styles.infoValue}>
-                      {seller.address && seller.ville 
-                        ? `${seller.address}, ${seller.ville}`
-                        : seller.address || seller.ville || 'Non disponible'}
                     </Text>
                   </View>
                 </View>
@@ -784,6 +904,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  disabledButton: {
+    backgroundColor: SHOPNET_LIGHT_GRAY,
+    opacity: 0.5,
+  },
+  disabledButtonText: {
+    color: SHOPNET_DARK_GRAY,
+  },
   profileDetails: {
     backgroundColor: SHOPNET_GRAY,
     padding: 16,
@@ -833,15 +960,62 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   contactInfo: {
-    gap: 8,
+    marginTop: 16,
+    gap: 20,
   },
-  contactItem: {
+  contactRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  contactIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: 'rgba(66, 165, 245, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  contactDetails: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 13,
+    color: SHOPNET_DARK_GRAY,
+    marginBottom: 2,
+  },
+  contactValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: TEXT_WHITE,
+    marginBottom: 8,
+  },
+  contactButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  contactActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    gap: 6,
   },
-  contactText: {
-    fontSize: 15,
+  callButton: {
+    backgroundColor: PRO_BLUE,
+  },
+  whatsappContactButton: {
+    backgroundColor: SHOPNET_GREEN,
+  },
+  emailContactButton: {
+    backgroundColor: PRO_BLUE,
+  },
+  contactActionText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: TEXT_WHITE,
   },
   tabsContainer: {
@@ -1072,4 +1246,3 @@ const styles = StyleSheet.create({
 });
 
 export default SellerProfile;
-

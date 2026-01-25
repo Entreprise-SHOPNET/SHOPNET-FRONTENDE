@@ -1174,7 +1174,7 @@ const handleAddToCart = useCallback(
               styles.navLabel,
               activeTab === index && styles.activeNavLabel
             ]}>
-              {screen === 'Home' ? 'Promotion' :
+              {screen === 'Home' ? 'Tendances' :
               screen === 'Discover' ? 'Découvrir' :
               screen === 'Sell' ? 'Vendre' :
               screen === 'Messages' ? 'Panier' : 'Profil'}

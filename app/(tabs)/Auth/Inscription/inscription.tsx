@@ -1,6 +1,7 @@
 // app/(tabs)/Auth/Inscription.tsx
 /// app/(tabs)/Auth/Inscription.tsx
 // app/(tabs)/Auth/Inscription.tsx
+// app/(tabs)/Auth/Inscription.tsx// app/(tabs)/Auth/Inscription.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -11,6 +12,8 @@ import {
   ActivityIndicator,
   ScrollView,
   Vibration,
+  Linking,
+  Switch,
 } from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
@@ -38,6 +41,7 @@ export default function Inscription() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false); // ✅ case à cocher
 
   const validateEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.toLowerCase());
@@ -208,6 +212,30 @@ export default function Inscription() {
             onChangeText={setAddress}
           />
 
+          {/* Texte conditions avec case à cocher */}
+          <View style={styles.termsContainer}>
+            <Switch
+              value={termsAccepted}
+              onValueChange={setTermsAccepted}
+              thumbColor={termsAccepted ? "#00C851" : "#BCCCDC"} // ✅ Vert quand accepté
+              trackColor={{ false: "#3A526A", true: "#34c759" }}
+            />
+            <Text style={styles.termsText}>
+              En utilisant SHOPNET, vous acceptez les{" "}
+              <Text
+                style={styles.linkText}
+                onPress={() =>
+                  Linking.openURL(
+                    "https://entreprise-shopnet.github.io/SHOPNET-CONDITION/"
+                  )
+                }
+              >
+                conditions d'utilisation
+              </Text>
+              .
+            </Text>
+          </View>
+
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={[styles.button, styles.buttonSecondary]}
@@ -217,9 +245,13 @@ export default function Inscription() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.button, { flex: 1, marginLeft: 10 }]}
+              style={[
+                styles.button,
+                { flex: 1, marginLeft: 10 },
+                termsAccepted ? styles.buttonSuccess : {}, // ⬅️ devient vert si accepté
+              ]}
               onPress={handleRegister}
-              disabled={isLoading}
+              disabled={!termsAccepted || isLoading} // ⬅️ bloque si pas accepté
             >
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -270,6 +302,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
+  buttonSuccess: {
+    backgroundColor: "#00C851", // 💚 vert succès
+  },
   buttonSecondary: {
     backgroundColor: "#35526A",
     flex: 1,
@@ -284,6 +319,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     width: "100%",
     marginTop: 10,
+  },
+  termsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 15,
+  },
+  termsText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    marginLeft: 10,
+    flex: 1,
+    flexWrap: "wrap",
+  },
+  linkText: {
+    color: "#FFFFFF",
+    textDecorationLine: "underline",
+    fontWeight: "bold",
   },
   errorText: {
     color: "red",

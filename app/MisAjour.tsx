@@ -24,6 +24,7 @@ import { useRouter } from "expo-router";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const PRO_BLUE = "#42A5F5";
 const SHOPNET_BLUE = "#00182A";
+const PREMIUM_GOLD = "#FFD700";
 
 // On calcule la date cible à 150 jours à partir d'aujourd'hui (5 mois environ)
 const getCountdownTargetDate = () => {
@@ -102,59 +103,63 @@ const ComingSoonPage = () => {
     return () => clearInterval(timer);
   }, [countdownTargetDate]);
 
-  // ✅ Fonction améliorée pour WhatsApp
+  // ✅ NOUVELLE FONCTION ROBUSTE POUR WHATSAPP
   const handleContactSupport = async () => {
-    const phoneNumber = "+243896037137"; // Ajout du + pour le format international
-    const message = "Bonjour l'équipe SHOPNET, je souhaite avoir plus d'informations sur la fonctionnalité à venir dans SHOPNET.";
+    const phoneNumber = "+243896037137"; 
+    const message = "Bonjour l'équipe SHOPNET, je souhaite avoir plus d'informations sur SHOPNET V2.0 et les fonctionnalités VIP à venir.";
     
-    // Formats d'URL pour WhatsApp
-    const whatsappUrls = [
-      `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`,
-      `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`,
-    ];
+    // Formatage du numéro pour wa.me : uniquement les chiffres avec l'indicatif
+    const formattedNumber = phoneNumber.replace(/\D/g, '');
     
-    // Si on est sur Android, on peut aussi essayer WhatsApp Business
-    if (Platform.OS === 'android') {
-      whatsappUrls.unshift(`whatsapp-business://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`);
-    }
-
-    let errorOccurred = false;
+    // URL pour ouvrir l'appli (avec deep link)
+    const appUrl = `whatsapp://send?phone=${formattedNumber}&text=${encodeURIComponent(message)}`;
+    // URL de fallback web (wa.me) - fonctionne partout
+    const webUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
     
-    // Essayer chaque URL jusqu'à ce que l'une fonctionne
-    for (const url of whatsappUrls) {
+    try {
+      // Essayer D'ABORD d'ouvrir l'application WhatsApp
+      const canOpen = await Linking.canOpenURL(appUrl);
+      
+      if (canOpen) {
+        await Linking.openURL(appUrl);
+      } else {
+        // Si l'appli ne peut pas être ouverte, on propose directement l'alternative web
+        Alert.alert(
+          "Ouvrir WhatsApp",
+          "Vous allez être redirigé vers WhatsApp pour contacter notre équipe. Cette fonctionnalité utilise le lien officiel WhatsApp qui fonctionne sur tous les appareils.",
+          [
+            {
+              text: "Annuler",
+              style: "cancel"
+            },
+            {
+              text: "Continuer",
+              onPress: async () => {
+                try {
+                  // Essayer l'URL web qui fonctionne sur tous les appareils
+                  await Linking.openURL(webUrl);
+                } catch (webError) {
+                  Alert.alert(
+                    "Redirection Impossible",
+                    "Nous rencontrons une difficulté technique. Veuillez contacter directement le support SHOPNET au +243 896 037 137 ou réessayez ultérieurement."
+                  );
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (appError) {
+      // En cas d'erreur, on tente directement l'URL web
       try {
-        const supported = await Linking.canOpenURL(url);
-        if (supported) {
-          await Linking.openURL(url);
-          return; // Sortir de la fonction si l'ouverture réussit
-        }
-      } catch (error) {
-        console.error(`Erreur avec l'URL ${url}:`, error);
-        errorOccurred = true;
+        await Linking.openURL(webUrl);
+      } catch (fallbackError) {
+        Alert.alert(
+          "Service Temporairement Indisponible",
+          "Nous préparons une solution de contact encore plus fluide pour SHOPNET V2.0. En attendant, vous pouvez nous joindre directement au +243 896 037 137."
+        );
       }
     }
-    
-    // Si aucune URL ne fonctionne
-    Alert.alert(
-      "WhatsApp Non Détecté",
-      "Il semble que WhatsApp ne soit pas installé sur votre appareil. Voulez-vous l'installer depuis le store ?",
-      [
-        {
-          text: "Annuler",
-          style: "cancel",
-        },
-        {
-          text: "Installer WhatsApp",
-          onPress: () => {
-            if (Platform.OS === 'ios') {
-              Linking.openURL('https://apps.apple.com/app/whatsapp-messenger/id310633997');
-            } else {
-              Linking.openURL('https://play.google.com/store/apps/details?id=com.whatsapp');
-            }
-          },
-        },
-      ]
-    );
   };
 
   const premiumFeatures = [
@@ -359,6 +364,31 @@ const ComingSoonPage = () => {
           </View>
         </Animated.View>
 
+        {/* Section Information VIP */}
+        <Animated.View
+          style={[
+            styles.infoSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Ionicons name="information-circle" size={28} color={PRO_BLUE} style={styles.infoIcon} />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Service VIP - Contact Direct</Text>
+            <Text style={styles.infoText}>
+              Notre équipe d'experts SHOPNET vous répond en priorité. Cette fonctionnalité utilise le lien officiel WhatsApp pour une prise en charge immédiate et personnalisée. Aucune erreur de détection, juste une connexion directe à notre support.
+            </Text>
+            <View style={styles.featureList}>
+              <Text style={styles.featureItem}>✓ Réponse garantie sous 15 minutes</Text>
+              <Text style={styles.featureItem}>✓ Support technique dédié VIP</Text>
+              <Text style={styles.featureItem}>✓ Conseil personnalisé pour votre business</Text>
+              <Text style={styles.featureItem}>✓ Compatible WhatsApp & WhatsApp Business</Text>
+            </View>
+          </View>
+        </Animated.View>
+
         {/* CTA Section */}
         <Animated.View
           style={[
@@ -373,20 +403,27 @@ const ComingSoonPage = () => {
             <Text style={styles.ctaTitle}>Prêt pour la Révolution ?</Text>
             <Text style={styles.ctaDescription}>
               Rejoignez l'élite des boutiques professionnelles et soyez parmi
-              les premiers à découvrir SHOPNET V2.0
+              les premiers à découvrir SHOPNET V2.0. Notre équipe est à votre écoute pour répondre à toutes vos questions.
             </Text>
 
             <TouchableOpacity
               style={styles.contactButton}
               onPress={handleContactSupport}
+              activeOpacity={0.8}
             >
               <Ionicons name="logo-whatsapp" size={24} color="#fff" />
-              {/* ✅ Texte modifié ici */}
-              <Text style={styles.contactButtonText}>Contact l'équipe SHOPNET</Text>
+              <Text style={styles.contactButtonText}>Contacter l'équipe SHOPNET</Text>
               <View style={styles.buttonBadge}>
-                <Text style={styles.buttonBadgeText}>PRIORITAIRE</Text>
+                <Text style={styles.buttonBadgeText}>VIP</Text>
               </View>
             </TouchableOpacity>
+
+            <View style={styles.noteBox}>
+              <Ionicons name="time-outline" size={14} color="#FFD700" />
+              <Text style={styles.noteText}>
+                Cette fonctionnalité utilise le lien officiel WhatsApp. Si l'application n'est pas détectée, vous serez redirigé vers WhatsApp Web pour une expérience continue.
+              </Text>
+            </View>
 
             <View style={styles.guaranteeSection}>
               <Ionicons name="diamond" size={16} color="#FFD700" />
@@ -411,7 +448,7 @@ const ComingSoonPage = () => {
         <View style={styles.footerContent}>
           <Ionicons name="diamond" size={16} color={PRO_BLUE} />
           <Text style={styles.footerText}>
-            SHOPNET V2.0 • EXPÉRIENCE PRO ULTIME
+            SHOPNET V2.0 • EXPÉRIENCE PRO ULTIME • SUPPORT VIP
           </Text>
           <Ionicons name="diamond" size={16} color={PRO_BLUE} />
         </View>
@@ -688,6 +725,44 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
   },
+  infoSection: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(66, 165, 245, 0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(66, 165, 245, 0.2)',
+  },
+  infoIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoTitle: {
+    color: PRO_BLUE,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  infoText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  featureList: {
+    marginLeft: 4,
+  },
+  featureItem: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
   ctaSection: {
     paddingHorizontal: 20,
   },
@@ -716,13 +791,13 @@ const styles = StyleSheet.create({
   contactButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: PRO_BLUE,
+    backgroundColor: "#25D366",
     paddingVertical: 18,
     paddingHorizontal: 32,
     borderRadius: 16,
     width: "100%",
-    marginBottom: 20,
-    shadowColor: PRO_BLUE,
+    marginBottom: 16,
+    shadowColor: "#25D366",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -751,6 +826,23 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.5,
+  },
+  noteBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.2)',
+  },
+  noteText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 14,
   },
   guaranteeSection: {
     flexDirection: "row",

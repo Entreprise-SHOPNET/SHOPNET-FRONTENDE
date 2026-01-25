@@ -24,9 +24,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-// const LOCAL_API = 'http://100.64.134.89:5000/api'; // Serveur LOCAL (commenté)
-const LOCAL_API = 'https://shopnet-backend.onrender.com/api'; // Serveur Render (production)
-
+const LOCAL_API = 'https://shopnet-backend.onrender.com/api';
 
 const SHOPNET_BLUE = "#00182A";
 const PRO_BLUE = "#42A5F5";
@@ -67,7 +65,6 @@ type Promotion = {
   time_remaining?: string;
 };
 
-// Fonction d'envoi de présence
 const sendPresence = async () => {
   try {
     const userId = await AsyncStorage.getItem('userId');
@@ -91,34 +88,33 @@ const DiscoverScreen = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<(Product | Promotion)[]>([]);
+  const [originalProducts, setOriginalProducts] = useState<(Product | Promotion)[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [actionModalVisible, setActionModalVisible] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [columns, setColumns] = useState(2);
+  const [flatListKey, setFlatListKey] = useState('2-columns'); // Clé pour forcer le re-render
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   
-  // Réf pour l'intervalle de présence
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
-    // Marquer que le composant est monté
     isMountedRef.current = true;
     
     loadToken();
     startEntranceAnimation();
     
-    // Setup de l'envoi de présence
     setupPresenceSystem();
     
-    // Écouter les changements d'état de l'application
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
     
-    // Nettoyage à la destruction du composant
     return () => {
       isMountedRef.current = false;
       cleanupPresenceSystem();
@@ -126,18 +122,15 @@ const DiscoverScreen = () => {
     };
   }, []);
 
-  // Système d'envoi de présence
   const setupPresenceSystem = async () => {
     try {
-      // Envoyer la présence immédiatement
       await sendPresence();
       
-      // Configurer l'intervalle toutes les 5 minutes (300000 ms)
       presenceIntervalRef.current = setInterval(async () => {
         if (isMountedRef.current) {
           await sendPresence();
         }
-      }, 300000); // 5 minutes
+      }, 300000);
       
       console.log('Système de présence initialisé');
     } catch (error) {
@@ -146,7 +139,6 @@ const DiscoverScreen = () => {
   };
 
   const cleanupPresenceSystem = () => {
-    // Nettoyer l'intervalle
     if (presenceIntervalRef.current) {
       clearInterval(presenceIntervalRef.current);
       presenceIntervalRef.current = null;
@@ -154,18 +146,14 @@ const DiscoverScreen = () => {
     }
   };
 
-  // Gérer les changements d'état de l'application
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     if (nextAppState === 'active') {
-      // L'application est redevenue active, renvoyer la présence
       await sendPresence();
       
-      // Redémarrer l'intervalle si nécessaire
       if (!presenceIntervalRef.current && isMountedRef.current) {
         setupPresenceSystem();
       }
     } else if (nextAppState === 'background' || nextAppState === 'inactive') {
-      // Optionnel: Nettoyer l'intervalle en arrière-plan
       cleanupPresenceSystem();
     }
   };
@@ -221,8 +209,23 @@ const DiscoverScreen = () => {
 
       const allProducts = [...regularProducts, ...promotionProducts].sort(() => Math.random() - 0.5);
 
-      if (initial) setProducts(allProducts);
-      else setProducts(prev => [...prev, ...allProducts]);
+      if (initial) {
+        setOriginalProducts(allProducts);
+        if (isShuffled) {
+          setProducts(shuffleArray([...allProducts]));
+        } else {
+          setProducts(allProducts);
+        }
+      } else {
+        const updatedOriginalProducts = [...originalProducts, ...allProducts];
+        setOriginalProducts(updatedOriginalProducts);
+        
+        if (isShuffled) {
+          setProducts(prevProducts => [...prevProducts, ...allProducts]);
+        } else {
+          setProducts(updatedOriginalProducts);
+        }
+      }
 
       setHasMore(regularProducts.length === limit);
       setPage(pageNum);
@@ -303,6 +306,30 @@ const DiscoverScreen = () => {
 
   const isPromotion = (item: Product | Promotion) => 'promotionId' in item;
 
+  const shuffleArray = (array: any[]) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  const toggleShuffle = () => {
+    if (isShuffled) {
+      setProducts(originalProducts);
+    } else {
+      setProducts(shuffleArray([...products]));
+    }
+    setIsShuffled(!isShuffled);
+  };
+
+  const toggleColumns = () => {
+    const newColumns = columns === 2 ? 3 : 2;
+    setColumns(newColumns);
+    setFlatListKey(`${newColumns}-columns-${Date.now()}`); // Changer la clé pour forcer un nouveau rendu
+  };
+
   const renderProductItem = ({ item, index }: { item: Product | Promotion; index: number }) => {
     const productId = getProductId(item);
     const productTitle = getProductTitle(item);
@@ -314,9 +341,20 @@ const DiscoverScreen = () => {
     const isExpired = isPromo && promotionItem.time_remaining === 'Expirée';
     const imageUrl = images.length > 0 ? images[0] : null;
 
+    const cardWidth = columns === 2 
+      ? (width - 36) / 2  // 2 colonnes : padding 12 * 2 + gap 12 = 36
+      : (width - 48) / 3; // 3 colonnes : padding 12 * 2 + gap 12 * 2 = 48
+
     return (
       <Animated.View
-        style={[styles.productCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        style={[
+          styles.productCard, 
+          { 
+            opacity: fadeAnim, 
+            transform: [{ translateY: slideAnim }],
+            width: cardWidth
+          }
+        ]}
       >
         <TouchableOpacity
           onPress={() => {
@@ -325,7 +363,6 @@ const DiscoverScreen = () => {
           }}
           activeOpacity={0.9}
         >
-          {/* Image et badges */}
           <View style={styles.imageContainer}>
             {imageUrl ? (
               <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="cover" />
@@ -377,20 +414,6 @@ const DiscoverScreen = () => {
               )}
             </View>
             {isPromo && promotionItem.description && <Text style={styles.promotionDescription} numberOfLines={2}>{promotionItem.description}</Text>}
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Ionicons name="heart" size={14} color={TEXT_SECONDARY} />
-                <Text style={styles.statsText}>{'likes_count' in item ? item.likes_count : 0}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Ionicons name="chatbubble-outline" size={14} color={TEXT_SECONDARY} />
-                <Text style={styles.statsText}>{'comments_count' in item ? item.comments_count : 0}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Ionicons name="share-outline" size={14} color={TEXT_SECONDARY} />
-                <Text style={styles.statsText}>{'shares_count' in item ? item.shares_count : 0}</Text>
-              </View>
-            </View>
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -464,16 +487,42 @@ const DiscoverScreen = () => {
           <Ionicons name="cube-outline" size={28} color={PRO_BLUE} />
           <Text style={styles.headerTitle}>Découvrir</Text>
         </View>
-        <TouchableOpacity style={styles.filterButton}>
-          <Ionicons name="options-outline" size={24} color={PRO_BLUE} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={[styles.iconButton, isShuffled && styles.iconButtonActive]}
+            onPress={toggleShuffle}
+          >
+            <Ionicons 
+              name={isShuffled ? "shuffle" : "shuffle-outline"} 
+              size={22} 
+              color={isShuffled ? PREMIUM_GOLD : PRO_BLUE} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.iconButton, columns === 3 && styles.iconButtonActive]}
+            onPress={toggleColumns}
+          >
+            <Ionicons 
+              name={columns === 2 ? "grid" : "grid-outline"} 
+              size={22} 
+              color={columns === 3 ? PREMIUM_GOLD : PRO_BLUE} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => router.push('/(tabs)/Auth/Produits/Recherche')}
+          >
+            <Ionicons name="search-outline" size={22} color={PRO_BLUE} />
+          </TouchableOpacity>
+        </View>
       </View>
       <FlatList
+        key={flatListKey} // Clé dynamique pour forcer un nouveau rendu
         data={products}
-        keyExtractor={(item, index) => `product-${getProductId(item)}-${index}`}
+        keyExtractor={(item, index) => `product-${getProductId(item)}-${index}-${columns}`}
         renderItem={renderProductItem}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
+        numColumns={columns}
+        columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         onEndReached={loadMoreProducts}
@@ -524,14 +573,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: TEXT_WHITE,
     marginLeft: 12,
   },
-  filterButton: {
-    padding: 8,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0A1420',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconButtonActive: {
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
   },
   listContent: {
     paddingHorizontal: 12,
@@ -546,12 +608,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
-    width: (width - 36) / 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   imageContainer: {
     position: 'relative',
@@ -694,21 +750,6 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
     fontSize: 11,
     lineHeight: 14,
-    marginBottom: 8,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statsText: {
-    color: TEXT_SECONDARY,
-    fontSize: 11,
-    marginLeft: 2,
   },
   emptyState: {
     alignItems: 'center',

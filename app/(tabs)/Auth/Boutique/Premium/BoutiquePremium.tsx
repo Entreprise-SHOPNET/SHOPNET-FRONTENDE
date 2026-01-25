@@ -626,7 +626,7 @@ export default function BoutiquePremium() {
     }
     
     router.push({
-      pathname: "/(tabs)/Auth/Boutique/Premium/PaymentProofBoutique",
+      pathname: "/(tabs)/Auth/Boutique/Premium/PayerPremium",
       params: { 
         boutiqueId: boutique.id.toString(),
         boutiqueNom: boutique.nom,

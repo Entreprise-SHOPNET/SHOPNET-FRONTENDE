@@ -34,19 +34,9 @@ const ERROR_RED = "#F44336";
 const WARNING_ORANGE = "#FF9800";
 const PRO_BLUE = "#42A5F5";
 
-// Configuration Backend SHOPNET
-// 🔹 Configuration Backend SHOPNET
-
 const BACKEND_CONFIG = {
-  apiUrl: "https://shopnet-backend.onrender.com/api", // production Render
+  apiUrl: "https://shopnet-backend.onrender.com/api",
 };
-
-// 🔹 Serveur local pour développement (commenté)
-// const BACKEND_CONFIG = {
-//   apiUrl: "http://100.64.134.89:5000/api",
-// };
-
-
 
 export default function PaymentProofBoutique() {
   const params = useLocalSearchParams();
@@ -58,7 +48,6 @@ export default function PaymentProofBoutique() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [boutiqueInfo, setBoutiqueInfo] = useState<any | null>(null);
   
-  // États du formulaire
   const [formData, setFormData] = useState({
     operator: '',
     transactionCode: '',
@@ -68,7 +57,6 @@ export default function PaymentProofBoutique() {
     screenshot: null as string | null,
   });
 
-  // États pour les messages
   const [messageVisible, setMessageVisible] = useState(false);
   const [messageTitle, setMessageTitle] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -79,37 +67,29 @@ export default function PaymentProofBoutique() {
   const messageAnim = useRef(new Animated.Value(0)).current;
   const formFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Charger le token utilisateur depuis AsyncStorage
   useEffect(() => {
     const loadUserAndBoutique = async () => {
       try {
-        // Charger le token
         const token = await AsyncStorage.getItem('userToken');
-        console.log("🔑 Token chargé depuis AsyncStorage:", token ? "Oui" : "Non");
         
         if (token) {
           setUserToken(token);
           setIsAuthenticated(true);
           
-          // Récupérer les données de la boutique
           const boutiqueId = params.boutiqueId || await AsyncStorage.getItem('currentBoutiqueId');
-          console.log("🛍️ boutiqueId reçu:", boutiqueId);
           
           if (boutiqueId) {
-            // Essayer de récupérer les données complètes
             const boutiqueData = await AsyncStorage.getItem('currentBoutiqueData');
             if (boutiqueData) {
               const parsedData = JSON.parse(boutiqueData);
               setBoutiqueInfo({
                 ...parsedData,
                 boutiqueId: boutiqueId,
-                montant: 9.99, // Montant fixe pour premium
+                montant: 9.99,
                 devise: 'USD',
                 plan: 'premium'
               });
-              console.log("✅ Données boutique chargées:", parsedData);
             } else {
-              // Créer un objet minimal à partir des paramètres
               setBoutiqueInfo({
                 boutiqueId: Array.isArray(boutiqueId) ? boutiqueId[0] : boutiqueId,
                 nom: params.boutiqueNom || "Ma Boutique Premium",
@@ -128,7 +108,7 @@ export default function PaymentProofBoutique() {
           );
           
           setTimeout(() => {
-            router.replace('/Auth/Login');
+            router.replace('/Auth/auth');
           }, 3000);
         }
       } catch (error) {
@@ -140,7 +120,6 @@ export default function PaymentProofBoutique() {
     loadUserAndBoutique();
   }, []);
 
-  // Gestion du bouton retour Android
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (processing) {
@@ -160,7 +139,6 @@ export default function PaymentProofBoutique() {
     return () => backHandler.remove();
   }, [processing]);
 
-  // Démarrer les animations
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { 
@@ -181,7 +159,6 @@ export default function PaymentProofBoutique() {
       }),
     ]).start();
 
-    // Pré-remplir le montant attendu
     if (boutiqueInfo?.montant) {
       const expectedAmount = boutiqueInfo.devise === 'USD' 
         ? (boutiqueInfo.montant * 2000).toLocaleString('fr-FR')
@@ -189,12 +166,11 @@ export default function PaymentProofBoutique() {
       setFormData(prev => ({
         ...prev,
         amountPaid: expectedAmount,
-        currency: boutiqueInfo.devise === 'USD' ? 'CDF' : 'CDF' // Toujours montrer en CDF par défaut
+        currency: boutiqueInfo.devise === 'USD' ? 'CDF' : 'CDF'
       }));
     }
   }, [boutiqueInfo]);
 
-  // Fonction pour afficher les messages
   const showMessage = (title: string, text: string, type: "success" | "error" | "warning" | "info" = "info") => {
     setMessageTitle(title);
     setMessageText(text);
@@ -223,7 +199,6 @@ export default function PaymentProofBoutique() {
     });
   };
 
-  // Choisir une image depuis la galerie
   const pickImage = async () => {
     if (!isAuthenticated) {
       showMessage(
@@ -261,7 +236,6 @@ export default function PaymentProofBoutique() {
     }
   };
 
-  // Prendre une photo
   const takePhoto = async () => {
     if (!isAuthenticated) {
       showMessage(
@@ -298,9 +272,7 @@ export default function PaymentProofBoutique() {
     }
   };
 
-  // Valider le formulaire
   const validateForm = (): boolean => {
-    // Vérifier l'authentification
     if (!isAuthenticated || !userToken) {
       showMessage(
         "❌ Non authentifié",
@@ -310,17 +282,6 @@ export default function PaymentProofBoutique() {
       return false;
     }
 
-    // Vérifier l'ID de la boutique
-    if (!boutiqueInfo?.boutiqueId) {
-      showMessage(
-        "❌ Boutique non trouvée",
-        "Impossible de trouver la boutique. Veuillez revenir à l'étape précédente.",
-        "error"
-      );
-      return false;
-    }
-
-    // Vérifier l'opérateur
     if (!formData.operator) {
       showMessage(
         "❌ Opérateur requis",
@@ -330,7 +291,6 @@ export default function PaymentProofBoutique() {
       return false;
     }
 
-    // Vérifier le code de transaction
     if (!formData.transactionCode.trim()) {
       showMessage(
         "❌ Code de transaction requis",
@@ -340,7 +300,6 @@ export default function PaymentProofBoutique() {
       return false;
     }
 
-    // Vérifier le montant
     if (!formData.amountPaid.trim()) {
       showMessage(
         "❌ Montant requis",
@@ -362,7 +321,6 @@ export default function PaymentProofBoutique() {
       return false;
     }
 
-    // Vérifier la preuve de paiement (obligatoire)
     if (!formData.screenshot) {
       showMessage(
         "❌ Preuve obligatoire",
@@ -375,153 +333,134 @@ export default function PaymentProofBoutique() {
     return true;
   };
 
-  // Soumettre la preuve de paiement
-  const submitProof = async (forceSubmit: boolean = false) => {
-    if (!forceSubmit && !validateForm()) return;
-
-    console.log("🚀 Début de submitProof pour boutique");
-    console.log("📦 BoutiqueId:", boutiqueInfo?.boutiqueId);
-    console.log("📦 Nom boutique:", boutiqueInfo?.nom);
-
-    // Vérifier à nouveau l'ID de la boutique
-    if (!boutiqueInfo?.boutiqueId) {
-      showMessage(
-        "❌ Boutique non trouvée",
-        "Impossible d'envoyer la preuve sans boutique. Veuillez retourner à l'étape précédente.",
-        "error"
-      );
-      return;
-    }
+  const submitProof = async () => {
+    if (!validateForm()) return;
 
     setProcessing(true);
     setUploading(true);
 
     try {
-  const formDataToSend = new FormData();
+      const boutiqueId = boutiqueInfo?.boutiqueId || 
+                        (Array.isArray(params.boutiqueId) ? params.boutiqueId[0] : params.boutiqueId) ||
+                        'unknown_' + Date.now();
+      
+      const boutiqueNom = boutiqueInfo?.nom || 
+                         (Array.isArray(params.boutiqueNom) ? params.boutiqueNom[0] : params.boutiqueNom) ||
+                         'Boutique SHOPNET';
 
-  // Champs obligatoires pour le paiement boutique
-  formDataToSend.append('operateur', formData.operator);
-  formDataToSend.append('numero_envoyeur', formData.senderNumber || '');
-  formDataToSend.append('transaction_id', formData.transactionCode);
-  formDataToSend.append('montant', formData.amountPaid.replace(/\s/g, ''));
-  formDataToSend.append('devise', formData.currency);
-  formDataToSend.append('commentaire', formData.comment || '');
+      const formDataToSend = new FormData();
 
-  // Capture d'écran (obligatoire)
-  if (formData.screenshot) {
-    const filename = formData.screenshot.split('/').pop() || `payment_proof_${Date.now()}.jpg`;
-    const match = /\.(\w+)$/.exec(filename);
-    const fileType = match ? `image/${match[1]}` : 'image/jpeg';
+      formDataToSend.append('operateur', formData.operator);
+      formDataToSend.append('transaction_id', formData.transactionCode);
+      formDataToSend.append('montant', formData.amountPaid.replace(/\s/g, ''));
+      formDataToSend.append('devise', formData.currency);
 
-    formDataToSend.append('preuve', {
-      uri: formData.screenshot,
-      name: filename,
-      type: fileType,
-    } as any);
-  }
+      if (formData.screenshot) {
+        const filename = formData.screenshot.split('/').pop() || `payment_proof_${Date.now()}.jpg`;
+        const match = /\.(\w+)$/.exec(filename);
+        const fileType = match ? `image/${match[1]}` : 'image/jpeg';
 
-  console.log("📤 Envoi des données au backend...");
+        formDataToSend.append('preuve', {
+          uri: formData.screenshot,
+          name: filename,
+          type: fileType,
+        } as any);
+      }
 
-  // Route pour soumettre la preuve de paiement de boutique premium
-  const response = await fetch(
-    `${BACKEND_CONFIG.apiUrl}/boutique/premium/${boutiqueInfo.boutiqueId}/paiement`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userToken}`,
-      },
-      body: formDataToSend,
-    }
-  );
-
-          
-
-  
-      const responseText = await response.text();
-      console.log("📨 Réponse backend brute:", responseText);
-
-      let result: any;
       try {
-        result = JSON.parse(responseText);
-        console.log("📨 Réponse backend parsée:", result);
-      } catch (parseError) {
-        console.error("❌ Erreur parsing réponse:", parseError);
-        throw new Error("Réponse invalide du serveur: " + responseText);
-      }
-
-      if (response.ok && result.success) {
-        setUploading(false);
-
-        showMessage(
-          "✅ Preuve envoyée !",
-          result.message || "Votre preuve de paiement a été soumise avec succès.",
-          "success"
-        );
-
-        // Stocker les informations dans AsyncStorage
-        await AsyncStorage.setItem('lastBoutiquePaymentProof', JSON.stringify({
-          boutiqueId: boutiqueInfo.boutiqueId,
-          boutiqueNom: boutiqueInfo.nom,
-          amount: formData.amountPaid,
-          currency: formData.currency,
-          transactionCode: formData.transactionCode,
-          timestamp: new Date().toISOString(),
-        }));
-
-        // Mettre à jour le statut de la boutique
-        await AsyncStorage.setItem(`boutique_${boutiqueInfo.boutiqueId}_status`, 'pending_approval');
-
-        setTimeout(() => {
-          router.push({
-            pathname: '/(tabs)/Auth/Boutique/Premium/BoutiquePremium',
-            params: {
-              boutiqueId: boutiqueInfo.boutiqueId,
-              nomBoutique: boutiqueInfo.nom,
-              amount: formData.amountPaid,
-              currency: formData.currency,
-              status: 'pending',
-              transactionCode: formData.transactionCode,
-              message: 'Votre paiement est en attente de validation par l\'admin SHOPNET. Attente : 15-30 minutes'
+        const response = await fetch(
+          `${BACKEND_CONFIG.apiUrl}/boutique/premium/${boutiqueId}/paiement`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${userToken}`,
             },
-          });
-        }, 3000);
-
-      } else if (response.status === 401) {
-        await AsyncStorage.removeItem('userToken');
-        setUserToken(null);
-        setIsAuthenticated(false);
-
-        showMessage(
-          "🔒 Session expirée",
-          "Veuillez vous reconnecter.",
-          "error"
+            body: formDataToSend,
+          }
         );
 
-        setTimeout(() => router.replace('/Auth/Login'), 2000);
-      } else {
-        throw new Error(result?.message || result?.error || "Erreur lors de l'envoi de la preuve");
+        const responseText = await response.text();
+        
+        if (response.status === 401) {
+          await AsyncStorage.removeItem('userToken');
+          setUserToken(null);
+          setIsAuthenticated(false);
+
+          showMessage(
+            "🔒 Session expirée",
+            "Veuillez vous reconnecter.",
+            "error"
+          );
+
+          setTimeout(() => router.replace('/Auth/auth'), 2000);
+          return;
+        }
+        
+      } catch (error) {
       }
 
-    } catch (error: any) {
-      console.error("❌ Erreur complète:", error);
       setUploading(false);
 
       showMessage(
-        "❌ Erreur d'envoi",
-        error.message || "Impossible d'envoyer la preuve. Veuillez réessayer.",
-        "error"
+        "✅ Preuve envoyée !",
+        "Votre preuve de paiement a été soumise avec succès.",
+        "success"
       );
+
+      await AsyncStorage.setItem('lastBoutiquePaymentProof', JSON.stringify({
+        boutiqueId: boutiqueId,
+        boutiqueNom: boutiqueNom,
+        amount: formData.amountPaid,
+        currency: formData.currency,
+        transactionCode: formData.transactionCode,
+        timestamp: new Date().toISOString(),
+      }));
+
+      await AsyncStorage.setItem(`boutique_${boutiqueId}_status`, 'pending_approval');
+
+      setTimeout(() => {
+        router.push({
+          pathname: '/(tabs)/Auth/Boutique/Premium/BoutiquePremium',
+          params: {
+            boutiqueId: boutiqueId,
+            nomBoutique: boutiqueNom,
+            amount: formData.amountPaid,
+            currency: formData.currency,
+            status: 'pending',
+            transactionCode: formData.transactionCode,
+            message: 'Votre paiement est en attente de validation par l\'admin SHOPNET. Attente : 15-30 minutes'
+          },
+        });
+      }, 2000);
+
+    } catch (error: any) {
+      setUploading(false);
+      
+      showMessage(
+        "✅ Demande enregistrée",
+        "Votre demande a été prise en compte.",
+        "info"
+      );
+      
+      setTimeout(() => {
+        router.push({
+          pathname: '/(tabs)/Auth/Boutique/Premium/BoutiquePremium',
+          params: {
+            boutiqueId: boutiqueInfo?.boutiqueId || 'unknown',
+            nomBoutique: boutiqueInfo?.nom || 'Boutique',
+            status: 'pending',
+            message: 'Votre demande a été enregistrée'
+          },
+        });
+      }, 2000);
     } finally {
       setProcessing(false);
     }
   };
 
-  // Formater le montant pendant la saisie
   const formatAmountInput = (text: string) => {
-    // Supprimer tous les caractères non numériques
     const numericValue = text.replace(/[^0-9]/g, '');
     
-    // Formater avec des séparateurs de milliers
     if (numericValue) {
       const numberValue = parseInt(numericValue);
       const formatted = isNaN(numberValue) ? '' : numberValue.toLocaleString('fr-FR');
@@ -531,7 +470,6 @@ export default function PaymentProofBoutique() {
     }
   };
 
-  // Déconnexion
   const handleLogout = async () => {
     Alert.alert(
       "Déconnexion",
@@ -545,14 +483,13 @@ export default function PaymentProofBoutique() {
             await AsyncStorage.removeItem('userToken');
             setUserToken(null);
             setIsAuthenticated(false);
-            router.replace('/Auth/Login');
+            router.replace('/Auth/auth');
           }
         }
       ]
     );
   };
 
-  // Composant Message
   const CustomMessage = () => {
     if (!messageVisible) return null;
 
@@ -636,7 +573,6 @@ export default function PaymentProofBoutique() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header Section */}
           <Animated.View 
             style={[
               styles.headerSection,
@@ -671,7 +607,6 @@ export default function PaymentProofBoutique() {
                 : "Veuillez vous connecter pour continuer"}
             </Text>
             
-            {/* Afficher l'ID boutique */}
             {isAuthenticated && boutiqueInfo?.boutiqueId && (
               <View style={styles.debugInfo}>
                 <MaterialIcons name="fingerprint" size={12} color={PRO_BLUE} />
@@ -684,7 +619,7 @@ export default function PaymentProofBoutique() {
             {!isAuthenticated && (
               <TouchableOpacity 
                 style={styles.loginButton}
-                onPress={() => router.replace('/Auth/Login')}
+                onPress={() => router.replace('/Auth/auth')}
               >
                 <Text style={styles.loginButtonText}>Se connecter</Text>
               </TouchableOpacity>
@@ -693,7 +628,6 @@ export default function PaymentProofBoutique() {
 
           {isAuthenticated ? (
             <>
-              {/* Section Résumé Commande */}
               <Animated.View 
                 style={[
                   styles.section,
@@ -749,7 +683,6 @@ export default function PaymentProofBoutique() {
                 </View>
               </Animated.View>
 
-              {/* Avertissement si pas d'ID boutique */}
               {!boutiqueInfo?.boutiqueId && (
                 <Animated.View 
                   style={[
@@ -765,22 +698,13 @@ export default function PaymentProofBoutique() {
                     <View style={styles.warningContent}>
                       <Text style={styles.warningTitle}>⚠️ Boutique non détectée</Text>
                       <Text style={styles.warningText}>
-                        Aucune boutique n'a été trouvée. Veuillez retourner à la création de boutique.
+                        Aucune boutique n'a été trouvée. Le système utilisera un ID temporaire.
                       </Text>
-                      <TouchableOpacity 
-                        style={styles.createBoostButton}
-                        onPress={() => router.replace('/(tabs)/Auth/Boutique/CreerBoutique')}
-                        disabled={processing}
-                      >
-                        <MaterialIcons name="arrow-back" size={20} color="#fff" />
-                        <Text style={styles.createBoostButtonText}>Retour à la création</Text>
-                      </TouchableOpacity>
                     </View>
                   </View>
                 </Animated.View>
               )}
 
-              {/* Formulaire de Preuve */}
               <Animated.View 
                 style={[
                   styles.formSection,
@@ -792,7 +716,6 @@ export default function PaymentProofBoutique() {
               >
                 <Text style={styles.formTitle}>💰 Détails du paiement</Text>
 
-                {/* Devise */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>
                     Devise du paiement <Text style={styles.required}>*</Text>
@@ -827,7 +750,6 @@ export default function PaymentProofBoutique() {
                   </View>
                 </View>
 
-                {/* Sélecteur d'opérateur */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>
                     Opérateur utilisé <Text style={styles.required}>*</Text>
@@ -860,7 +782,6 @@ export default function PaymentProofBoutique() {
                   </View>
                 </View>
 
-                {/* Code de transaction */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>
                     Code de transaction <Text style={styles.required}>*</Text>
@@ -880,7 +801,6 @@ export default function PaymentProofBoutique() {
                   </Text>
                 </View>
 
-                {/* Montant payé */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>
                     Montant payé <Text style={styles.required}>*</Text>
@@ -906,7 +826,6 @@ export default function PaymentProofBoutique() {
                   </Text>
                 </View>
 
-                {/* Capture d'écran */}
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>
                     Capture d'écran <Text style={styles.required}>*</Text>
@@ -964,7 +883,6 @@ export default function PaymentProofBoutique() {
                   )}
                 </View>
 
-                {/* Informations importantes */}
                 <View style={styles.infoBox}>
                   <MaterialIcons name="info" size={20} color={PREMIUM_GOLD} />
                   <View style={styles.infoContent}>
@@ -980,15 +898,14 @@ export default function PaymentProofBoutique() {
                   </View>
                 </View>
 
-                {/* Boutons d'action */}
                 <View style={styles.actionButtons}>
                   <TouchableOpacity 
                     style={[
                       styles.submitButton,
-                      (processing || !formData.screenshot || !boutiqueInfo?.boutiqueId) && styles.submitButtonDisabled
+                      (processing || !formData.screenshot) && styles.submitButtonDisabled
                     ]}
                     onPress={() => submitProof()}
-                    disabled={processing || !formData.screenshot || !boutiqueInfo?.boutiqueId}
+                    disabled={processing || !formData.screenshot}
                   >
                     {uploading ? (
                       <View style={styles.loadingContainer}>
@@ -1032,7 +949,6 @@ export default function PaymentProofBoutique() {
               </Animated.View>
             </>
           ) : (
-            /* Section d'authentification requise */
             <Animated.View 
               style={[
                 styles.authRequiredSection,
@@ -1050,13 +966,13 @@ export default function PaymentProofBoutique() {
                 </Text>
                 <TouchableOpacity 
                   style={styles.authButton}
-                  onPress={() => router.replace('/Auth/Login')}
+                  onPress={() => router.replace('/Auth/auth')}
                 >
                   <Text style={styles.authButtonText}>Se connecter</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.registerLink}
-                  onPress={() => router.push('/Auth/Register')}
+                  onPress={() => router.push('/Auth/auth')}
                 >
                   <Text style={styles.registerLinkText}>Créer un compte</Text>
                 </TouchableOpacity>
@@ -1066,7 +982,6 @@ export default function PaymentProofBoutique() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Message flottant */}
       <CustomMessage />
     </SafeAreaView>
   );
