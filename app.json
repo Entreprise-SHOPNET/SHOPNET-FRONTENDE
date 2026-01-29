@@ -21,7 +21,6 @@
     "android": {
       "package": "com.shopai.app",
       "googleServicesFile": "./google-services.json",
-
       "permissions": ["POST_NOTIFICATIONS"],
 
       "adaptiveIcon": {
@@ -32,7 +31,9 @@
       "notification": {
         "icon": "./assets/images/notification-icon.png",
         "color": "#4CB050"
-      }
+      },
+
+      "targetSdkVersion": 35
     },
 
     "web": {
