@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
@@ -41,7 +38,7 @@ type Notification = {
   id: string;
   title: string;
   message: string;
-  type: 'statistic' | 'order' | 'message' | 'shop' | 'promotion' | 'setting';
+  type: "statistic" | "order" | "message" | "shop" | "promotion" | "setting";
   isRead: boolean;
   createdAt: string;
   icon?: string;
@@ -74,122 +71,129 @@ type UserProfile = {
 // Données mockées pour les notifications
 const MOCK_NOTIFICATIONS: Notification[] = [
   {
-    id: '1',
-    title: 'Nouvelle statistique 📈',
-    message: 'Votre boutique a été vue 150 fois cette semaine',
-    type: 'statistic',
+    id: "1",
+    title: "Nouvelle statistique 📈",
+    message: "Votre boutique a été vue 150 fois cette semaine",
+    type: "statistic",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    icon: 'bar-chart',
-    data: { views: 150 }
+    icon: "bar-chart",
+    data: { views: 150 },
   },
   {
-    id: '2',
-    title: 'Nouvelle commande 🛒',
-    message: 'Commande #7890 confirmée par Marie',
-    type: 'order',
+    id: "2",
+    title: "Nouvelle commande 🛒",
+    message: "Commande #7890 confirmée par Marie",
+    type: "order",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    icon: 'cart',
-    data: { orderId: 7890 }
+    icon: "cart",
+    data: { orderId: 7890 },
   },
   {
-    id: '3',
-    title: 'Nouveau message 💬',
-    message: 'Jean vous a envoyé un message',
-    type: 'message',
+    id: "3",
+    title: "Nouveau message 💬",
+    message: "Jean vous a envoyé un message",
+    type: "message",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    icon: 'chatbubble',
-    data: { sender: 'Jean' }
+    icon: "chatbubble",
+    data: { sender: "Jean" },
   },
   {
-    id: '4',
-    title: 'Mise à jour boutique 🏪',
-    message: 'Votre boutique a été mise en avant',
-    type: 'shop',
+    id: "4",
+    title: "Mise à jour boutique 🏪",
+    message: "Votre boutique a été mise en avant",
+    type: "shop",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    icon: 'store',
-    data: { featured: true }
+    icon: "store",
+    data: { featured: true },
   },
   {
-    id: '5',
-    title: 'Promotion expirant bientôt ⏰',
-    message: 'Votre promotion sur les smartphones expire dans 2h',
-    type: 'promotion',
+    id: "5",
+    title: "Promotion expirant bientôt ⏰",
+    message: "Votre promotion sur les smartphones expire dans 2h",
+    type: "promotion",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    icon: 'pricetag',
-    data: { promotionId: 123 }
+    icon: "pricetag",
+    data: { promotionId: 123 },
   },
   {
-    id: '6',
-    title: 'Mise à jour paramètres ⚙️',
-    message: 'Nouvelles options de paiement disponibles',
-    type: 'setting',
+    id: "6",
+    title: "Mise à jour paramètres ⚙️",
+    message: "Nouvelles options de paiement disponibles",
+    type: "setting",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
-    icon: 'settings',
-    data: { feature: 'paiement' }
+    icon: "settings",
+    data: { feature: "paiement" },
   },
   {
-    id: '7',
-    title: 'Commande annulée ❌',
-    message: 'Commande #7891 a été annulée',
-    type: 'order',
+    id: "7",
+    title: "Commande annulée ❌",
+    message: "Commande #7891 a été annulée",
+    type: "order",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-    icon: 'close-circle',
-    data: { orderId: 7891 }
+    icon: "close-circle",
+    data: { orderId: 7891 },
   },
   {
-    id: '8',
-    title: 'Nouveau commentaire ⭐',
-    message: 'Pierre a commenté votre produit',
-    type: 'message',
+    id: "8",
+    title: "Nouveau commentaire ⭐",
+    message: "Pierre a commenté votre produit",
+    type: "message",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 200).toISOString(),
-    icon: 'star',
-    data: { productId: 456 }
+    icon: "star",
+    data: { productId: 456 },
   },
   {
-    id: '9',
-    title: 'Statistique hebdomadaire 📊',
-    message: '+25% de ventes cette semaine',
-    type: 'statistic',
+    id: "9",
+    title: "Statistique hebdomadaire 📊",
+    message: "+25% de ventes cette semaine",
+    type: "statistic",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-    icon: 'trending-up',
-    data: { increase: 25 }
+    icon: "trending-up",
+    data: { increase: 25 },
   },
   {
-    id: '10',
-    title: 'Promotion créée 🎉',
-    message: 'Votre promotion sur les casques est active',
-    type: 'promotion',
+    id: "10",
+    title: "Promotion créée 🎉",
+    message: "Votre promotion sur les casques est active",
+    type: "promotion",
     isRead: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
-    icon: 'flash',
-    data: { promotionId: 456 }
-  }
+    icon: "flash",
+    data: { promotionId: 456 },
+  },
 ];
 
 // Composant pour les badges de notification
-const NotificationBadge = ({ count, small = false }: { count: number, small?: boolean }) => {
+const NotificationBadge = ({
+  count,
+  small = false,
+}: {
+  count: number;
+  small?: boolean;
+}) => {
   if (count <= 0) return null;
-  
-  const displayCount = count > 10 ? '+9' : count.toString();
-  
+
+  const displayCount = count > 10 ? "+9" : count.toString();
+
   return (
-    <View style={[
-      styles.badge,
-      small ? styles.smallBadge : styles.regularBadge,
-    ]}>
-      <Text style={[
-        styles.badgeText,
-        small ? styles.smallBadgeText : styles.regularBadgeText
-      ]}>
+    <View
+      style={[styles.badge, small ? styles.smallBadge : styles.regularBadge]}
+    >
+      <Text
+        style={[
+          styles.badgeText,
+          small ? styles.smallBadgeText : styles.regularBadgeText,
+        ]}
+      >
         {displayCount}
       </Text>
     </View>
@@ -299,7 +303,9 @@ const FullscreenPhotoModalComponent = ({
       ) : (
         <View style={styles.fullscreenPlaceholder}>
           <Ionicons name="image" size={60} color="#FFFFFF" />
-          <Text style={styles.fullscreenPlaceholderText}>Image non disponible</Text>
+          <Text style={styles.fullscreenPlaceholderText}>
+            Image non disponible
+          </Text>
         </View>
       )}
     </View>
@@ -315,19 +321,22 @@ export default function ProfilVendeurPremium() {
   const [refreshing, setRefreshing] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
-  const [photoModalType, setPhotoModalType] = useState<"profile" | "cover" | null>(null);
+  const [photoModalType, setPhotoModalType] = useState<
+    "profile" | "cover" | null
+  >(null);
   const [uploading, setUploading] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
 
   // État pour les notifications et badges
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] =
+    useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [badgeCounts, setBadgeCounts] = useState({
     statistics: generateRandomCount(0, 15),
     orders: generateRandomCount(0, 15),
     messages: generateRandomCount(0, 15),
     boutique: generateRandomCount(0, 15),
     promotions: generateRandomCount(0, 15),
-    settings: generateRandomCount(0, 15)
+    settings: generateRandomCount(0, 15),
   });
 
   // Charger token et profil
@@ -349,7 +358,7 @@ export default function ProfilVendeurPremium() {
 
   useEffect(() => {
     loadTokenAndUser();
-    
+
     const updateBadgeCounts = () => {
       setBadgeCounts({
         statistics: generateRandomCount(0, 15),
@@ -357,36 +366,38 @@ export default function ProfilVendeurPremium() {
         messages: generateRandomCount(0, 15),
         boutique: generateRandomCount(0, 15),
         promotions: generateRandomCount(0, 15),
-        settings: generateRandomCount(0, 15)
+        settings: generateRandomCount(0, 15),
       });
     };
 
     const interval = setInterval(updateBadgeCounts, 30000);
     updateBadgeCounts();
-    
+
     return () => clearInterval(interval);
   }, []);
 
   // Fonction pour réinitialiser un badge
   const resetBadge = (key: keyof typeof badgeCounts) => {
-    setBadgeCounts(prev => ({
+    setBadgeCounts((prev) => ({
       ...prev,
-      [key]: 0
+      [key]: 0,
     }));
-    
-    const typeMap: { [key: string]: Notification['type'] } = {
-      statistics: 'statistic',
-      orders: 'order',
-      messages: 'message',
-      boutique: 'shop',
-      promotions: 'promotion',
-      settings: 'setting'
+
+    const typeMap: { [key: string]: Notification["type"] } = {
+      statistics: "statistic",
+      orders: "order",
+      messages: "message",
+      boutique: "shop",
+      promotions: "promotion",
+      settings: "setting",
     };
-    
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.type === typeMap[key] ? { ...notification, isRead: true } : notification
-      )
+
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        notification.type === typeMap[key]
+          ? { ...notification, isRead: true }
+          : notification,
+      ),
     );
   };
 
@@ -473,7 +484,8 @@ export default function ProfilVendeurPremium() {
   const handleChoosePhoto = useCallback(async () => {
     if (!token || !photoModalType) return;
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") throw new Error("Permission refusée");
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -544,12 +556,15 @@ export default function ProfilVendeurPremium() {
   }, []);
 
   // Gestion de la navigation avec réinitialisation des badges
-  const handleNavigation = useCallback((route: string, badgeKey?: keyof typeof badgeCounts) => {
-    if (badgeKey) {
-      resetBadge(badgeKey);
-    }
-    router.push(route);
-  }, [router]);
+  const handleNavigation = useCallback(
+    (route: string, badgeKey?: keyof typeof badgeCounts) => {
+      if (badgeKey) {
+        resetBadge(badgeKey);
+      }
+      router.push(route);
+    },
+    [router],
+  );
 
   const renderProductItem = useCallback(
     ({ item }: { item: Product }) => (
@@ -795,13 +810,13 @@ export default function ProfilVendeurPremium() {
                 route: "/(tabs)/Auth/Panier/VendeurNotifications",
               },
               {
-                title: "Messages",
-                subtitle: "Support clients",
-                icon: "message-square",
+                title: "Aide & Support",
+                subtitle: "Besoin d'assistance ?",
+                icon: "headphones",
                 color: "#FFA726",
                 badgeCount: badgeCounts.messages,
                 badgeKey: "messages" as const,
-                route: "/MisAjour",
+                route: "/(tabs)/Auth/Produits/Support",
               },
               {
                 title: "Boost Pro",
@@ -850,8 +865,8 @@ export default function ProfilVendeurPremium() {
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={async () => {
-                resetBadge('boutique');
-                
+                resetBadge("boutique");
+
                 try {
                   const token = await AsyncStorage.getItem("userToken");
                   if (!token) {
@@ -927,7 +942,7 @@ export default function ProfilVendeurPremium() {
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={() => {
-                resetBadge('promotions');
+                resetBadge("promotions");
                 router.push("/MisAjour");
               }}
             >
@@ -939,7 +954,11 @@ export default function ProfilVendeurPremium() {
                       { backgroundColor: `${PRO_BLUE}15` },
                     ]}
                   >
-                    <MaterialIcons name="local-offer" size={24} color={PRO_BLUE} />
+                    <MaterialIcons
+                      name="local-offer"
+                      size={24}
+                      color={PRO_BLUE}
+                    />
                     {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 */}
                     {badgeCounts.promotions > 0 && (
                       <NotificationBadge count={badgeCounts.promotions} small />
@@ -953,7 +972,7 @@ export default function ProfilVendeurPremium() {
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={() => {
-                resetBadge('settings');
+                resetBadge("settings");
                 router.push("/Auth/Produits/parametre");
               }}
             >
@@ -1309,7 +1328,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dashboardIconContainer: {
-    position: 'relative',
+    position: "relative",
   },
   dashboardIcon: {
     width: 50,
@@ -1348,7 +1367,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   quickActionIconContainer: {
-    position: 'relative',
+    position: "relative",
   },
   quickActionIcon: {
     width: 56,
