@@ -1,4 +1,5 @@
 // app/_layout.tsx
+
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   DarkTheme,
@@ -9,18 +10,15 @@ import { useFonts } from "expo-font";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { View, Text, Platform } from "react-native";
+import { View, Text } from "react-native";
 import "react-native-reanimated";
 import { useColorScheme } from "../components/useColorScheme";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import {
   registerForPushNotificationsAsync,
   listenNotifications,
 } from "../services/notifications";
 import SharePrompt from "../SharePrompt";
-
-// ✅ Ajout SafeArea pour tous les écrans
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export { ErrorBoundary } from "expo-router";
@@ -58,57 +56,65 @@ function RootLayoutNav() {
   const [notifMessage, setNotifMessage] = useState("");
 
   useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
     const initNotifications = async () => {
       if (!Device.isDevice) {
-        console.log("ℹ️ Pas un vrai appareil → notifications désactivées");
+        console.log("ℹ️ Pas un vrai appareil");
         return;
       }
 
-      if (globalThis.currentUser?.id) {
-        await registerForPushNotificationsAsync(globalThis.currentUser.id);
-      }
+      // 🔥 Attendre que l'utilisateur soit disponible
+      const checkUserInterval = setInterval(async () => {
+        if (globalThis.currentUser?.id) {
+          clearInterval(checkUserInterval);
 
-      if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync("default", {
-          name: "default",
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: "#FF231F7C",
-        });
-      }
+          console.log(
+            "👤 Utilisateur détecté pour notifications:",
+            globalThis.currentUser.id
+          );
 
-      listenNotifications(
-        (notification) => {
-          const message = notification.request.content.body || "";
-          setNotifMessage(message);
-          setNotifVisible(true);
-          setTimeout(() => setNotifVisible(false), 4000);
-        },
-        (response) => {
-          const data = response.notification.request.content.data || {};
-          const productId = data.productId;
+          await registerForPushNotificationsAsync(
+            globalThis.currentUser.id
+          );
 
-          if (productId) {
-            router.push(`/(tabs)/Auth/Panier/DetailId`);
-          } else {
-            router.push("/Auth/Produits/Fil");
-          }
-        },
-      );
+          cleanup = listenNotifications(
+            (notification) => {
+              const message =
+                notification.request.content.body || "";
+              setNotifMessage(message);
+              setNotifVisible(true);
+              setTimeout(() => setNotifVisible(false), 4000);
+            },
+            (response) => {
+              const data =
+                response.notification.request.content.data || {};
+              const productId = data.productId;
+
+              if (productId) {
+                router.push(`/(tabs)/Auth/Panier/DetailId`);
+              } else {
+                router.push("/Auth/Produits/Fil");
+              }
+            }
+          );
+        }
+      }, 500);
     };
 
     initNotifications();
+
+    return () => {
+      if (cleanup) cleanup();
+    };
   }, []);
 
   return (
-    // ✅ SafeAreaProvider pour toute l'app
     <SafeAreaProvider>
-      {/* SafeAreaView avec flex:1 et edges top/bottom */}
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
         >
-          {/* Bannière notification */}
           {notifVisible && (
             <View
               style={{
@@ -133,10 +139,8 @@ function RootLayoutNav() {
             </View>
           )}
 
-          {/* SharePrompt sur toutes les pages */}
           <SharePrompt />
 
-          {/* Navigation stack */}
           <Stack
             initialRouteName="index"
             screenOptions={{ headerShown: false }}

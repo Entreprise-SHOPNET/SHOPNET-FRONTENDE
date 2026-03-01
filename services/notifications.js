@@ -1,9 +1,9 @@
 // services/notifications.js
-// services/notifications.js
 
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 // 🔔 Comportement des notifications quand l'app est au premier plan
 Notifications.setNotificationHandler({
@@ -15,6 +15,23 @@ Notifications.setNotificationHandler({
 });
 
 /**
+ * 🔥 CONFIGURATION ANDROID (OBLIGATOIRE EN PRODUCTION)
+ * Crée le Notification Channel pour Android 8+
+ */
+export async function configureAndroidChannel() {
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "default",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#4CB050",
+    });
+
+    console.log("✅ Notification Channel Android configuré");
+  }
+}
+
+/**
  * Enregistrer l'appareil et envoyer le token Expo au backend
  * ✅ COMPATIBLE EXPO GO
  * ✅ COMPATIBLE APK / AAB (PRODUCTION)
@@ -22,6 +39,9 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotificationsAsync(userId) {
   try {
     console.log("⚡️ Demande permission notifications pour userId:", userId);
+
+    // 🔥 Important : créer le channel Android avant tout
+    await configureAndroidChannel();
 
     // ❌ Notifications uniquement sur vrai appareil
     if (!Device.isDevice) {
@@ -54,7 +74,7 @@ export async function registerForPushNotificationsAsync(userId) {
 
     console.log("✅ Expo Push Token:", expoPushToken);
 
-    // 📡 Envoi backend (non bloquant)
+    // 📡 Envoi backend
     await sendTokenToBackend(expoPushToken, userId);
 
     return expoPushToken;
@@ -85,7 +105,7 @@ async function sendTokenToBackend(token, userId) {
           userId,
           expoPushToken: token,
         }),
-      },
+      }
     );
 
     const data = await response.json();
