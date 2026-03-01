@@ -17,21 +17,23 @@ import {
   Animated,
   SafeAreaView,
   StatusBar,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === "android") {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
 // 🔹 Serveur Render en production
 const API_URL = "https://shopnet-backend.onrender.com/api/products";
 const COMMAND_API_URL = "https://shopnet-backend.onrender.com/api/commandes";
 const PANIER_API_URL = "https://shopnet-backend.onrender.com/api/cart";
-
-// 🔹 Serveur local pour développement (commenté)
-// const API_URL = "http://100.64.134.89:5000/api/products";
-// const COMMAND_API_URL = "http://100.64.134.89:5000/api/commandes";
-// const PANIER_API_URL = "http://100.64.134.89:5000/api/cart";
-
 
 const { width, height } = Dimensions.get("window");
 
@@ -46,6 +48,8 @@ const SUCCESS_GREEN = "#4CAF50";
 const ERROR_RED = "#FF6B6B";
 const WARNING_ORANGE = "#FFA726";
 const WHATSAPP_GREEN = "#25D366";
+const LINK_BLUE = "#5D9CEC";
+const LINK_PURPLE = "#9B59B6";
 
 const formatPrice = (price: any) => {
   const n = Number(price);
@@ -67,6 +71,202 @@ const getValidToken = async () => {
   }
 };
 
+// Fonction pour nettoyer le texte des espaces superflus
+const cleanText = (text: string) => {
+  if (!text) return "";
+  // Remplacer les espaces multiples par un seul espace
+  return text.replace(/\s+/g, ' ').trim();
+};
+
+// 🔗 Fonction pour détecter les URLs dans un texte
+const extractUrls = (text: string): { url: string; type: string }[] => {
+  if (!text) return [];
+  
+  const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
+  
+  const urls: { url: string; type: string }[] = [];
+  let match;
+  
+  while ((match = urlRegex.exec(text)) !== null) {
+    let url = match[0];
+    
+    let type = "lien";
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      type = "youtube";
+    } else if (url.includes('facebook.com')) {
+      type = "facebook";
+    } else if (url.includes('instagram.com')) {
+      type = "instagram";
+    } else if (url.includes('twitter.com') || url.includes('x.com')) {
+      type = "twitter";
+    } else if (url.includes('tiktok.com')) {
+      type = "tiktok";
+    } else if (url.includes('amazon.com') || url.includes('amzn.to')) {
+      type = "amazon";
+    } else if (url.includes('ebay.com')) {
+      type = "ebay";
+    } else if (url.includes('.pdf')) {
+      type = "pdf";
+    } else if (url.includes('.jpg') || url.includes('.png') || url.includes('.gif')) {
+      type = "image";
+    }
+    
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    urls.push({ url, type });
+  }
+  
+  return urls;
+};
+
+// 🔗 Composant pour afficher un lien avec icône
+const LinkComponent = ({ url, type, onPress }: { url: string; type: string; onPress: (url: string) => void }) => {
+  const getIconForType = () => {
+    switch(type) {
+      case "youtube":
+        return <Ionicons name="logo-youtube" size={20} color="#FF0000" />;
+      case "facebook":
+        return <Ionicons name="logo-facebook" size={20} color="#1877F2" />;
+      case "instagram":
+        return <Ionicons name="logo-instagram" size={20} color="#E4405F" />;
+      case "twitter":
+        return <Ionicons name="logo-twitter" size={20} color="#1DA1F2" />;
+      case "tiktok":
+        return <Ionicons name="logo-tiktok" size={20} color="#000000" />;
+      case "amazon":
+        return <Ionicons name="cart" size={20} color="#FF9900" />;
+      case "ebay":
+        return <Ionicons name="pricetag" size={20} color="#E53238" />;
+      case "pdf":
+        return <Ionicons name="document-text" size={20} color="#FF5722" />;
+      case "image":
+        return <Ionicons name="image" size={20} color="#4CAF50" />;
+      default:
+        return <Ionicons name="link" size={20} color={LINK_BLUE} />;
+    }
+  };
+
+  const getDomain = (url: string) => {
+    try {
+      const domain = new URL(url).hostname.replace('www.', '');
+      return domain;
+    } catch {
+      return url.substring(0, 30) + (url.length > 30 ? '...' : '');
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={styles.linkItem}
+      onPress={() => onPress(url)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.linkIconContainer}>
+        {getIconForType()}
+      </View>
+      <View style={styles.linkContent}>
+        <Text style={styles.linkDomain} numberOfLines={1}>
+          {getDomain(url)}
+        </Text>
+        <Text style={styles.linkUrl} numberOfLines={1}>
+          {url}
+        </Text>
+      </View>
+      <View style={styles.linkArrow}>
+        <Ionicons name="open-outline" size={18} color={TEXT_SECONDARY} />
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// 📝 Composant Description avec Lire plus / Lire moins
+const ExpandableDescription = ({ description }: { description: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [textHeight, setTextHeight] = useState(0);
+  const [isLongText, setIsLongText] = useState(false);
+  const animationValue = useRef(new Animated.Value(0)).current;
+
+  // Nettoyer le texte
+  const cleanDescription = cleanText(description);
+
+  useEffect(() => {
+    // Déterminer si le texte est long (plus de 4 lignes approximativement)
+    if (textHeight > 100) {
+      setIsLongText(true);
+    }
+  }, [textHeight]);
+
+  const toggleExpand = () => {
+    LayoutAnimation.configureNext({
+      duration: 300,
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+    });
+
+    Animated.timing(animationValue, {
+      toValue: expanded ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    setExpanded(!expanded);
+  };
+
+  const rotateIcon = animationValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  if (!description) {
+    return (
+      <Text style={styles.description}>
+        Aucune description disponible pour ce produit.
+      </Text>
+    );
+  }
+
+  return (
+    <View style={styles.descriptionContainer}>
+      <Text 
+        style={[
+          styles.description,
+          !expanded && styles.descriptionCollapsed
+        ]}
+        numberOfLines={expanded ? undefined : 4}
+        onTextLayout={(e) => {
+          const { lines } = e.nativeEvent;
+          setTextHeight(lines.length * 22);
+        }}
+      >
+        {cleanDescription}
+      </Text>
+      
+      {isLongText && (
+        <TouchableOpacity 
+          style={styles.readMoreButton} 
+          onPress={toggleExpand}
+          activeOpacity={0.7}
+        >
+          <View style={styles.readMoreContent}>
+            <Text style={styles.readMoreText}>
+              {expanded ? "Voir moins" : "Voir plus"}
+            </Text>
+            <Animated.View style={{ transform: [{ rotate: rotateIcon }] }}>
+              <Ionicons 
+                name="chevron-down" 
+                size={18} 
+                color={PRO_BLUE} 
+              />
+            </Animated.View>
+          </View>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
 export default function DetailId() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -78,6 +278,12 @@ export default function DetailId() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  
+  // 📏 État pour stocker les dimensions calculées des images
+  const [imageDimensions, setImageDimensions] = useState<{[key: string]: {width: number, height: number}}>({});
+  
+  // 🔗 État pour stocker les liens détectés
+  const [detectedLinks, setDetectedLinks] = useState<{url: string; type: string}[]>([]);
 
   // Animations
   const [notificationVisible, setNotificationVisible] = useState(false);
@@ -85,6 +291,8 @@ export default function DetailId() {
   const notificationPosition = useRef(new Animated.Value(-100)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  const flatListRef = useRef<FlatList>(null);
 
   const showNotification = (message: string) => {
     setNotificationMessage(message);
@@ -107,6 +315,56 @@ export default function DetailId() {
     });
   };
 
+  // 📏 Fonction pour obtenir les dimensions d'une image
+  const getImageDimensions = (uri: string) => {
+    return new Promise<{width: number, height: number}>((resolve) => {
+      Image.getSize(
+        uri,
+        (imgWidth, imgHeight) => {
+          resolve({ width: imgWidth, height: imgHeight });
+        },
+        () => {
+          resolve({ width: 1, height: 1 });
+        }
+      );
+    });
+  };
+
+  // 📏 Calculer la hauteur adaptative pour une image
+  const getAdaptiveHeight = (uri: string, screenWidth: number = width) => {
+    if (imageDimensions[uri]) {
+      const { width: imgWidth, height: imgHeight } = imageDimensions[uri];
+      return (imgHeight / imgWidth) * screenWidth;
+    }
+    return 400;
+  };
+
+  // 📏 Charger les dimensions de toutes les images
+  useEffect(() => {
+    if (product?.image_urls?.length > 0) {
+      const loadDimensions = async () => {
+        const dimensions: {[key: string]: {width: number, height: number}} = {};
+        for (const url of product.image_urls) {
+          try {
+            dimensions[url] = await getImageDimensions(url);
+          } catch (error) {
+            dimensions[url] = { width: 1, height: 1 };
+          }
+        }
+        setImageDimensions(dimensions);
+      };
+      loadDimensions();
+    }
+  }, [product]);
+
+  // 🔗 Détecter les liens dans la description quand le produit est chargé
+  useEffect(() => {
+    if (product?.description) {
+      const links = extractUrls(product.description);
+      setDetectedLinks(links);
+    }
+  }, [product]);
+
   const fetchProduct = async () => {
     setLoading(true);
     try {
@@ -123,10 +381,13 @@ export default function DetailId() {
         if (!prod.image_urls && prod.images) {
           prod.image_urls = prod.images.map((img: any) => img.url);
         }
+        // Nettoyer la description avant de la stocker
+        if (prod.description) {
+          prod.description = cleanText(prod.description);
+        }
         setProduct(prod);
         fetchSimilar(prod.category);
 
-        // Animation d'entrée
         Animated.parallel([
           Animated.timing(fadeAnim, {
             toValue: 1,
@@ -231,7 +492,7 @@ export default function DetailId() {
       const body = {
         product_id: product.id,
         title: product.title,
-        description: product.description || "",
+        description: cleanText(product.description || ""),
         price: product.price,
         original_price: product.original_price || product.price,
         category: product.category || "",
@@ -275,6 +536,14 @@ export default function DetailId() {
     setModalVisible(true);
   };
 
+  const scrollToImage = (index: number) => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToIndex({ index, animated: true });
+    }
+    setActiveImageIndex(index);
+    setSelectedImage(product.image_urls[index]);
+  };
+
   const navigateToImage = (direction: "prev" | "next") => {
     const images = product.image_urls || [];
     if (images.length <= 1) return;
@@ -286,8 +555,60 @@ export default function DetailId() {
       newIndex = (activeImageIndex - 1 + images.length) % images.length;
     }
 
-    setActiveImageIndex(newIndex);
-    setSelectedImage(images[newIndex]);
+    scrollToImage(newIndex);
+  };
+
+  const openLink = (url: string) => {
+    Linking.openURL(url).catch(() => {
+      showNotification("❌ Impossible d'ouvrir ce lien");
+    });
+  };
+
+  const renderImageItem = ({ item, index }: { item: string; index: number }) => {
+    const adaptiveHeight = getAdaptiveHeight(item);
+    
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => showImage(item, index)}
+        style={styles.imageItemContainer}
+      >
+        <Image
+          source={{ uri: item }}
+          style={[styles.galleryImage, { height: adaptiveHeight }]}
+          resizeMode="contain"
+        />
+        {index === 0 && product.isPromotion && (
+          <View style={styles.promoBadge}>
+            <Ionicons name="flash" size={16} color={SHOPNET_BLUE} />
+            <Text style={styles.promoBadgeText}>PROMO</Text>
+          </View>
+        )}
+        {index === 0 && product.is_featured && (
+          <View style={styles.featuredBadge}>
+            <Ionicons name="star" size={14} color={TEXT_WHITE} />
+            <Text style={styles.featuredBadgeText}>SPONSORISÉ</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderThumbnailItem = ({ item, index }: { item: string; index: number }) => {
+    const isActive = index === activeImageIndex;
+    
+    return (
+      <TouchableOpacity
+        onPress={() => scrollToImage(index)}
+        activeOpacity={0.8}
+        style={[styles.thumbnailWrapper, isActive && styles.activeThumbnail]}
+      >
+        <Image source={{ uri: item }} style={styles.thumbnailImage} />
+        {index === activeImageIndex && (
+          <View style={styles.activeIndicator} />
+        )}
+      </TouchableOpacity>
+    );
   };
 
   if (loading) {
@@ -328,7 +649,7 @@ export default function DetailId() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.headerButton}
           onPress={() => router.back()}
         >
           <Ionicons name="chevron-back" size={28} color={PRO_BLUE} />
@@ -339,7 +660,7 @@ export default function DetailId() {
           <Text style={styles.headerSubtitle}>SHOPNET</Text>
         </View>
 
-        <View style={styles.headerRight} />
+        <View style={styles.headerButton} />
       </View>
 
       {/* Notification */}
@@ -363,7 +684,7 @@ export default function DetailId() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {/* Gallery d'images */}
+        {/* Galerie d'images principale */}
         <Animated.View
           style={[
             styles.imageSection,
@@ -373,33 +694,48 @@ export default function DetailId() {
             },
           ]}
         >
-          <TouchableOpacity
-            onPress={() => showImage(images[0] || "", 0)}
-            activeOpacity={0.9}
-          >
-            <Image
-              source={{ uri: images[0] || "https://via.placeholder.com/400" }}
-              style={styles.mainImage}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
+          {/* FlatList pour les images avec hauteur adaptative */}
+          <FlatList
+            ref={flatListRef}
+            data={images}
+            renderItem={renderImageItem}
+            keyExtractor={(item, index) => `image-${index}`}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(event) => {
+              const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+              setActiveImageIndex(newIndex);
+              setSelectedImage(images[newIndex]);
+            }}
+            getItemLayout={(data, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+          />
 
+          {/* Indicateur de page */}
           {images.length > 1 && (
-            <FlatList
-              data={images.slice(1)}
-              renderItem={({ item, index }) => (
-                <TouchableOpacity
-                  onPress={() => showImage(item, index + 1)}
-                  activeOpacity={0.8}
-                >
-                  <Image source={{ uri: item }} style={styles.thumbnail} />
-                </TouchableOpacity>
-              )}
-              keyExtractor={(_, idx) => (idx + 1).toString()}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.thumbnailsContainer}
-            />
+            <View style={styles.pageIndicator}>
+              <Text style={styles.pageIndicatorText}>
+                {activeImageIndex + 1} / {images.length}
+              </Text>
+            </View>
+          )}
+
+          {/* Miniatures horizontales */}
+          {images.length > 1 && (
+            <View style={styles.thumbnailsSection}>
+              <FlatList
+                data={images}
+                renderItem={renderThumbnailItem}
+                keyExtractor={(item, index) => `thumb-${index}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbnailsContainer}
+              />
+            </View>
           )}
         </Animated.View>
 
@@ -459,16 +795,35 @@ export default function DetailId() {
             </View>
           </View>
 
-          {/* Description */}
+          {/* Description avec Lire plus / Lire moins */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="document-text" size={20} color={PRO_BLUE} />
               <Text style={styles.sectionTitle}>Description</Text>
             </View>
-            <Text style={styles.description}>
-              {product.description ||
-                "Aucune description disponible pour ce produit."}
-            </Text>
+            
+            {/* Utilisation du composant ExpandableDescription */}
+            <ExpandableDescription description={product.description} />
+
+            {/* 🔗 Liens détectés dans la description */}
+            {detectedLinks.length > 0 && (
+              <View style={styles.linksSection}>
+                <View style={styles.linksHeader}>
+                  <Ionicons name="link" size={18} color={PRO_BLUE} />
+                  <Text style={styles.linksTitle}>
+                    {detectedLinks.length} lien{detectedLinks.length > 1 ? 's' : ''} détecté{detectedLinks.length > 1 ? 's' : ''}
+                  </Text>
+                </View>
+                {detectedLinks.map((link, index) => (
+                  <LinkComponent
+                    key={index}
+                    url={link.url}
+                    type={link.type}
+                    onPress={openLink}
+                  />
+                ))}
+              </View>
+            )}
           </View>
 
           {/* Informations Vendeur */}
@@ -681,98 +1036,176 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: SHOPNET_BLUE,
   },
-  backButton: {
-    padding: 4,
+  headerButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerCenter: {
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: TEXT_WHITE,
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: PRO_BLUE,
     fontWeight: "600",
     marginTop: 2,
-  },
-  headerRight: {
-    width: 28,
   },
   scrollView: {
     flex: 1,
   },
   imageSection: {
-    marginBottom: 0,
+    marginBottom: 12,
   },
-  mainImage: {
-    width: "100%",
-    height: 400,
+  imageItemContainer: {
+    width: width,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  galleryImage: {
+    width: width,
     backgroundColor: CARD_BG,
+  },
+  promoBadge: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PREMIUM_GOLD,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  promoBadgeText: {
+    color: SHOPNET_BLUE,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  featuredBadge: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: SUCCESS_GREEN,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  featuredBadgeText: {
+    color: TEXT_WHITE,
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  pageIndicator: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  pageIndicatorText: {
+    color: TEXT_WHITE,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  thumbnailsSection: {
+    marginTop: 10,
+    marginBottom: 5,
   },
   thumbnailsContainer: {
-    padding: 16,
+    paddingHorizontal: 12,
     gap: 8,
   },
-  thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
+  thumbnailWrapper: {
+    position: "relative",
+  },
+  thumbnailImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
     backgroundColor: CARD_BG,
   },
+  activeThumbnail: {
+    borderWidth: 2,
+    borderColor: PRO_BLUE,
+    borderRadius: 10,
+  },
+  activeIndicator: {
+    position: "absolute",
+    bottom: -4,
+    left: "50%",
+    marginLeft: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: PRO_BLUE,
+  },
   content: {
-    padding: 20,
+    padding: 16,
     backgroundColor: SHOPNET_BLUE,
   },
   titleSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
     color: TEXT_WHITE,
     marginBottom: 8,
-    lineHeight: 34,
+    lineHeight: 30,
   },
   categoryBadge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
     backgroundColor: "rgba(66, 165, 245, 0.1)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
     gap: 6,
   },
   category: {
     color: PRO_BLUE,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
   },
   priceStockSection: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
   },
   priceContainer: {
     flexDirection: "row",
     alignItems: "baseline",
-    gap: 12,
+    gap: 10,
   },
   price: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "800",
     color: PREMIUM_GOLD,
   },
   originalPrice: {
-    fontSize: 18,
+    fontSize: 16,
     color: TEXT_SECONDARY,
     textDecorationLine: "line-through",
     fontWeight: "500",
@@ -780,39 +1213,111 @@ const styles = StyleSheet.create({
   stockBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
     gap: 6,
   },
   stockText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
   },
   section: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 8,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: TEXT_WHITE,
   },
+  // Styles pour la description extensible
+  descriptionContainer: {
+    width: "100%",
+  },
   description: {
     color: TEXT_SECONDARY,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: "justify",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "left",
+  },
+  descriptionCollapsed: {
+    maxHeight: 88,
+  },
+  readMoreButton: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  readMoreContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  readMoreText: {
+    color: PRO_BLUE,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  // Styles pour les liens
+  linksSection: {
+    marginTop: 16,
+    backgroundColor: CARD_BG,
+    borderRadius: 12,
+    padding: 12,
+  },
+  linksHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  linksTitle: {
+    color: TEXT_WHITE,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  linkItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  linkIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  linkContent: {
+    flex: 1,
+  },
+  linkDomain: {
+    color: PRO_BLUE,
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  linkUrl: {
+    color: TEXT_SECONDARY,
+    fontSize: 11,
+  },
+  linkArrow: {
+    marginLeft: 8,
   },
   sellerCard: {
     backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
   },
   sellerInfo: {
     gap: 12,
@@ -823,7 +1328,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sellerText: {
-    fontSize: 16,
+    fontSize: 15,
     color: TEXT_WHITE,
     fontWeight: "500",
     flex: 1,
@@ -832,26 +1337,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   actionButton: {
     flex: 1,
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    minHeight: 80,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    minHeight: 70,
   },
   actionIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    marginBottom: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
   whatsappButton: {
     backgroundColor: WHATSAPP_GREEN,
@@ -864,37 +1369,37 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: TEXT_WHITE,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
   },
   similarProductsContainer: {
-    paddingRight: 20,
+    paddingRight: 16,
     gap: 12,
   },
   similarProductCard: {
-    width: 160,
+    width: 150,
     backgroundColor: CARD_BG,
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
   },
   similarProductImage: {
     width: "100%",
-    height: 140,
+    height: 120,
     backgroundColor: "#2C3A4A",
   },
   similarProductInfo: {
-    padding: 12,
+    padding: 10,
   },
   similarProductTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: TEXT_WHITE,
     marginBottom: 6,
-    lineHeight: 18,
+    lineHeight: 16,
   },
   similarProductPrice: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "800",
     color: PREMIUM_GOLD,
   },
@@ -906,9 +1411,9 @@ const styles = StyleSheet.create({
   },
   modalCloseButton: {
     position: "absolute",
-    top: 60,
+    top: 50,
     right: 20,
-    zIndex: 1,
+    zIndex: 2,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 20,
     padding: 8,
@@ -919,7 +1424,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 25,
     padding: 12,
-    zIndex: 1,
+    zIndex: 2,
+    marginTop: -25,
   },
   prevButton: {
     left: 20,
@@ -933,7 +1439,7 @@ const styles = StyleSheet.create({
   },
   imageCounter: {
     position: "absolute",
-    bottom: 60,
+    bottom: 40,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -975,22 +1481,30 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     color: ERROR_RED,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
     marginTop: 16,
     marginBottom: 8,
   },
   errorText: {
     color: TEXT_SECONDARY,
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
     marginBottom: 24,
-    lineHeight: 22,
+    lineHeight: 20,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: PRO_BLUE,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
   },
   backButtonText: {
     color: TEXT_WHITE,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
 });
-

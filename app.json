@@ -2,7 +2,7 @@
   "expo": {
     "name": "SHOPNET",
     "slug": "shopnet-expo",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sdkVersion": "52.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
