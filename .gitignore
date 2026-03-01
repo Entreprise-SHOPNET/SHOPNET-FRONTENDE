@@ -47,7 +47,7 @@ logs/
 shopnet-fcm-service-account.json
 android/app/*.jks
 # android/app/google-services.json  <-- ligne supprimée pour inclure le fichier dans Git
-
+shopnet-fcm-service-account.json
 # Testing
 coverage/
 .nyc_output

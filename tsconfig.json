@@ -1,7 +1,10 @@
+
+
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "lib": [
       "ES2015",
       "DOM"
