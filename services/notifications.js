@@ -1,4 +1,5 @@
 // services/notifications.js
+// services/notifications.js
 
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
@@ -15,8 +16,7 @@ Notifications.setNotificationHandler({
 });
 
 /**
- * 🔥 CONFIGURATION ANDROID (OBLIGATOIRE EN PRODUCTION)
- * Crée le Notification Channel pour Android 8+
+ * 🔥 CONFIGURATION ANDROID
  */
 export async function configureAndroidChannel() {
   if (Platform.OS === "android") {
@@ -32,22 +32,49 @@ export async function configureAndroidChannel() {
 }
 
 /**
- * Enregistrer l'appareil et envoyer le token Expo au backend
- * ✅ COMPATIBLE EXPO GO
- * ✅ COMPATIBLE APK / AAB (PRODUCTION)
+ * 📲 Enregistrer l'appareil et envoyer le token Expo
  */
 export async function registerForPushNotificationsAsync(userId) {
   try {
-    console.log("⚡️ Demande permission notifications pour userId:", userId);
 
-    // 🔥 Important : créer le channel Android avant tout
-    await configureAndroidChannel();
+    console.log("🔎 Vérification configuration notifications");
 
-    // ❌ Notifications uniquement sur vrai appareil
+    // 🔍 Vérifier Project ID
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId ??
+      Constants?.easConfig?.projectId;
+
+    console.log("📦 Project ID détecté :", projectId);
+
+    if (!projectId) {
+      console.log("❌ ERREUR : aucun Project ID trouvé → ExpoPushToken impossible");
+      return null;
+    } else {
+      console.log("✅ Project ID valide → ExpoPushToken sera généré en APK");
+    }
+
+    // 🔍 Vérifier environnement
+    if (Constants.appOwnership === "expo") {
+      console.log("⚠️ Environnement actuel : Expo Go");
+      console.log("ℹ️ Expo Go génère seulement : ExponentPushToken");
+      console.log("🚀 En APK/AAB la valeur deviendra : ExpoPushToken");
+    }
+
+    if (Constants.appOwnership === "standalone") {
+      console.log("✅ Application en mode PRODUCTION (APK / Play Store)");
+    }
+
+    console.log("📱 Appareil réel :", Device.isDevice);
+
     if (!Device.isDevice) {
-      console.log("ℹ️ Pas un vrai appareil → notifications désactivées");
+      console.log("❌ Notifications nécessitent un appareil réel");
       return null;
     }
+
+    console.log("⚡️ Demande permission notifications pour userId:", userId);
+
+    // 🔥 Créer le channel Android
+    await configureAndroidChannel();
 
     // 🔐 Vérification permissions
     const { status: existingStatus } =
@@ -65,19 +92,30 @@ export async function registerForPushNotificationsAsync(userId) {
       return null;
     }
 
-    // 🔥 OBLIGATOIRE EN PROD (APK / AAB)
+    console.log("✅ Permission notifications accordée");
+
+    // 🔥 Génération du token Expo
     const tokenResponse = await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig.extra.eas.projectId,
+      projectId,
     });
 
     const expoPushToken = tokenResponse.data;
 
-    console.log("✅ Expo Push Token:", expoPushToken);
+    console.log("🚀 TOKEN GÉNÉRÉ :", expoPushToken);
 
-    // 📡 Envoi backend
+    if (expoPushToken.startsWith("ExponentPushToken")) {
+      console.log("⚠️ Token Expo Go détecté");
+    }
+
+    if (expoPushToken.startsWith("ExpoPushToken")) {
+      console.log("✅ Token PRODUCTION détecté");
+    }
+
+    // 📡 Envoi au backend
     await sendTokenToBackend(expoPushToken, userId);
 
     return expoPushToken;
+
   } catch (error) {
     console.error("❌ Erreur register notifications:", error);
     return null;
@@ -85,15 +123,19 @@ export async function registerForPushNotificationsAsync(userId) {
 }
 
 /**
- * Envoi du token Expo au backend
+ * 📡 Envoi du token au backend
  */
 async function sendTokenToBackend(token, userId) {
+
   if (!token || !userId) {
     console.log("⚠️ Token ou userId manquant");
     return;
   }
 
   try {
+
+    console.log("📡 Envoi token au backend...");
+
     const response = await fetch(
       "https://shopnet-backend.onrender.com/api/save-expo-token",
       {
@@ -109,16 +151,19 @@ async function sendTokenToBackend(token, userId) {
     );
 
     const data = await response.json();
+
     console.log("📡 Token sauvegardé:", data?.message ?? data);
+
   } catch (error) {
     console.error("❌ Erreur envoi token backend:", error);
   }
 }
 
 /**
- * Écoute des notifications reçues et cliquées
+ * 🔔 Écoute des notifications
  */
 export function listenNotifications(onNotification, onResponse) {
+
   const receivedSub =
     Notifications.addNotificationReceivedListener(onNotification);
 
