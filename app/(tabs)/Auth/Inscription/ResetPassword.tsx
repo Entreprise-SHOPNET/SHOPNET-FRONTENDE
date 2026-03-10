@@ -1,5 +1,7 @@
-// app/(tabs)/Auth/Connexion.tsx
-// app/(tabs)/Auth/Connexion.tsx
+
+
+// app/(tabs)/Auth/Inscription/ResetPassword.tsx
+
 import React, { useState } from "react";
 import {
   View,
@@ -7,109 +9,84 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  Vibration,
   ActivityIndicator,
+  Vibration,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import axios from "axios";
-import { saveToken } from "../authService";
 
-// ⚡️ Import notifications
-import { registerForPushNotificationsAsync } from "../../../../services/notifications";
-
-// URL API
+// 🔴 Serveur Render (production)
 const API_URL = "https://shopnet-backend.onrender.com/api/auth";
 
-export default function Connexion() {
-  const router = useRouter();
+// 🟢 Serveur local
+// const API_URL = "http://100.64.134.89:5000/api/auth";
 
-  const [identifier, setIdentifier] = useState("");
+export default function ResetPassword() {
+  const router = useRouter();
+  const { token } = useLocalSearchParams();
+
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  // -------------------
-  // Validation
-  const validateIdentifier = (input: string) => {
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
-    const isPhone = /^\d{9,15}$/.test(input);
-    return isEmail || isPhone;
-  };
-
-  // -------------------
-  // LOGIN
-  const handleLogin = async () => {
-    setIsLoading(true);
+  const handleResetPassword = async () => {
     setErrorMessage("");
     setSuccessMessage("");
+    setIsLoading(true);
 
-    if (!identifier || !password) {
+    if (!password || !confirmPassword) {
       setErrorMessage("Veuillez remplir tous les champs.");
       Vibration.vibrate(300);
       setIsLoading(false);
       return;
     }
 
-    if (!validateIdentifier(identifier)) {
-      setErrorMessage("Email ou numéro de téléphone invalide.");
+    if (password.length < 6) {
+      setErrorMessage("Le mot de passe doit contenir au moins 6 caractères.");
+      Vibration.vibrate(300);
+      setIsLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Les mots de passe ne correspondent pas.");
       Vibration.vibrate(300);
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await axios.post(`${API_URL}/login`, {
-        identifier,
-        password,
+      const response = await axios.post(`${API_URL}/reset-password`, {
+        token,
+        newPassword: password,
       });
 
-      if (!response.data?.success) {
-        setErrorMessage(response.data?.message || "Erreur de connexion.");
+      if (!response.data.success) {
+        setErrorMessage(response.data.message || "Erreur.");
         Vibration.vibrate(500);
         setIsLoading(false);
         return;
       }
 
-      const user = response.data.user;
-      const authToken = response.data.token;
+      setSuccessMessage("Mot de passe changé avec succès !");
 
-      if (!user || !authToken) {
-        setErrorMessage("Données utilisateur invalides.");
-        setIsLoading(false);
-        return;
-      }
-
-      // 🔐 Sauvegarde session
-      await saveToken(authToken);
-      await AsyncStorage.setItem("user", JSON.stringify(user));
-      setSuccessMessage("Connexion réussie !");
-
-      // 🔔 Demande permission notifications après connexion
-      if (user.id) { // ou userId selon ton backend
-        console.log("⚡️ Demande permission notifications pour userId:", user.id);
-        await registerForPushNotificationsAsync(user.id);
-      }
-
-      // 🚀 Navigation
       setTimeout(() => {
-        router.replace({
-          pathname: "/(tabs)/Auth/Inscription/Chargement",
-          params: {
-            user: JSON.stringify(user),
-            company: user.companyName,
-            nif: user.nif,
-          },
-        });
-      }, 600);
+        router.replace("/(tabs)/Auth/Inscription/Connexion");
+      }, 1200);
     } catch (err: any) {
       setErrorMessage(
-        err.response?.data?.message || err.message || "Erreur de connexion.",
+        err.response?.data?.message ||
+          err.message ||
+          "Erreur lors de la réinitialisation."
       );
       Vibration.vibrate(500);
     } finally {
@@ -122,27 +99,19 @@ export default function Connexion() {
       style={styles.container}
       behavior={Platform.select({ ios: "padding", android: undefined })}
     >
-      <Text style={styles.title}>Connexion • SHOPNet</Text>
+      <Text style={styles.title}>Nouveau mot de passe</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email ou téléphone"
-        placeholderTextColor="#BCCCDC"
-        value={identifier}
-        onChangeText={setIdentifier}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-
+      {/* Nouveau mot de passe */}
       <View style={styles.passwordContainer}>
         <TextInput
           style={styles.passwordInput}
-          placeholder="Mot de passe"
+          placeholder="Nouveau mot de passe"
           placeholderTextColor="#BCCCDC"
           secureTextEntry={!showPassword}
           value={password}
           onChangeText={setPassword}
         />
+
         <TouchableOpacity
           onPress={() => setShowPassword(!showPassword)}
           style={styles.eyeIcon}
@@ -155,34 +124,53 @@ export default function Connexion() {
         </TouchableOpacity>
       </View>
 
+      {/* Confirmer mot de passe */}
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder="Confirmer le mot de passe"
+          placeholderTextColor="#BCCCDC"
+          secureTextEntry={!showConfirmPassword}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
+
+        <TouchableOpacity
+          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          style={styles.eyeIcon}
+        >
+          <FontAwesome
+            name={showConfirmPassword ? "eye-slash" : "eye"}
+            size={22}
+            color="#BCCCDC"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Bouton */}
       <TouchableOpacity
         style={styles.button}
-        onPress={handleLogin}
+        onPress={handleResetPassword}
         disabled={isLoading}
       >
         {isLoading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.buttonText}>Se connecter</Text>
+          <Text style={styles.buttonText}>Changer le mot de passe</Text>
         )}
       </TouchableOpacity>
 
       {errorMessage ? (
         <Text style={styles.errorText}>{errorMessage}</Text>
       ) : null}
+
       {successMessage ? (
         <Text style={styles.successText}>{successMessage}</Text>
       ) : null}
-
-      <TouchableOpacity onPress={() => router.push("/(tabs)/Auth/Inscription/MotsPasseOublier")}>
-        <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
-      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
 
-// -------------------
-// STYLES
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -190,6 +178,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: "center",
   },
+
   title: {
     fontSize: 26,
     fontWeight: "bold",
@@ -197,14 +186,7 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     textAlign: "center",
   },
-  input: {
-    backgroundColor: "#3A526A",
-    color: "#FFFFFF",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    fontSize: 16,
-  },
+
   passwordContainer: {
     flexDirection: "row",
     backgroundColor: "#3A526A",
@@ -213,15 +195,18 @@ const styles = StyleSheet.create({
     paddingRight: 10,
     marginBottom: 15,
   },
+
   passwordInput: {
     flex: 1,
     padding: 15,
     fontSize: 16,
     color: "#FFFFFF",
   },
+
   eyeIcon: {
     paddingHorizontal: 5,
   },
+
   button: {
     backgroundColor: "#4CB050",
     paddingVertical: 15,
@@ -229,24 +214,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 5,
   },
+
   buttonText: {
     fontSize: 16,
     color: "#FFFFFF",
     fontWeight: "bold",
   },
-  forgotPasswordText: {
-    color: "#BCCCDC",
-    fontSize: 16,
-    textAlign: "center",
-    marginTop: 20,
-    textDecorationLine: "underline",
-  },
+
   errorText: {
     color: "red",
     textAlign: "center",
     marginTop: 10,
     fontSize: 15,
   },
+
   successText: {
     color: "#4CB050",
     textAlign: "center",
