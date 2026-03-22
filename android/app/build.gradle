@@ -91,25 +91,9 @@ android {
         applicationId 'com.shopai.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 28 // Vous avez bien incrémenté à 28, c'est parfait
-        versionName "2.1.1"
-
-        // AJOUTEZ CE BLOC ICI :
-        externalNativeBuild {
-            ndkBuild {
-                arguments "APP_LDFLAGS+=-Wl,-z,max-page-size=16384"
-            }
-            cmake {
-                cppFlags "-Wl,-z,max-page-size=16384"
-            }
-        }
+        versionCode 30
+        versionName "2.1.2"
     }
-
-
-
-
-
-
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -134,8 +118,7 @@ android {
     }
     packagingOptions {
         jniLibs {
-            // Modifiez cette ligne pour forcer 'false' au lieu de lire le property
-            useLegacyPackaging = false 
+            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
     }
     androidResources {
