@@ -87,13 +87,18 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.shopai.app'
-    defaultConfig {
-        applicationId 'com.shopai.app'
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 30
-        versionName "2.1.2"
-    }
+            defaultConfig {
+            applicationId 'com.shopai.app'
+            minSdkVersion rootProject.ext.minSdkVersion
+            targetSdkVersion rootProject.ext.targetSdkVersion
+            versionCode 30
+            versionName "2.1.2"
+
+            // 🔹 Correction NDK ABI
+            ndk {
+                abiFilters "armeabi-v7a", "arm64-v8a"
+            }
+        }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')

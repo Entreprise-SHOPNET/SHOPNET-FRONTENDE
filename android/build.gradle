@@ -17,7 +17,7 @@ buildscript {
     dependencies {
         classpath 'com.google.gms:google-services:4.4.2'
         classpath('com.facebook.react:react-native-gradle-plugin')
-        classpath('com.android.tools.build:gradle:8.11.1') // Version recommandée pour le SDK 35
+        classpath('com.android.tools.build:gradle:8.7.2')  // Version recommandée pour le SDK 35
     }
 }
 
