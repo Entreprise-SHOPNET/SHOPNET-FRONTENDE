@@ -92,7 +92,7 @@ android {
             minSdkVersion rootProject.ext.minSdkVersion
             targetSdkVersion rootProject.ext.targetSdkVersion
             versionCode 35
-            versionName "2.1.3"
+            versionName "2.2.0"
 
             // 🔹 Correction NDK ABI
             ndk {
