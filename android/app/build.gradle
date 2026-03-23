@@ -121,14 +121,16 @@ android {
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
-        packagingOptions {
-                jniLibs {
-                    useLegacyPackaging = false
-                }
-                // Force la conservation de l'alignement mémoire
-                doNotStrip "*/armeabi-v7a/*.so"
-                doNotStrip "*/arm64-v8a/*.so"
-            }
+packagingOptions {
+        jniLibs {
+            // Désactive la compression pour permettre l'alignement mémoire
+            useLegacyPackaging = false 
+        }
+        // Empêche le nettoyage (strip) qui casse l'alignement de 16 ko
+        doNotStrip "*/armeabi-v7a/*.so"
+        doNotStrip "*/arm64-v8a/*.so"
+        doNotStrip "*/x86_64/*.so"
+    }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
