@@ -91,7 +91,7 @@ android {
             applicationId 'com.shopai.app'
             minSdkVersion rootProject.ext.minSdkVersion
             targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 30
+            versionCode 31
             versionName "2.1.2"
 
             // 🔹 Correction NDK ABI
@@ -123,7 +123,8 @@ android {
     }
     packagingOptions {
         jniLibs {
-            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+            // REMPLACE LA LIGNE EXPO PAR CELLE-CI :
+            useLegacyPackaging = false 
         }
     }
     androidResources {
