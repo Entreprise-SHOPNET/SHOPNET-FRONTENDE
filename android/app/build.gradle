@@ -91,8 +91,8 @@ android {
             applicationId 'com.shopai.app'
             minSdkVersion rootProject.ext.minSdkVersion
             targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 31
-            versionName "2.1.2"
+            versionCode 35
+            versionName "2.1.3"
 
             // 🔹 Correction NDK ABI
             ndk {
@@ -121,12 +121,14 @@ android {
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
-    packagingOptions {
-        jniLibs {
-            // REMPLACE LA LIGNE EXPO PAR CELLE-CI :
-            useLegacyPackaging = false 
-        }
-    }
+        packagingOptions {
+                jniLibs {
+                    useLegacyPackaging = false
+                }
+                // Force la conservation de l'alignement mémoire
+                doNotStrip "*/armeabi-v7a/*.so"
+                doNotStrip "*/arm64-v8a/*.so"
+            }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
