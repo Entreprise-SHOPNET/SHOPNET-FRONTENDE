@@ -1,14 +1,13 @@
 
 
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
   Image,
   ActivityIndicator,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   Dimensions,
   Linking,
@@ -37,15 +36,13 @@ if (Platform.OS === "android") {
 // Configuration et constantes
 // ------------------------------------------------------------
 const LOCAL_API = "https://shopnet-backend.onrender.com/api";
-const API_URL = `${LOCAL_API}/products`;
-const COMMAND_API_URL = `${LOCAL_API}/commandes`;
-const PANIER_API_URL = `${LOCAL_API}/cart`;
-const REVIEW_API_URL = `${LOCAL_API}/products`; // route pour poster un commentaire
-
 const { width, height } = Dimensions.get("window");
-const USD_TO_CDF = 2275; // 1 USD = 2275 CDF
+const USD_TO_CDF = 2307;
 
-// Couleurs AliExpress / blanc
+// Cache TTL (5 minutes)
+const CACHE_TTL = 5 * 60 * 1000;
+
+// Couleurs
 const COLORS = {
   primary: "#222222",
   secondary: "#757575",
@@ -62,37 +59,82 @@ const COLORS = {
 };
 
 // Types
-interface Product {
+type ProductDetail = {
   id: number;
   title: string;
   description: string;
   price: number;
-  original_price?: number;
+  original_price: number | null;
   category: string;
   condition: string;
   stock: number;
   location: string;
   created_at: string;
-  image_urls: string[];
-  likes?: number;
-  comments?: number;
-  shares?: number;
-  isLiked?: boolean;
-  isPromotion?: boolean;
-  promotionId?: number;
-  seller?: {
-    id: number;
-    name: string;
-    phone: string;
-    email: string;
-    avatar?: string;
-    address?: string;
-  };
-  is_featured?: boolean;
-}
+  images: string[];
+  is_boosted?: boolean;
+};
+
+type Seller = {
+  id: number;
+  nom: string;
+  phone: string;
+  email: string;
+  adresse: string;
+};
+
+type Boutique = {
+  id: number;
+  nom: string;
+  ville: string;
+};
+
+type SimilarProduct = {
+  id: number;
+  title: string;
+  price: number;
+  original_price?: number | null;
+  image_url: string | null;
+  is_boosted?: boolean;
+  created_at?: string;
+  duration_days?: number; // pour promotion
+};
+
+type Category = {
+  id: string;
+  name: string;
+  icon: string;
+  onPress: () => void;
+};
 
 // ------------------------------------------------------------
-// Fonctions utilitaires
+// Fonctions utilitaires (cache)
+// ------------------------------------------------------------
+const getCachedData = async (key: string) => {
+  try {
+    const cached = await AsyncStorage.getItem(key);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL) {
+        return data;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedData = async (key: string, data: any) => {
+  try {
+    const cacheObj = { data, timestamp: Date.now() };
+    await AsyncStorage.setItem(key, JSON.stringify(cacheObj));
+  } catch (e) {
+    console.error("Cache set error", e);
+  }
+};
+
+// ------------------------------------------------------------
+// Fonctions utilitaires existantes
 // ------------------------------------------------------------
 const formatPrice = (price: any) => {
   const n = Number(price);
@@ -132,7 +174,7 @@ const getRelativeDate = (dateString: string) => {
   return "Plus de 7 jours";
 };
 
-// Génération de 100 avis mockés (noms congolais, messages positifs variés)
+// Génération de 100 avis mockés avec noms congolais
 const generateMockReviews = () => {
   const firstNames = [
     "Jean", "Marie", "Paul", "Joseph", "Pierre", "Albert", "Antoine", "Benoît", "Charles", "Daniel",
@@ -171,7 +213,7 @@ const generateMockReviews = () => {
     const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
     const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
     const fullName = `${firstName} ${lastName}`;
-    const rating = Math.floor(Math.random() * 5) + 1; // 1-5
+    const rating = Math.floor(Math.random() * 5) + 1;
     const comment = comments[Math.floor(Math.random() * comments.length)];
     reviews.push({
       id: i,
@@ -185,7 +227,7 @@ const generateMockReviews = () => {
   return reviews;
 };
 
-// 🔗 Fonction pour détecter les URLs dans un texte
+// Détection d'URLs
 const extractUrls = (text: string): { url: string; type: string }[] => {
   if (!text) return [];
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
@@ -209,7 +251,7 @@ const extractUrls = (text: string): { url: string; type: string }[] => {
   return urls;
 };
 
-// 🔗 Composant pour afficher un lien avec icône
+// Composant lien
 const LinkComponent = ({ url, type, onPress }: { url: string; type: string; onPress: (url: string) => void }) => {
   const getIconForType = () => {
     switch(type) {
@@ -243,7 +285,7 @@ const LinkComponent = ({ url, type, onPress }: { url: string; type: string; onPr
   );
 };
 
-// 📝 Composant Description avec Lire plus / Lire moins
+// Description extensible
 const ExpandableDescription = ({ description }: { description: string }) => {
   const [expanded, setExpanded] = useState(false);
   const [isLongText, setIsLongText] = useState(false);
@@ -284,7 +326,7 @@ const ExpandableDescription = ({ description }: { description: string }) => {
   );
 };
 
-// Composant pour l'évaluation par étoiles
+// Étoiles
 const StarRating = ({ rating, onRatingChange, size = 30 }: { rating: number; onRatingChange: (r: number) => void; size?: number }) => {
   return (
     <View style={{ flexDirection: 'row' }}>
@@ -302,6 +344,43 @@ const StarRating = ({ rating, onRatingChange, size = 30 }: { rating: number; onR
   );
 };
 
+// Composant compte à rebours pour promotion
+const CountdownTimer = ({ endDate }: { endDate: Date }) => {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = endDate.getTime() - now;
+      if (distance < 0) {
+        clearInterval(interval);
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [endDate]);
+
+  if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.countdownContainer}>
+      <Ionicons name="time-outline" size={12} color={COLORS.white} />
+      <Text style={styles.countdownText}>
+        {timeLeft.days > 0 && `${timeLeft.days}j `}
+        {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
+      </Text>
+    </View>
+  );
+};
+
 // ------------------------------------------------------------
 // Composant principal
 // ------------------------------------------------------------
@@ -309,28 +388,40 @@ export default function DetailId() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
+  // États principaux
   const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [seller, setSeller] = useState<Seller | null>(null);
+  const [boutique, setBoutique] = useState<Boutique | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
-  const [viralProducts, setViralProducts] = useState<Product[]>([]);
-  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
+  const [similarPage, setSimilarPage] = useState(1);
+  const [similarHasMore, setSimilarHasMore] = useState(true);
+  const [similarLoadingMore, setSimilarLoadingMore] = useState(false);
+
+  // Autres sections
+  const [viralProducts, setViralProducts] = useState<ProductDetail[]>([]);
+  const [suggestions, setSuggestions] = useState<ProductDetail[]>([]);
+
+  // Images & liens
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [detectedLinks, setDetectedLinks] = useState<{url: string; type: string}[]>([]);
-  const [allReviews] = useState(generateMockReviews()); // 100 avis
+
+  // Avis
+  const [allReviews] = useState(generateMockReviews());
   const [visibleReviews, setVisibleReviews] = useState<any[]>([]);
   const [reviewsOffset, setReviewsOffset] = useState(0);
   const REVIEWS_PER_LOAD = 3;
 
-  // État pour le modal d'avis
+  // Modal d'avis
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Animations
+  // Animations & notifications
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
   const notificationPosition = useRef(new Animated.Value(-100)).current;
@@ -349,7 +440,7 @@ export default function DetailId() {
     ]).start(() => setNotificationVisible(false));
   };
 
-  // Initialisation des avis affichés
+  // Avis initiaux
   useEffect(() => {
     setVisibleReviews(allReviews.slice(0, REVIEWS_PER_LOAD));
     setReviewsOffset(REVIEWS_PER_LOAD);
@@ -362,75 +453,150 @@ export default function DetailId() {
     setReviewsOffset(newOffset);
   };
 
-  // Load from cache or fetch
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const cachedProduct = await AsyncStorage.getItem(`product_${id}`);
-        if (cachedProduct) {
-          const prod = JSON.parse(cachedProduct);
-          setProduct(prod);
-          if (prod.description) setDetectedLinks(extractUrls(prod.description));
-          Animated.parallel([
-            Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-            Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-          ]).start();
-        }
-        await fetchProduct();
-      } catch (e) {
-        console.error("Cache error", e);
-      } finally {
+  // ------------------------------------------------------------
+  // Récupération du produit principal (avec cache)
+  // ------------------------------------------------------------
+  const fetchProductDetail = async () => {
+    try {
+      const cacheKey = `product_${id}`;
+      const cachedData = await getCachedData(cacheKey);
+      
+      if (cachedData) {
+        // Utilisation du cache
+        setProduct(cachedData.product);
+        setSeller(cachedData.seller);
+        setBoutique(cachedData.boutique);
+        setDetectedLinks(extractUrls(cachedData.product.description || ""));
+        const initialSimilars = (cachedData.similar_products || []).map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          price: parseFloat(p.price) || 0,
+          original_price: p.original_price ? parseFloat(p.original_price) : null,
+          image_url: p.image_url,
+          is_boosted: p.is_boosted || false,
+          created_at: p.created_at,
+          duration_days: p.duration_days,
+        }));
+        setSimilarProducts(initialSimilars);
         setLoading(false);
+        
+        // Appel en arrière‑plan pour rafraîchir (optionnel)
+        // Rafraîchissement en arrière‑plan sans bloquer l'UI
+        fetchProductDetailFromNetwork(cacheKey);
+        return;
       }
-    };
-    if (id) loadData();
-  }, [id]);
-
-  const fetchProduct = async () => {
+      
+      // Pas de cache → appel réseau
+      await fetchProductDetailFromNetwork(cacheKey);
+    } catch (err) {
+      console.error("Erreur fetch product detail:", err);
+      setError("Erreur de connexion");
+    }
+  };
+  
+  const fetchProductDetailFromNetwork = async (cacheKey?: string) => {
     try {
       const token = await getValidToken();
-      const res = await fetch(`${API_URL}/${id}`, {
+      const res = await fetch(`${LOCAL_API}/products/discover/product/${id}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
       if (data.success) {
-        const prod = data.product;
-        if (!prod.image_urls && prod.images) prod.image_urls = prod.images.map((img: any) => img.url);
-        if (prod.description) prod.description = cleanText(prod.description);
-        setProduct(prod);
-        setDetectedLinks(extractUrls(prod.description));
-        await AsyncStorage.setItem(`product_${id}`, JSON.stringify(prod));
-        await fetchSimilar(prod.category);
+        setProduct(data.product);
+        setSeller(data.seller);
+        setBoutique(data.boutique);
+        setDetectedLinks(extractUrls(data.product.description || ""));
+        
+        const initialSimilars = (data.similar_products || []).map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          price: parseFloat(p.price) || 0,
+          original_price: p.original_price ? parseFloat(p.original_price) : null,
+          image_url: p.image_url,
+          is_boosted: p.is_boosted || false,
+          created_at: p.created_at,
+          duration_days: p.duration_days,
+        }));
+        setSimilarProducts(initialSimilars);
+        
+        // Mise en cache
+        if (cacheKey) {
+          await setCachedData(cacheKey, {
+            product: data.product,
+            seller: data.seller,
+            boutique: data.boutique,
+            similar_products: data.similar_products,
+          });
+        }
+        
         await fetchViral();
         await fetchSuggestions();
+        
+        Animated.parallel([
+          Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]).start();
       } else {
-        setError(data.error || "Produit non trouvé");
+        setError(data.message || "Produit non trouvé");
       }
     } catch (err) {
+      console.error("Erreur fetch product detail network:", err);
       setError("Erreur de connexion");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchSimilar = async (category: string) => {
+  // ------------------------------------------------------------
+  // Chargement paginé des produits similaires (pas de cache)
+  // ------------------------------------------------------------
+  const fetchMoreSimilar = async () => {
+    if (!similarHasMore || similarLoadingMore) return;
+
+    setSimilarLoadingMore(true);
     try {
-      const res = await fetch(API_URL);
+      const token = await getValidToken();
+      const res = await fetch(`${LOCAL_API}/products/${id}/similar?page=${similarPage}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       if (data.success) {
-        const filtered = data.products
-          .filter((p: any) => p.id !== Number(id) && p.category === category)
-          .slice(0, 10);
-        setSimilarProducts(filtered);
-        await AsyncStorage.setItem(`similar_${category}`, JSON.stringify(filtered));
+        const newProducts = (data.products || []).map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          price: parseFloat(p.price) || 0,
+          original_price: p.original_price ? parseFloat(p.original_price) : null,
+          image_url: p.image_url,
+          is_boosted: p.is_boosted || false,
+          created_at: p.created_at,
+          duration_days: p.duration_days,
+        }));
+
+        setSimilarProducts(prev => [...prev, ...newProducts]);
+        setSimilarPage(prev => prev + 1);
+        setSimilarHasMore(data.has_more === true);
+      } else {
+        setSimilarHasMore(false);
       }
     } catch (err) {
-      const cached = await AsyncStorage.getItem(`similar_${category}`);
-      if (cached) setSimilarProducts(JSON.parse(cached));
+      console.error("Erreur fetch more similar:", err);
+    } finally {
+      setSimilarLoadingMore(false);
     }
   };
 
+  // ------------------------------------------------------------
+  // Viral & suggestions (avec cache)
+  // ------------------------------------------------------------
   const fetchViral = async () => {
     try {
+      const cacheKey = "viral_products";
+      const cached = await getCachedData(cacheKey);
+      if (cached) {
+        setViralProducts(cached);
+        return;
+      }
+      
       const token = await getValidToken();
       const res = await fetch(`${LOCAL_API}/products/popular?limit=10`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -438,28 +604,49 @@ export default function DetailId() {
       const data = await res.json();
       if (data.success) {
         setViralProducts(data.products);
-        await AsyncStorage.setItem('popular_products', JSON.stringify(data.products));
+        await setCachedData(cacheKey, data.products);
       }
     } catch (err) {
-      const cached = await AsyncStorage.getItem('popular_products');
-      if (cached) setViralProducts(JSON.parse(cached));
+      console.error("Erreur fetch viral", err);
     }
   };
 
   const fetchSuggestions = async () => {
     try {
-      const res = await fetch(API_URL);
+      const cacheKey = "suggestions";
+      const cached = await getCachedData(cacheKey);
+      if (cached) {
+        setSuggestions(cached);
+        return;
+      }
+      
+      const res = await fetch(`${LOCAL_API}/products?limit=8`);
       const data = await res.json();
       if (data.success) {
-        const others = data.products.filter((p: any) => p.id !== Number(id)).sort(() => 0.5 - Math.random()).slice(0, 8);
+        const others = data.products.filter((p: any) => p.id !== Number(id)).slice(0, 8);
         setSuggestions(others);
+        await setCachedData(cacheKey, others);
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error("Erreur fetch suggestions", err);
+    }
   };
 
+  useEffect(() => {
+    if (id) {
+      setLoading(true);
+      fetchProductDetail().finally(() => setLoading(false));
+    } else {
+      setError("ID produit manquant");
+      router.back();
+    }
+  }, [id]);
+
+  // ------------------------------------------------------------
   // Actions
+  // ------------------------------------------------------------
   const openWhatsApp = () => {
-    const phone = product?.seller?.phone;
+    const phone = seller?.phone;
     if (!phone) { showNotification("Numéro WhatsApp non disponible"); return; }
     const message = `Bonjour, je suis intéressé par "${product?.title}" sur SHOPNET. Prix: $${product?.price}`;
     Linking.openURL(`https://wa.me/${formatPhoneNumber(phone)}?text=${encodeURIComponent(message)}`).catch(() =>
@@ -468,7 +655,7 @@ export default function DetailId() {
   };
 
   const sendEmail = () => {
-    const email = product?.seller?.email;
+    const email = seller?.email;
     if (!email) { showNotification("Email non disponible"); return; }
     const subject = `Question concernant le produit : ${product?.title}`;
     const body = `Bonjour,\n\nJe suis intéressé par votre produit "${product?.title}" sur SHOPNET.\n\nPrix : ${product?.price} USD\n\nMerci de me contacter pour la disponibilité.\n\nCordialement.`;
@@ -480,7 +667,7 @@ export default function DetailId() {
     try {
       const token = await getValidToken();
       if (!token) { showNotification("Connectez-vous pour commander"); return; }
-      const res = await fetch(COMMAND_API_URL, {
+      const res = await fetch(`${LOCAL_API}/commandes`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -499,7 +686,7 @@ export default function DetailId() {
     try {
       const token = await getValidToken();
       if (!token) { showNotification("Connectez-vous pour ajouter au panier"); return; }
-      const res = await fetch(PANIER_API_URL, {
+      const res = await fetch(`${LOCAL_API}/cart`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -507,8 +694,8 @@ export default function DetailId() {
           title: product?.title,
           price: product?.price,
           quantity: 1,
-          images: product?.image_urls || [],
-          seller_id: product?.seller?.id,
+          images: product?.images || [],
+          seller_id: seller?.id,
         }),
       });
       const data = await res.json();
@@ -518,7 +705,7 @@ export default function DetailId() {
   };
 
   const callSeller = () => {
-    const phone = product?.seller?.phone;
+    const phone = seller?.phone;
     if (!phone) { showNotification("Numéro non disponible"); return; }
     Linking.openURL(`tel:${phone}`);
   };
@@ -526,7 +713,7 @@ export default function DetailId() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `💰 Découvrez ce produit sur SHOPNET : ${product?.title}\nPrix : $${product?.price}\n${product?.image_urls?.[0] || ''}`,
+        message: `💰 Découvrez ce produit sur SHOPNET : ${product?.title}\nPrix : $${product?.price}\n${product?.images?.[0] || ''}`,
       });
     } catch (error) {
       console.log("Erreur partage", error);
@@ -539,12 +726,7 @@ export default function DetailId() {
       "Veuillez décrire le problème (spam, contenu inapproprié, etc.)",
       [
         { text: "Annuler", style: "cancel" },
-        {
-          text: "Envoyer",
-          onPress: async () => {
-            showNotification("Merci, votre signalement a été envoyé.");
-          }
-        }
+        { text: "Envoyer", onPress: () => showNotification("Merci, votre signalement a été envoyé.") }
       ]
     );
   };
@@ -562,7 +744,7 @@ export default function DetailId() {
         setSubmitting(false);
         return;
       }
-      const res = await fetch(`${REVIEW_API_URL}/${product?.id}/comment`, {
+      const res = await fetch(`${LOCAL_API}/products/${product?.id}/comment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -589,7 +771,7 @@ export default function DetailId() {
     }
   };
 
-  const navigateToProduct = (item: Product) => {
+  const navigateToProduct = (item: SimilarProduct | ProductDetail) => {
     router.push({ pathname: '/(tabs)/Auth/Panier/DetailId', params: { id: item.id.toString() } });
   };
 
@@ -602,11 +784,11 @@ export default function DetailId() {
   const scrollToImage = (index: number) => {
     if (flatListRef.current) flatListRef.current.scrollToIndex({ index, animated: true });
     setActiveImageIndex(index);
-    setSelectedImage(product?.image_urls?.[index] || null);
+    setSelectedImage(product?.images?.[index] || null);
   };
 
   const navigateToImage = (direction: "prev" | "next") => {
-    const images = product?.image_urls || [];
+    const images = product?.images || [];
     if (images.length <= 1) return;
     let newIndex = direction === "next" ? (activeImageIndex + 1) % images.length : (activeImageIndex - 1 + images.length) % images.length;
     scrollToImage(newIndex);
@@ -616,15 +798,14 @@ export default function DetailId() {
     Linking.openURL(url).catch(() => showNotification("Impossible d'ouvrir ce lien"));
   };
 
+  // ------------------------------------------------------------
   // Renderers
+  // ------------------------------------------------------------
   const renderImageItem = ({ item, index }: { item: string; index: number }) => (
     <TouchableOpacity activeOpacity={0.9} onPress={() => showImage(item, index)} style={styles.imageWrapper}>
       <Image source={{ uri: item }} style={styles.mainImage} resizeMode="cover" />
       {index === 0 && product?.original_price && product?.original_price > product?.price && (
         <View style={styles.promoBadge}><Ionicons name="flash" size={16} color={COLORS.white} /><Text style={styles.promoBadgeText}>PROMO</Text></View>
-      )}
-      {index === 0 && product?.is_featured && (
-        <View style={styles.featuredBadge}><Ionicons name="star" size={14} color={COLORS.white} /><Text style={styles.featuredBadgeText}>SPONSORISÉ</Text></View>
       )}
     </TouchableOpacity>
   );
@@ -635,40 +816,38 @@ export default function DetailId() {
     </TouchableOpacity>
   );
 
-  const renderSimilarItem = ({ item }: { item: Product }) => (
-    <TouchableOpacity key={item.id} style={styles.similarCard} onPress={() => navigateToProduct(item)} activeOpacity={0.8}>
-      <Image source={{ uri: item.image_urls?.[0] || "https://via.placeholder.com/150" }} style={styles.similarImage} />
-      <Text style={styles.similarTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.similarPrice}>${formatPrice(item.price)}</Text>
-    </TouchableOpacity>
-  );
+  // Carte pour produits similaires et suggestions (grille)
+  const renderProductCard = (item: SimilarProduct | ProductDetail, isPromo?: boolean) => {
+    const discount = item.original_price && item.original_price > item.price
+      ? Math.round(((item.original_price - item.price) / item.original_price) * 100)
+      : 0;
+    const isBoosted = (item as any).is_boosted || false;
+    const endDate = item.created_at && (item as any).duration_days
+      ? new Date(new Date(item.created_at).getTime() + (item as any).duration_days * 24 * 60 * 60 * 1000)
+      : null;
 
-  const renderViralItem = ({ item }: { item: Product }) => (
-    <TouchableOpacity key={item.id} style={styles.boostedCard} onPress={() => navigateToProduct(item)} activeOpacity={0.8}>
-      <Image source={{ uri: item.image_urls?.[0] || "https://via.placeholder.com/120" }} style={styles.boostedImage} />
-      <Text style={styles.boostedTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.boostedPrice}>${formatPrice(item.price)}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderSuggestionItem = (item: Product) => {
-    const isPromo = item.original_price && item.original_price > item.price;
-    const discount = isPromo ? Math.round(((item.original_price! - item.price) / item.original_price!) * 100) : 0;
-    const dateStr = getRelativeDate(item.created_at);
     return (
-      <TouchableOpacity key={item.id} style={styles.suggestionItem} onPress={() => navigateToProduct(item)}>
-        <Image source={{ uri: item.image_urls?.[0] || "https://via.placeholder.com/150" }} style={styles.suggestionImage} />
-        <Text style={styles.suggestionTitle} numberOfLines={2}>{item.title}</Text>
-        <View style={styles.suggestionDetails}>
-          <Text style={styles.suggestionPrice}>${formatPrice(item.price)}</Text>
-          {isPromo && (
-            <View style={styles.suggestionDiscountBadge}>
-              <Text style={styles.suggestionDiscountText}>-{discount}%</Text>
+      <TouchableOpacity style={styles.productCard} onPress={() => navigateToProduct(item)} activeOpacity={0.8}>
+        <View style={styles.productImageContainer}>
+          <Image source={{ uri: (item as any).image_url || (item as any).images?.[0] || "https://via.placeholder.com/150" }} style={styles.productCardImage} />
+          {isBoosted && (
+            <View style={styles.sponsoredBadge}>
+              <Ionicons name="star" size={12} color={COLORS.white} />
+              <Text style={styles.sponsoredBadgeText}>Sponsorisé</Text>
             </View>
           )}
+          {discount > 0 && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountBadgeText}>-{discount}%</Text>
+            </View>
+          )}
+          {endDate && <CountdownTimer endDate={endDate} />}
         </View>
-        <Text style={styles.suggestionDate}>{dateStr}</Text>
-        {isPromo && <Text style={styles.suggestionPromo}>Promo !</Text>}
+        <Text style={styles.productCardTitle} numberOfLines={2}>{item.title}</Text>
+        <View style={styles.productCardPriceRow}>
+          <Text style={styles.productCardPrice}>${formatPrice(item.price)}</Text>
+          {discount > 0 && <Text style={styles.productCardOriginalPrice}>${formatPrice(item.original_price!)}</Text>}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -690,7 +869,367 @@ export default function DetailId() {
     </View>
   );
 
-  // Loading state
+  // Catégories horizontales (boutons) – version avec onPress
+  const categories = [
+    {
+      id: "electronics",
+      name: "Électronique",
+      icon: "📱",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "fashion",
+      name: "Mode",
+      icon: "👕",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "home",
+      name: "Maison",
+      icon: "🏠",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "computer",
+      name: "Informatique",
+      icon: "💻",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "beauty",
+      name: "Beauté",
+      icon: "🧴",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "auto",
+      name: "Auto & Moto",
+      icon: "🚗",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "food",
+      name: "Alimentaire",
+      icon: "🍔",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "services",
+      name: "Services",
+      icon: "🧰",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "shops",
+      name: "Boutiques",
+      icon: "🏪",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "popular",
+      name: "Produits populaires",
+      icon: "🔥",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "new",
+      name: "Nouveautés",
+      icon: "🆕",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "bargains",
+      name: "Bons prix",
+      icon: "💰",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "top",
+      name: "Top ventes",
+      icon: "⭐",
+      onPress: () => router.push("/MisAjour")
+    },
+    {
+      id: "nearby",
+      name: "Près de vous",
+      icon: "📍",
+      onPress: () => router.push("/MisAjour")
+    }
+  ];
+
+  const renderCategoryItem = ({ item }: { item: Category }) => (
+    <TouchableOpacity style={styles.categoryButton} onPress={item.onPress}>
+      <Text style={styles.categoryIcon}>{item.icon}</Text>
+      <Text style={styles.categoryName}>{item.name}</Text>
+    </TouchableOpacity>
+  );
+
+  // ------------------------------------------------------------
+  // Rendu principal avec FlatList
+  // ------------------------------------------------------------
+  const renderHeader = () => (
+    <>
+      {/* Images galerie */}
+      <View style={styles.imageSection}>
+        <FlatList
+          ref={flatListRef}
+          data={product?.images || []}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(e) => {
+            const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+            setActiveImageIndex(idx);
+          }}
+          renderItem={renderImageItem}
+          keyExtractor={(item, i) => i.toString()}
+        />
+        {(product?.images?.length ?? 0) > 1 && (
+          <>
+            <FlatList
+              data={product?.images || []}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.thumbnailList}
+              renderItem={renderThumbnailItem}
+              keyExtractor={(item, i) => `thumb-${i}`}
+            />
+            <View style={styles.pageIndicator}>
+              <Text style={styles.pageText}>{activeImageIndex + 1}/{product?.images?.length}</Text>
+            </View>
+          </>
+        )}
+      </View>
+
+      <View style={styles.content}>
+        {/* Titre et catégorie */}
+        <Text style={styles.title}>{product?.title}</Text>
+        <View style={styles.categoryRow}>
+          <Ionicons name="pricetag-outline" size={16} color={COLORS.secondary} />
+          <Text style={styles.category}>{product?.category}</Text>
+        </View>
+
+        {/* Prix USD et CDF */}
+        <View style={styles.priceRow}>
+          <View>
+            <Text style={styles.priceUSD}>${formatPrice(product?.price || 0)}</Text>
+            <Text style={styles.priceCDF}>{formatPriceCDF(product?.price || 0)}</Text>
+          </View>
+          {product?.original_price && product.original_price > product.price && (
+            <View style={styles.promoBadgeRight}>
+              <Text style={styles.promoText}>PROMO</Text>
+              <Text style={styles.promoDate}>jusqu'au 31 déc 2025</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Stock et date */}
+        <View style={styles.stockRow}>
+          <Ionicons name={product?.stock && product.stock > 0 ? "checkmark-circle" : "close-circle"} size={18} color={product?.stock && product.stock > 0 ? COLORS.success : COLORS.error} />
+          <Text style={[styles.stockText, { color: product?.stock && product.stock > 0 ? COLORS.success : COLORS.error }]}>
+            {product?.stock && product.stock > 0 ? "En stock" : "Rupture"}
+          </Text>
+          {product?.stock && product.stock > 0 && (
+            <View style={styles.wholesaleBadge}>
+              <Text style={styles.wholesaleText}>Vente en gros 10+ pièces</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.dateText}>Publié : {getRelativeDate(product?.created_at || "")}</Text>
+
+        {/* Livraison */}
+        <View style={styles.deliveryRow}>
+          <Ionicons name="bicycle-outline" size={18} color={COLORS.secondary} />
+          <View style={{ marginLeft: 6 }}>
+            <Text style={styles.deliveryText}>Livraison : À convenir avec le vendeur</Text>
+            <Text style={styles.deliveryTime}>Disponibilité : Flexible selon accord</Text>
+          </View>
+        </View>
+
+        {/* Description */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Description</Text>
+          <ExpandableDescription description={product?.description || ""} />
+          {detectedLinks.length > 0 && (
+            <View style={styles.linksSection}>
+              <View style={styles.linksHeader}>
+                <Ionicons name="link" size={18} color={COLORS.secondary} />
+                <Text style={styles.linksTitle}>{detectedLinks.length} lien{detectedLinks.length > 1 ? 's' : ''}</Text>
+              </View>
+              {detectedLinks.map((link, index) => (
+                <LinkComponent key={index} url={link.url} type={link.type} onPress={openLink} />
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Avis clients */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Avis clients ({allReviews.length})</Text>
+          {visibleReviews.map((review) => renderReviewItem({ item: review }))}
+          {reviewsOffset < allReviews.length && (
+            <TouchableOpacity style={styles.loadMoreButton} onPress={loadMoreReviews}>
+              <Text style={styles.loadMoreText}>Voir plus d'avis</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Vendeur */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Vendeur</Text>
+          <View style={styles.sellerContainer}>
+            <View style={styles.sellerLine}>
+              <Text style={styles.sellerLabel}>Produit proposé par :</Text>
+              <Text style={styles.sellerValue}>{seller?.nom || "Vendeur SHOPNET"}</Text>
+            </View>
+            <View style={styles.sellerLine}>
+              <Text style={styles.sellerLabel}>Ce produit est vendu dans la ville de :</Text>
+              <Text style={styles.sellerValue}>{product?.location || "Ville inconnue"}</Text>
+            </View>
+            <View style={styles.sellerLine}>
+              <Text style={styles.sellerLabel}>Email du vendeur :</Text>
+              {seller?.email ? (
+                <TouchableOpacity onPress={sendEmail} style={styles.emailButton}>
+                  <Ionicons name="mail-outline" size={20} color={COLORS.accent} />
+                  <Text style={[styles.sellerValue, styles.emailText]}>{seller.email}</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.sellerValue}>Non renseigné</Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Boutons d'action */}
+        <View style={styles.actionsContainer}>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionButton, styles.whatsappButton]} onPress={openWhatsApp}>
+              <Ionicons name="logo-whatsapp" size={20} color={COLORS.white} />
+              <Text style={styles.actionText}>WhatsApp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.cartButton]} onPress={ajouterAuPanier}>
+              <Ionicons name="cart-outline" size={20} color={COLORS.white} />
+              <Text style={styles.actionText}>Panier</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionButton, styles.orderButton]} onPress={commanderProduit}>
+              <Ionicons name="bag-check-outline" size={20} color={COLORS.white} />
+              <Text style={styles.actionText}>Commander</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.buyNowButton]} onPress={callSeller}>
+              <Ionicons name="call-outline" size={20} color={COLORS.white} />
+              <Text style={styles.actionText}>Acheter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Nouveaux boutons de navigation */}
+        <View style={styles.navButtonsContainer}>
+          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/MisAjour')}>
+            <Ionicons name="flame-outline" size={32} color={COLORS.accent} />
+            <Text style={styles.navButtonTitle}>Voir plus de promotions similaires</Text>
+            <Text style={styles.navButtonSubtitle}>Découvrez d'autres offres</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/(tabs)/Auth/Panier/AllShops')}>
+            <Ionicons name="business-outline" size={32} color={COLORS.accent} />
+            <Text style={styles.navButtonTitle}>Voir des boutiques proches</Text>
+            <Text style={styles.navButtonSubtitle}>Trouvez des vendeurs près de vous</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Produits viraux */}
+        {viralProducts.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🔥 Produits viraux près de chez vous</Text>
+            <FlatList
+              data={viralProducts}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => renderProductCard(item)}
+              keyExtractor={(item) => item.id.toString()}
+            />
+          </View>
+        )}
+      </View>
+    </>
+  );
+
+  const renderFooter = () => (
+    <View style={styles.content}>
+      {/* Catégories en boutons (déplacé ici) */}
+      <View style={styles.categoriesSection}>
+        <Text style={styles.sectionTitle}>Explorer d’autres catégories</Text>
+        <FlatList
+          data={categories}
+          numColumns={4}
+          columnWrapperStyle={styles.categoriesGrid}
+          renderItem={renderCategoryItem}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false}
+        />
+      </View>
+
+      {/* Suggestions */}
+      {suggestions.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🧠 Suggestions pour vous</Text>
+          <FlatList
+            data={suggestions}
+            numColumns={2}
+            columnWrapperStyle={styles.suggestionsGrid}
+            renderItem={({ item }) => renderProductCard(item)}
+            keyExtractor={(item) => item.id.toString()}
+            scrollEnabled={false}
+          />
+        </View>
+      )}
+
+      {/* Produits similaires */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Produits similaires</Text>
+        <FlatList
+          data={similarProducts}
+          numColumns={2}
+          columnWrapperStyle={styles.suggestionsGrid}
+          renderItem={({ item }) => renderProductCard(item)}
+          keyExtractor={(item) => item.id.toString()}
+          onEndReached={fetchMoreSimilar}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            similarLoadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={COLORS.accent} />
+              </View>
+            ) : null
+          }
+          scrollEnabled={false}
+        />
+        {!similarHasMore && similarProducts.length > 0 && (
+          <Text style={styles.endMessage}>Fin des résultats</Text>
+        )}
+      </View>
+
+      {/* Boutons supplémentaires */}
+      <View style={styles.bottomButtons}>
+        <TouchableOpacity style={styles.bottomButton} onPress={handleReport}>
+          <View style={styles.bottomIconContainer}>
+            <Ionicons name="flag-outline" size={28} color={COLORS.error} />
+          </View>
+          <Text style={styles.bottomButtonTitle}>Signaler ce produit</Text>
+          <Text style={styles.bottomButtonSubtitle}>Contenu inapproprié ?</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.bottomButton} onPress={() => setReviewModalVisible(true)}>
+          <View style={styles.bottomIconContainer}>
+            <Ionicons name="star-outline" size={28} color={COLORS.accent} />
+          </View>
+          <Text style={styles.bottomButtonTitle}>Donner mon avis</Text>
+          <Text style={styles.bottomButtonSubtitle}>Partagez votre expérience</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   if (loading && !product) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -717,12 +1256,6 @@ export default function DetailId() {
   }
 
   if (!product) return null;
-
-  const images = product.image_urls || [];
-  const priceUSD = Number(product.price);
-  const priceCDF = formatPriceCDF(priceUSD);
-  const isPromo = product.original_price && product.original_price > product.price;
-  const promoEndDate = "31 déc 2025"; // mock
 
   return (
     <SafeAreaView style={styles.container}>
@@ -752,242 +1285,23 @@ export default function DetailId() {
         </Animated.View>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {/* Images pleine largeur */}
-        <View style={styles.imageSection}>
-          <FlatList
-            ref={flatListRef}
-            data={images}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-              setActiveImageIndex(idx);
-            }}
-            renderItem={renderImageItem}
-            keyExtractor={(item, i) => i.toString()}
-          />
-          {images.length > 1 && (
-            <>
-              <FlatList
-                data={images}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.thumbnailList}
-                renderItem={renderThumbnailItem}
-                keyExtractor={(item, i) => `thumb-${i}`}
-              />
-              <View style={styles.pageIndicator}>
-                <Text style={styles.pageText}>{activeImageIndex + 1}/{images.length}</Text>
-              </View>
-            </>
-          )}
-        </View>
+      {/* Contenu principal avec FlatList pour éviter l'erreur de virtualisation */}
+      <FlatList
+        data={[]}
+        renderItem={() => null}
+        ListHeaderComponent={renderHeader()}
+        ListFooterComponent={renderFooter()}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContainer}
+      />
 
-        {/* Contenu principal */}
-        <View style={styles.content}>
-          {/* Titre et catégorie */}
-          <Text style={styles.title}>{product.title}</Text>
-          <View style={styles.categoryRow}>
-            <Ionicons name="pricetag-outline" size={16} color={COLORS.secondary} />
-            <Text style={styles.category}>{product.category}</Text>
-          </View>
-
-          {/* Prix USD et CDF */}
-          <View style={styles.priceRow}>
-            <View>
-              <Text style={styles.priceUSD}>${formatPrice(priceUSD)}</Text>
-              <Text style={styles.priceCDF}>{priceCDF}</Text>
-            </View>
-            {isPromo && (
-              <View style={styles.promoBadgeRight}>
-                <Text style={styles.promoText}>PROMO</Text>
-                <Text style={styles.promoDate}>jusqu'au {promoEndDate}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Stock et date */}
-          <View style={styles.stockRow}>
-            <Ionicons name={product.stock > 0 ? "checkmark-circle" : "close-circle"} size={18} color={product.stock > 0 ? COLORS.success : COLORS.error} />
-            <Text style={[styles.stockText, { color: product.stock > 0 ? COLORS.success : COLORS.error }]}>
-              {product.stock > 0 ? "En stock" : "Rupture"}
-            </Text>
-            {product.stock > 0 && (
-              <View style={styles.wholesaleBadge}>
-                <Text style={styles.wholesaleText}>Vente en gros 10+ pièces</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.dateText}>Publié : {getRelativeDate(product.created_at)}</Text>
-
-          {/* Livraison */}
-          <View style={styles.deliveryRow}>
-            <Ionicons name="bicycle-outline" size={18} color={COLORS.secondary} />
-            <View style={{ marginLeft: 6 }}>
-              <Text style={styles.deliveryText}>Livraison : À convenir avec le vendeur</Text>
-              <Text style={styles.deliveryTime}>Disponibilité : Flexible selon accord</Text>
-            </View>
-          </View>
-
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <ExpandableDescription description={product.description} />
-            {detectedLinks.length > 0 && (
-              <View style={styles.linksSection}>
-                <View style={styles.linksHeader}>
-                  <Ionicons name="link" size={18} color={COLORS.secondary} />
-                  <Text style={styles.linksTitle}>{detectedLinks.length} lien{detectedLinks.length > 1 ? 's' : ''}</Text>
-                </View>
-                {detectedLinks.map((link, index) => (
-                  <LinkComponent key={index} url={link.url} type={link.type} onPress={openLink} />
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Avis clients */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Avis clients ({allReviews.length})</Text>
-            {visibleReviews.map((review) => renderReviewItem({ item: review }))}
-            {reviewsOffset < allReviews.length && (
-              <TouchableOpacity style={styles.loadMoreButton} onPress={loadMoreReviews}>
-                <Text style={styles.loadMoreText}>Voir plus d'avis</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Vendeur */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vendeur</Text>
-            <View style={styles.sellerContainer}>
-              <View style={styles.sellerLine}>
-                <Text style={styles.sellerLabel}>Produit proposé par :</Text>
-                <Text style={styles.sellerValue}>{product.seller?.name || "Vendeur SHOPNET"}</Text>
-              </View>
-              <View style={styles.sellerLine}>
-                <Text style={styles.sellerLabel}>Ce produit est vendu dans la ville de :</Text>
-                <Text style={styles.sellerValue}>{product.location || "Ville inconnue"}</Text>
-              </View>
-              <View style={styles.sellerLine}>
-                <Text style={styles.sellerLabel}>Email du vendeur :</Text>
-                {product.seller?.email ? (
-                  <TouchableOpacity onPress={sendEmail} style={styles.emailButton}>
-                    <Ionicons name="mail-outline" size={20} color={COLORS.accent} />
-                    <Text style={[styles.sellerValue, styles.emailText]}>{product.seller.email}</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={styles.sellerValue}>Non renseigné</Text>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Boutons d'action - 2 lignes */}
-          <View style={styles.actionsContainer}>
-            <View style={styles.actionRow}>
-              <TouchableOpacity style={[styles.actionButton, styles.whatsappButton]} onPress={openWhatsApp}>
-                <Ionicons name="logo-whatsapp" size={20} color={COLORS.white} />
-                <Text style={styles.actionText}>WhatsApp</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, styles.cartButton]} onPress={ajouterAuPanier}>
-                <Ionicons name="cart-outline" size={20} color={COLORS.white} />
-                <Text style={styles.actionText}>Panier</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.actionRow}>
-              <TouchableOpacity style={[styles.actionButton, styles.orderButton]} onPress={commanderProduit}>
-                <Ionicons name="bag-check-outline" size={20} color={COLORS.white} />
-                <Text style={styles.actionText}>Commander</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, styles.buyNowButton]} onPress={callSeller}>
-                <Ionicons name="call-outline" size={20} color={COLORS.white} />
-                <Text style={styles.actionText}>Acheter</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Nouveaux boutons de navigation */}
-          <View style={styles.navButtonsContainer}>
-            <TouchableOpacity style={styles.navButton} onPress={() => router.push('/MisAjour')}>
-              <Ionicons name="flame-outline" size={32} color={COLORS.accent} />
-              <Text style={styles.navButtonTitle}>Voir plus de promotions similaires</Text>
-              <Text style={styles.navButtonSubtitle}>Découvrez d'autres offres</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navButton} onPress={() => router.push('/(tabs)/Auth/Panier/AllShops')}>
-              <Ionicons name="business-outline" size={32} color={COLORS.accent} />
-              <Text style={styles.navButtonTitle}>Voir des boutiques proches</Text>
-              <Text style={styles.navButtonSubtitle}>Trouvez des vendeurs près de vous</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Produits viraux */}
-          {viralProducts.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🔥 Produits viraux près de chez vous</Text>
-              <FlatList
-                data={viralProducts}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                renderItem={renderViralItem}
-                keyExtractor={(item) => item.id.toString()}
-              />
-            </View>
-          )}
-
-          {/* Suggestions - grille avec détails */}
-          {suggestions.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🧠 Suggestions pour vous</Text>
-              <View style={styles.suggestionsGrid}>
-                {suggestions.map((item) => renderSuggestionItem(item))}
-              </View>
-            </View>
-          )}
-
-          {/* Produits similaires */}
-          {similarProducts.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Produits similaires</Text>
-              <FlatList
-                data={similarProducts}
-                renderItem={renderSimilarItem}
-                keyExtractor={(item) => item.id.toString()}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-              />
-            </View>
-          )}
-
-          {/* Boutons supplémentaires (Signaler et Avis) améliorés */}
-          <View style={styles.bottomButtons}>
-            <TouchableOpacity style={styles.bottomButton} onPress={handleReport}>
-              <View style={styles.bottomIconContainer}>
-                <Ionicons name="flag-outline" size={28} color={COLORS.error} />
-              </View>
-              <Text style={styles.bottomButtonTitle}>Signaler ce produit</Text>
-              <Text style={styles.bottomButtonSubtitle}>Contenu inapproprié ?</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.bottomButton} onPress={() => setReviewModalVisible(true)}>
-              <View style={styles.bottomIconContainer}>
-                <Ionicons name="star-outline" size={28} color={COLORS.accent} />
-              </View>
-              <Text style={styles.bottomButtonTitle}>Donner mon avis</Text>
-              <Text style={styles.bottomButtonSubtitle}>Partagez votre expérience</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Modal plein écran pour les images */}
+      {/* Modals */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalClose}>
             <Ionicons name="close" size={28} color={COLORS.white} />
           </TouchableOpacity>
-          {images.length > 1 && (
+          {(product?.images?.length ?? 0) > 1 && (
             <>
               <TouchableOpacity onPress={() => navigateToImage("prev")} style={[styles.modalNav, { left: 10 }]}>
                 <Ionicons name="chevron-back" size={28} color={COLORS.white} />
@@ -997,11 +1311,10 @@ export default function DetailId() {
               </TouchableOpacity>
             </>
           )}
-          <Image source={{ uri: images[activeImageIndex] }} style={styles.modalImage} resizeMode="contain" />
+          <Image source={{ uri: product?.images?.[activeImageIndex] || "" }} style={styles.modalImage} resizeMode="contain" />
         </View>
       </Modal>
 
-      {/* Modal pour laisser un avis */}
       <Modal visible={reviewModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalReviewContainer}>
@@ -1030,9 +1343,12 @@ export default function DetailId() {
   );
 }
 
-// Styles (inchangés)
+// ------------------------------------------------------------
+// Styles (complets)
+// ------------------------------------------------------------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  scrollContainer: { paddingBottom: 20 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
   errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20, backgroundColor: COLORS.background },
   loadingText: { marginTop: 12, fontSize: 16, color: COLORS.secondary },
@@ -1067,7 +1383,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   notificationText: { marginLeft: 8, fontSize: 14, color: COLORS.primary, flex: 1 },
-  scrollView: { flex: 1 },
   imageSection: { marginBottom: 16 },
   imageWrapper: { width, height: width, backgroundColor: COLORS.cardBackground },
   mainImage: { width: "100%", height: "100%" },
@@ -1082,17 +1397,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   promoBadgeText: { color: COLORS.white, fontSize: 12, fontWeight: "600", marginLeft: 4 },
-  featuredBadge: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  featuredBadgeText: { color: COLORS.white, fontSize: 11, fontWeight: "500", marginLeft: 4 },
   pageIndicator: {
     position: "absolute",
     bottom: 70,
@@ -1106,7 +1410,7 @@ const styles = StyleSheet.create({
   thumbnailWrapper: { width: 60, height: 60, marginRight: 8, borderWidth: 1, borderColor: COLORS.border },
   activeThumbnail: { borderColor: COLORS.accent, borderWidth: 2 },
   thumbnailImage: { width: "100%", height: "100%", resizeMode: "cover" },
-  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  content: { paddingHorizontal: 16 },
   title: { fontSize: 22, fontWeight: "600", color: COLORS.primary, marginBottom: 6 },
   categoryRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   category: { fontSize: 14, color: COLORS.secondary, marginLeft: 4 },
@@ -1235,24 +1539,65 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 2,
   },
-  boostedCard: { width: 120, marginRight: 12, backgroundColor: COLORS.cardBackground, padding: 8 },
-  boostedImage: { width: 104, height: 104, marginBottom: 8 },
-  boostedTitle: { fontSize: 12, color: COLORS.primary, marginBottom: 4 },
-  boostedPrice: { fontSize: 13, fontWeight: "600", color: COLORS.accent },
-  suggestionsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  suggestionItem: { width: (width - 32 - 16) / 2, marginBottom: 16, backgroundColor: COLORS.cardBackground, padding: 8 },
-  suggestionImage: { width: "100%", height: 120, marginBottom: 8 },
-  suggestionTitle: { fontSize: 13, color: COLORS.primary, marginBottom: 4 },
-  suggestionDetails: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
-  suggestionPrice: { fontSize: 14, fontWeight: "600", color: COLORS.accent },
-  suggestionDiscountBadge: { backgroundColor: COLORS.error + "20", paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
-  suggestionDiscountText: { fontSize: 10, fontWeight: "bold", color: COLORS.error },
-  suggestionDate: { fontSize: 10, color: COLORS.secondary, marginBottom: 2 },
-  suggestionPromo: { fontSize: 10, color: COLORS.accent, fontWeight: "bold" },
-  similarCard: { width: 140, marginRight: 12, backgroundColor: COLORS.cardBackground, padding: 8 },
-  similarImage: { width: "100%", height: 120, marginBottom: 8 },
-  similarTitle: { fontSize: 13, color: COLORS.primary, marginBottom: 4 },
-  similarPrice: { fontSize: 14, fontWeight: "600", color: COLORS.accent },
+  productCard: {
+    width: (width - 48) / 2,
+    marginBottom: 16,
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  productImageContainer: {
+    position: "relative",
+    aspectRatio: 1,
+    backgroundColor: COLORS.border,
+  },
+  productCardImage: {
+    width: "100%",
+    height: "100%",
+  },
+  sponsoredBadge: {
+    position: "absolute",
+    top: 4,
+    left: 4,
+    backgroundColor: COLORS.accent,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 2,
+  },
+  sponsoredBadgeText: { color: COLORS.white, fontSize: 8, fontWeight: "600", marginLeft: 2 },
+  discountBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: COLORS.error,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 2,
+  },
+  discountBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: "800" },
+  countdownContainer: {
+    position: "absolute",
+    bottom: 4,
+    left: 4,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  countdownText: { color: COLORS.white, fontSize: 9, marginLeft: 2 },
+  productCardTitle: { fontSize: 13, fontWeight: "500", color: COLORS.primary, paddingHorizontal: 8, paddingTop: 8, marginBottom: 4 },
+  productCardPriceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingBottom: 8 },
+  productCardPrice: { fontSize: 14, fontWeight: "700", color: COLORS.accent },
+  productCardOriginalPrice: { fontSize: 11, color: COLORS.secondary, textDecorationLine: "line-through" },
+  suggestionsGrid: { justifyContent: "space-between", gap: 16 },
+  footerLoader: { paddingVertical: 20, alignItems: "center" },
+  endMessage: { textAlign: "center", color: COLORS.secondary, fontSize: 12, marginVertical: 8 },
   bottomButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1267,82 +1612,32 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
   },
-  bottomIconContainer: {
+  bottomIconContainer: { marginBottom: 8 },
+  bottomButtonTitle: { fontSize: 15, fontWeight: "600", color: COLORS.primary, marginBottom: 4 },
+  bottomButtonSubtitle: { fontSize: 12, color: COLORS.secondary, textAlign: "center" },
+  categoriesSection: { marginBottom: 20 },
+  categoriesGrid: { justifyContent: "space-between", marginBottom: 12, gap: 12 },
+  categoryButton: {
+    width: (width - 48) / 4,
+    alignItems: "center",
+    backgroundColor: COLORS.cardBackground,
+    paddingVertical: 12,
+    borderRadius: 12,
     marginBottom: 8,
   },
-  bottomButtonTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.primary,
-    marginBottom: 4,
-  },
-  bottomButtonSubtitle: {
-    fontSize: 12,
-    color: COLORS.secondary,
-    textAlign: "center",
-  },
+  categoryIcon: { fontSize: 28, marginBottom: 4 },
+  categoryName: { fontSize: 11, textAlign: "center", color: COLORS.primary },
   modalContainer: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
   modalClose: { position: "absolute", top: 50, right: 20, zIndex: 10, padding: 8 },
   modalNav: { position: "absolute", top: "50%", zIndex: 10, padding: 16 },
   modalImage: { width: width, height: height * 0.8 },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalReviewContainer: {
-    width: width * 0.9,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: COLORS.primary,
-  },
-  commentInput: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 20,
-    marginBottom: 20,
-    textAlignVertical: "top",
-    minHeight: 100,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    marginRight: 8,
-    backgroundColor: COLORS.cardBackground,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  cancelButtonText: {
-    color: COLORS.secondary,
-    fontWeight: "600",
-  },
-  submitButton: {
-    flex: 1,
-    paddingVertical: 12,
-    marginLeft: 8,
-    backgroundColor: COLORS.accent,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  submitButtonText: {
-    color: COLORS.white,
-    fontWeight: "600",
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
+  modalReviewContainer: { width: width * 0.9, backgroundColor: COLORS.white, borderRadius: 12, padding: 20, alignItems: "center" },
+  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20, color: COLORS.primary },
+  commentInput: { width: "100%", borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 12, marginTop: 20, marginBottom: 20, textAlignVertical: "top", minHeight: 100 },
+  modalButtons: { flexDirection: "row", justifyContent: "space-between", width: "100%" },
+  cancelButton: { flex: 1, paddingVertical: 12, marginRight: 8, backgroundColor: COLORS.cardBackground, alignItems: "center", borderRadius: 8 },
+  cancelButtonText: { color: COLORS.secondary, fontWeight: "600" },
+  submitButton: { flex: 1, paddingVertical: 12, marginLeft: 8, backgroundColor: COLORS.accent, alignItems: "center", borderRadius: 8 },
+  submitButtonText: { color: COLORS.white, fontWeight: "600" },
 });

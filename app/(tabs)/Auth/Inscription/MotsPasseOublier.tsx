@@ -54,7 +54,7 @@ export default function MotsPasseOublier() {
     }
 
     if (!validateIdentifier(identifier)) {
-      setErrorMessage("Email ou numéro invalide.");
+      setErrorMessage("Email ou numéro de téléphone");
       Vibration.vibrate(300);
       setIsLoading(false);
       return;
@@ -97,7 +97,7 @@ export default function MotsPasseOublier() {
 
       <TextInput
         style={styles.input}
-        placeholder="Email ou téléphone"
+        placeholder="Email ou numéro de téléphone"
         placeholderTextColor="#BCCCDC"
         value={identifier}
         onChangeText={setIdentifier}

@@ -126,7 +126,7 @@ export default function Connexion() {
 
       <TextInput
         style={styles.input}
-        placeholder="Email ou téléphone"
+        placeholder="Email ou numéro de téléphone"
         placeholderTextColor="#BCCCDC"
         value={identifier}
         onChangeText={setIdentifier}

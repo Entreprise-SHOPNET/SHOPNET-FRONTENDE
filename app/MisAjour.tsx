@@ -240,7 +240,7 @@ const ComingSoonPage = () => {
             </View>
           </Animated.View>
 
-          <Text style={styles.title}>SHOPNET V2.0</Text>
+          <Text style={styles.title}>SHOPNET V2.1.2</Text>
           <Text style={styles.subtitle}>La Révolution Pro Arrive</Text>
 
           <View style={styles.exclusiveBadge}>
@@ -262,7 +262,7 @@ const ComingSoonPage = () => {
           <Text style={styles.messageTitle}>Une Expérience Réinventée</Text>
           <Text style={styles.message}>
             Nous préparons une révolution complète de votre expérience boutique.
-            La V2.0 apporte des technologies de pointe et des fonctionnalités
+            La V2.1.2 apporte des technologies de pointe et des fonctionnalités
             exclusives réservées aux professionnels les plus exigeants.
           </Text>
         </Animated.View>
@@ -403,7 +403,7 @@ const ComingSoonPage = () => {
             <Text style={styles.ctaTitle}>Prêt pour la Révolution ?</Text>
             <Text style={styles.ctaDescription}>
               Rejoignez l'élite des boutiques professionnelles et soyez parmi
-              les premiers à découvrir SHOPNET V2.0. Notre équipe est à votre écoute pour répondre à toutes vos questions.
+              les premiers à découvrir SHOPNET V2.1.2 Notre équipe est à votre écoute pour répondre à toutes vos questions.
             </Text>
 
             <TouchableOpacity
@@ -448,7 +448,7 @@ const ComingSoonPage = () => {
         <View style={styles.footerContent}>
           <Ionicons name="diamond" size={16} color={PRO_BLUE} />
           <Text style={styles.footerText}>
-            SHOPNET V2.0 • EXPÉRIENCE PRO ULTIME • SUPPORT VIP
+            SHOPNET V2.1.2 • EXPÉRIENCE PRO ULTIME • SUPPORT VIP
           </Text>
           <Ionicons name="diamond" size={16} color={PRO_BLUE} />
         </View>
