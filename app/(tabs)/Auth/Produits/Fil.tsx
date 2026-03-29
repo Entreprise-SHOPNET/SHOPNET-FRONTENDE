@@ -17,7 +17,7 @@ import {
   Animated,
   Share,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, MaterialIcons } from '@expo/vector-icons'; // 👈 AJOUT
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -55,6 +55,7 @@ interface Product {
   duration_days?: number;
   created_at?: string;
   time_remaining?: string;
+  is_boosted?: boolean; // 👈 AJOUT : produit sponsorisé
 }
 
 interface InternalPromotion {
@@ -155,6 +156,16 @@ const formatNumber = (num: number): string => {
   }
   return num.toString();
 };
+
+// ============================================
+// BADGE SPONSORISÉ (BLEU AVEC TEXTE)
+// ============================================
+const SponsoredBadge = () => (
+  <View style={styles.sponsoredBadge}>
+    <MaterialIcons name="verified" size={14} color="#42A5F5" />
+    <Text style={styles.sponsoredText}>Sponsorisé</Text>
+  </View>
+);
 
 // ============================================
 // HOOK PERSONNALISÉ useFeed
@@ -344,6 +355,7 @@ const useFeed = (
             promo.created_at || new Date().toISOString(),
             promo.duration_days || 7,
           ),
+          is_boosted: false, // Les promotions ne sont pas boostées
         }));
       }
       return [];
@@ -378,6 +390,10 @@ const useFeed = (
           ? product.images.filter((img: string) => img && img.trim() !== '')
           : [];
 
+        // 👈 Détection du boost : le backend envoie isPromotion = true pour les produits boostés
+        // (et false pour les autres). Aucun promotionId n'est présent dans ce flux.
+        const isBoosted = product.isPromotion === true;
+
         return {
           id: product.id?.toString() ?? '',
           title: product.title ?? 'Titre non disponible',
@@ -404,8 +420,9 @@ const useFeed = (
           isLiked: product.isLiked ?? false,
           shares: product.shares ?? 0,
           location: product.location ?? 'Lubumbashi',
-          isPromotion: false,
+          isPromotion: false, // ce n'est pas une vraie promotion
           created_at: product.created_at || new Date().toISOString(),
+          is_boosted: isBoosted, // 👈 Flag pour le badge sponsorisé
         };
       });
 
@@ -970,7 +987,10 @@ const FullWidthProductCard = memo(({
       >
         <Image source={{ uri: seller.avatar || 'https://via.placeholder.com/40' }} style={styles.avatar} />
         <View style={styles.sellerInfo}>
-          <Text style={styles.sellerName} numberOfLines={1}>{seller.name || 'Vendeur'}</Text>
+          <View style={styles.sellerNameRow}>
+            <Text style={styles.sellerName} numberOfLines={1}>{seller.name || 'Vendeur'}</Text>
+            {item.is_boosted && <SponsoredBadge />}
+          </View>
           <Text style={styles.productLocation} numberOfLines={1}>{item.location || 'Lubumbashi'}</Text>
         </View>
       </TouchableOpacity>
@@ -1001,6 +1021,12 @@ const FullWidthProductCard = memo(({
             style={styles.fullWidthImage}
             onLoad={() => setImageLoaded(true)}
           />
+          {/* 👈 BADGE "SPONSORISÉ" SUR L'IMAGE */}
+          {item.is_boosted && (
+            <View style={styles.imageSponsoredBadge}>
+              <Text style={styles.imageSponsoredText}>Offre spéciale</Text>
+            </View>
+          )}
         </View>
 
         {item.isPromotion && (
@@ -1063,7 +1089,6 @@ const FullWidthProductCard = memo(({
               size={20}
               color={item.isLiked ? '#FF3B30' : '#333'}
             />
-            {/* MODIFICATION ICI : utilisation de formatNumber pour les likes */}
             <Text style={styles.socialCount}>{formatNumber(likes)}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.socialButton} onPress={() => handleComment(item.id)}>
@@ -1093,7 +1118,8 @@ const FullWidthProductCard = memo(({
     prev.item.likes === next.item.likes &&
     prev.item.comments === next.item.comments &&
     prev.item.shares === next.item.shares &&
-    prev.item.isPromotion === next.item.isPromotion
+    prev.item.isPromotion === next.item.isPromotion &&
+    prev.item.is_boosted === next.item.is_boosted
   );
 });
 
@@ -1434,7 +1460,7 @@ const ShopApp = () => {
 };
 
 // ============================================
-// STYLES
+// STYLES (AJOUT DES NOUVEAUX STYLES)
 // ============================================
 
 const styles = StyleSheet.create({
@@ -1486,13 +1512,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  fullWidthImageContainer: { width: '100%', height: width, backgroundColor: '#eee' },
+  fullWidthImageContainer: { width: '100%', height: width, backgroundColor: '#eee', position: 'relative' }, // 👈 position relative pour badge
   fullWidthImage: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 },
   productHeader: { flexDirection: 'row', alignItems: 'center', padding: 12 },
   avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10, backgroundColor: '#eee' },
   sellerInfo: { flex: 1 },
+  sellerNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }, // 👈 alignement badge
   sellerName: { fontWeight: 'bold', fontSize: 15 },
-  productLocation: { fontSize: 12, color: '#666' },
+  productLocation: { fontSize: 12, color: '#666', marginTop: 2 },
+  sponsoredBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E3F2FD', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 14, gap: 4 },
+  sponsoredText: { fontSize: 11, fontWeight: '600', color: '#1E88E5' },
+  imageSponsoredBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, zIndex: 10 },
+  imageSponsoredText: { color: '#FFD700', fontWeight: 'bold', fontSize: 12 },
   priceContainer: {
     position: 'absolute',
     bottom: 10,
