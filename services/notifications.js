@@ -1,143 +1,66 @@
 // services/notifications.js
 // services/notifications.js
 
-import * as Notifications from "expo-notifications";
-import * as Device from "expo-device";
-import Constants from "expo-constants";
+// services/notifications.js
+
+import messaging from "@react-native-firebase/messaging";
 import { Platform } from "react-native";
 
-// 🔔 Comportement des notifications quand l'app est au premier plan
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
 /**
- * 🔥 CONFIGURATION ANDROID
- */
-export async function configureAndroidChannel() {
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "default",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#4CB050",
-    });
-
-    console.log("✅ Notification Channel Android configuré");
-  }
-}
-
-/**
- * 📲 Enregistrer l'appareil et envoyer le token Expo
+ * 🔥 INITIALISATION + PERMISSION + TOKEN FCM
  */
 export async function registerForPushNotificationsAsync(userId) {
   try {
+    console.log("🔥 SHOPNET FCM INIT...");
 
-    console.log("🔎 Vérification configuration notifications");
-
-    // 🔍 Vérifier Project ID
-    const projectId =
-      Constants?.expoConfig?.extra?.eas?.projectId ??
-      Constants?.easConfig?.projectId;
-
-    console.log("📦 Project ID détecté :", projectId);
-
-    if (!projectId) {
-      console.log("❌ ERREUR : aucun Project ID trouvé → ExpoPushToken impossible");
-      return null;
-    } else {
-      console.log("✅ Project ID valide → ExpoPushToken sera généré en APK");
-    }
-
-    // 🔍 Vérifier environnement
-    if (Constants.appOwnership === "expo") {
-      console.log("⚠️ Environnement actuel : Expo Go");
-      console.log("ℹ️ Expo Go génère seulement : ExponentPushToken");
-      console.log("🚀 En APK/AAB la valeur deviendra : ExpoPushToken");
-    }
-
-    if (Constants.appOwnership === "standalone") {
-      console.log("✅ Application en mode PRODUCTION (APK / Play Store)");
-    }
-
-    console.log("📱 Appareil réel :", Device.isDevice);
-
-    if (!Device.isDevice) {
-      console.log("❌ Notifications nécessitent un appareil réel");
+    if (!userId) {
+      console.log("❌ userId manquant");
       return null;
     }
 
-    console.log("⚡️ Demande permission notifications pour userId:", userId);
+    // 🔐 Demander permission notifications
+    const authStatus = await messaging().requestPermission();
 
-    // 🔥 Créer le channel Android
-    await configureAndroidChannel();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-    // 🔐 Vérification permissions
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== "granted") {
+    if (!enabled) {
       console.log("❌ Permission notifications refusée");
       return null;
     }
 
     console.log("✅ Permission notifications accordée");
 
-    // 🔥 Génération du token Expo
-    const tokenResponse = await Notifications.getExpoPushTokenAsync({
-      projectId,
-    });
+    // 🚀 Récupérer le TOKEN FCM
+    const fcmToken = await messaging().getToken();
 
-    const expoPushToken = tokenResponse.data;
-
-    console.log("🚀 TOKEN GÉNÉRÉ :", expoPushToken);
-
-    if (expoPushToken.startsWith("ExponentPushToken")) {
-      console.log("⚠️ Token Expo Go détecté");
+    if (!fcmToken) {
+      console.log("❌ Impossible de récupérer le token FCM");
+      return null;
     }
 
-    if (expoPushToken.startsWith("ExpoPushToken")) {
-      console.log("✅ Token PRODUCTION détecté");
-    }
+    console.log("🔥 FCM TOKEN SHOPNET :", fcmToken);
 
-    // 📡 Envoi au backend
-    await sendTokenToBackend(expoPushToken, userId);
+    // 📡 Envoyer au backend
+    await sendTokenToBackend(fcmToken, userId);
 
-    return expoPushToken;
-
+    return fcmToken;
   } catch (error) {
-    console.error("❌ Erreur register notifications:", error);
+    console.error("❌ Erreur FCM register:", error);
     return null;
   }
 }
 
 /**
- * 📡 Envoi du token au backend
+ * 📡 ENVOI TOKEN AU BACKEND (MySQL)
  */
 async function sendTokenToBackend(token, userId) {
-
-  if (!token || !userId) {
-    console.log("⚠️ Token ou userId manquant");
-    return;
-  }
-
   try {
-
-    console.log("📡 Envoi token au backend...");
+    console.log("📡 Envoi token FCM backend SHOPNET...");
 
     const response = await fetch(
-      "https://shopnet-backend.onrender.com/api/save-expo-token",
+      "https://shopnet-backend.onrender.com/api/save-fcm-token",
       {
         method: "POST",
         headers: {
@@ -145,33 +68,55 @@ async function sendTokenToBackend(token, userId) {
         },
         body: JSON.stringify({
           userId,
-          expoPushToken: token,
+          fcmToken: token,
+          device: Platform.OS,
         }),
       }
     );
 
     const data = await response.json();
 
-    console.log("📡 Token sauvegardé:", data?.message ?? data);
-
+    console.log("📡 Backend response:", data);
   } catch (error) {
-    console.error("❌ Erreur envoi token backend:", error);
+    console.error("❌ Erreur envoi backend:", error);
   }
 }
 
 /**
- * 🔔 Écoute des notifications
+ * 🔔 ÉCOUTER NOTIFICATIONS (APP OUVERTE)
  */
-export function listenNotifications(onNotification, onResponse) {
+export function listenNotifications(onMessage, onOpen) {
+  try {
+    // 📩 App ouverte (foreground)
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      console.log("🔔 Notification reçue:", remoteMessage);
 
-  const receivedSub =
-    Notifications.addNotificationReceivedListener(onNotification);
+      if (onMessage) {
+        onMessage(remoteMessage);
+      }
+    });
 
-  const responseSub =
-    Notifications.addNotificationResponseReceivedListener(onResponse);
+    // 📲 App ouverte via notification
+    messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log("📲 Notification ouverte:", remoteMessage);
 
-  return () => {
-    receivedSub.remove();
-    responseSub.remove();
-  };
+      if (onOpen) {
+        onOpen(remoteMessage);
+      }
+    });
+
+    // 🔥 App kill -> ouverture directe
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          console.log("🚀 App ouverte depuis notification:", remoteMessage);
+          if (onOpen) onOpen(remoteMessage);
+        }
+      });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error("❌ listenNotifications error:", error);
+  }
 }

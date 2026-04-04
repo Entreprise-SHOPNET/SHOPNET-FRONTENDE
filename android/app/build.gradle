@@ -91,8 +91,8 @@ android {
             applicationId 'com.shopai.app'
             minSdkVersion rootProject.ext.minSdkVersion
             targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 35
-            versionName "2.2.0"
+            versionCode 17
+            versionName "1.1.0"
 
             // 🔹 Correction NDK ABI
             ndk {
