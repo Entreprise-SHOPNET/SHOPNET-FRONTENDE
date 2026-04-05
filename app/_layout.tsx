@@ -1,5 +1,7 @@
 // app/_layout.tsx
 
+// app/_layout.tsx
+
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   DarkTheme,
@@ -56,7 +58,7 @@ function RootLayoutNav() {
   const [notifMessage, setNotifMessage] = useState("");
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
+    let unsubscribe: any;
 
     const initNotifications = async () => {
       if (!Device.isDevice) {
@@ -64,35 +66,46 @@ function RootLayoutNav() {
         return;
       }
 
-      // 🔥 Attendre que l'utilisateur soit disponible
-      const checkUserInterval = setInterval(async () => {
+      // 🔥 attendre user
+      const interval = setInterval(async () => {
         if (globalThis.currentUser?.id) {
-          clearInterval(checkUserInterval);
+          clearInterval(interval);
 
-          console.log(
-            "👤 Utilisateur détecté pour notifications:",
-            globalThis.currentUser.id
-          );
+          const userId = globalThis.currentUser.id;
 
-          await registerForPushNotificationsAsync(
-            globalThis.currentUser.id
-          );
+          console.log("👤 User détecté:", userId);
 
-          cleanup = listenNotifications(
-            (notification) => {
+          // 🔐 permission + token
+          await registerForPushNotificationsAsync(userId);
+
+          // 🔔 écouter notifications FCM
+          unsubscribe = listenNotifications(
+            // 📩 FOREGROUND
+            (remoteMessage) => {
+              console.log("🔔 FCM FOREGROUND:", remoteMessage);
+
               const message =
-                notification.request.content.body || "";
+                remoteMessage?.notification?.body ||
+                remoteMessage?.data?.body ||
+                "Nouvelle notification";
+
               setNotifMessage(message);
               setNotifVisible(true);
-              setTimeout(() => setNotifVisible(false), 4000);
+
+              setTimeout(() => {
+                setNotifVisible(false);
+              }, 4000);
             },
-            (response) => {
-              const data =
-                response.notification.request.content.data || {};
+
+            // 📲 CLICK NOTIFICATION
+            (remoteMessage) => {
+              console.log("📲 Notification ouverte:", remoteMessage);
+
+              const data = remoteMessage?.data || {};
               const productId = data.productId;
 
               if (productId) {
-                router.push(`/(tabs)/Auth/Panier/DetailId`);
+                router.push(`/(tabs)/Auth/Produits/Detail?productId=${productId}`);
               } else {
                 router.push("/Auth/Produits/Fil");
               }
@@ -105,7 +118,7 @@ function RootLayoutNav() {
     initNotifications();
 
     return () => {
-      if (cleanup) cleanup();
+      if (unsubscribe) unsubscribe();
     };
   }, []);
 
@@ -115,24 +128,31 @@ function RootLayoutNav() {
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
         >
+          {/* 🔔 POPUP NOTIFICATION */}
           {notifVisible && (
             <View
               style={{
                 position: "absolute",
-                top: 50,
+                top: 60,
                 left: 20,
                 right: 20,
                 backgroundColor: "#4CB050",
                 padding: 15,
-                borderRadius: 8,
+                borderRadius: 10,
                 zIndex: 999,
                 flexDirection: "row",
                 alignItems: "center",
+                elevation: 5,
               }}
             >
               <FontAwesome name="bell" size={20} color="#fff" />
               <Text
-                style={{ color: "#fff", marginLeft: 10, fontWeight: "600" }}
+                style={{
+                  color: "#fff",
+                  marginLeft: 10,
+                  fontWeight: "600",
+                  flex: 1,
+                }}
               >
                 {notifMessage}
               </Text>
