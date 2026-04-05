@@ -1,4 +1,7 @@
 // services/notifications.jsimport messaging from "@react-native-firebase/messaging";
+i// services/notifications.js
+
+import messaging from "@react-native-firebase/messaging";
 import { Platform, PermissionsAndroid } from "react-native";
 
 /**
@@ -15,16 +18,25 @@ export async function registerForPushNotificationsAsync(userId) {
 
     let permissionGranted = false;
 
-    // 📱 ANDROID 13+
+    // ✅ ANDROID 13+
     if (Platform.OS === "android" && Platform.Version >= 33) {
-      const result = await PermissionsAndroid.request(
+      const alreadyGranted = await PermissionsAndroid.check(
         PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
       );
 
-      permissionGranted = result === PermissionsAndroid.RESULTS.GRANTED;
+      if (alreadyGranted) {
+        permissionGranted = true;
+      } else {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+        );
+
+        permissionGranted =
+          result === PermissionsAndroid.RESULTS.GRANTED;
+      }
     }
 
-    // 🍎 iOS + Android < 13
+    // ✅ iOS + Android < 13
     else {
       const authStatus = await messaging().requestPermission();
 
@@ -44,17 +56,17 @@ export async function registerForPushNotificationsAsync(userId) {
     const fcmToken = await messaging().getToken();
 
     if (!fcmToken) {
-      console.log("❌ Impossible de récupérer le token FCM");
+      console.log("❌ Token FCM introuvable");
       return null;
     }
 
     console.log("🔥 FCM TOKEN SHOPNET :", fcmToken);
 
-    // 📡 Envoyer au backend
+    // 📡 Backend
     await sendTokenToBackend(fcmToken, userId);
 
-    // 🔄 Écouter changement token (IMPORTANT)
-    messaging().onTokenRefresh(async newToken => {
+    // 🔄 Refresh token
+    messaging().onTokenRefresh(async (newToken) => {
       console.log("🔄 Nouveau token FCM :", newToken);
       await sendTokenToBackend(newToken, userId);
     });
@@ -68,12 +80,10 @@ export async function registerForPushNotificationsAsync(userId) {
 }
 
 /**
- * 📡 ENVOI TOKEN AU BACKEND (MySQL)
+ * 📡 ENVOI TOKEN BACKEND
  */
 async function sendTokenToBackend(token, userId) {
   try {
-    console.log("📡 Envoi token FCM backend SHOPNET...");
-
     const response = await fetch(
       "https://shopnet-backend.onrender.com/api/save-fcm-token",
       {
@@ -90,42 +100,42 @@ async function sendTokenToBackend(token, userId) {
     );
 
     const data = await response.json();
-    console.log("📡 Backend response:", data);
+    console.log("📡 Backend:", data);
 
   } catch (error) {
-    console.error("❌ Erreur envoi backend:", error);
+    console.error("❌ Backend error:", error);
   }
 }
 
 /**
- * 🔔 ÉCOUTER NOTIFICATIONS (APP OUVERTE / BACKGROUND / KILLED)
+ * 🔔 LISTENER NOTIFICATIONS
  */
 export function listenNotifications(onMessage, onOpen) {
   try {
-    // 📩 APP OUVERTE (foreground)
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log("🔔 Notification reçue (foreground):", remoteMessage);
+    // 📩 FOREGROUND
+    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+      console.log("🔔 FOREGROUND:", remoteMessage);
 
       if (onMessage) {
         onMessage(remoteMessage);
       }
     });
 
-    // 📲 APP EN BACKGROUND → ouverture
-    messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log("📲 Notification ouverte (background):", remoteMessage);
+    // 📲 BACKGROUND CLICK
+    messaging().onNotificationOpenedApp((remoteMessage) => {
+      console.log("📲 BACKGROUND OPEN:", remoteMessage);
 
       if (onOpen) {
         onOpen(remoteMessage);
       }
     });
 
-    // 🚀 APP FERMÉE → ouverture directe
+    // 🚀 APP KILLED
     messaging()
       .getInitialNotification()
-      .then(remoteMessage => {
+      .then((remoteMessage) => {
         if (remoteMessage) {
-          console.log("🚀 App ouverte depuis notification (killed):", remoteMessage);
+          console.log("🚀 OPEN FROM KILLED:", remoteMessage);
 
           if (onOpen) {
             onOpen(remoteMessage);
@@ -136,6 +146,6 @@ export function listenNotifications(onMessage, onOpen) {
     return unsubscribe;
 
   } catch (error) {
-    console.error("❌ listenNotifications error:", error);
+    console.error("❌ listen error:", error);
   }
 }
