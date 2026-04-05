@@ -1,5 +1,5 @@
 // services/notifications.jsimport messaging from "@react-native-firebase/messaging";
-i// services/notifications.js
+// services/notifications.js
 
 import messaging from "@react-native-firebase/messaging";
 import { Platform, PermissionsAndroid } from "react-native";
