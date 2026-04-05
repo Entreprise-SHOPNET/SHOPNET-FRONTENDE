@@ -1,5 +1,4 @@
 // app/_layout.tsx
-
 // app/_layout.tsx
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -58,7 +57,7 @@ function RootLayoutNav() {
   const [notifMessage, setNotifMessage] = useState("");
 
   useEffect(() => {
-    let unsubscribe: any;
+    let cleanup: (() => void) | undefined;
 
     const initNotifications = async () => {
       if (!Device.isDevice) {
@@ -66,46 +65,35 @@ function RootLayoutNav() {
         return;
       }
 
-      // 🔥 attendre user
-      const interval = setInterval(async () => {
+      // 🔥 Attendre que l'utilisateur soit disponible
+      const checkUserInterval = setInterval(async () => {
         if (globalThis.currentUser?.id) {
-          clearInterval(interval);
+          clearInterval(checkUserInterval);
 
-          const userId = globalThis.currentUser.id;
+          console.log(
+            "👤 Utilisateur détecté pour notifications:",
+            globalThis.currentUser.id
+          );
 
-          console.log("👤 User détecté:", userId);
+          await registerForPushNotificationsAsync(
+            globalThis.currentUser.id
+          );
 
-          // 🔐 permission + token
-          await registerForPushNotificationsAsync(userId);
-
-          // 🔔 écouter notifications FCM
-          unsubscribe = listenNotifications(
-            // 📩 FOREGROUND
-            (remoteMessage) => {
-              console.log("🔔 FCM FOREGROUND:", remoteMessage);
-
+          cleanup = listenNotifications(
+            (notification) => {
               const message =
-                remoteMessage?.notification?.body ||
-                remoteMessage?.data?.body ||
-                "Nouvelle notification";
-
+                notification.request.content.body || "";
               setNotifMessage(message);
               setNotifVisible(true);
-
-              setTimeout(() => {
-                setNotifVisible(false);
-              }, 4000);
+              setTimeout(() => setNotifVisible(false), 4000);
             },
-
-            // 📲 CLICK NOTIFICATION
-            (remoteMessage) => {
-              console.log("📲 Notification ouverte:", remoteMessage);
-
-              const data = remoteMessage?.data || {};
+            (response) => {
+              const data =
+                response.notification.request.content.data || {};
               const productId = data.productId;
 
               if (productId) {
-                router.push(`/(tabs)/Auth/Produits/Detail?productId=${productId}`);
+                router.push(`/(tabs)/Auth/Panier/DetailId`);
               } else {
                 router.push("/Auth/Produits/Fil");
               }
@@ -118,7 +106,7 @@ function RootLayoutNav() {
     initNotifications();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (cleanup) cleanup();
     };
   }, []);
 
@@ -128,31 +116,24 @@ function RootLayoutNav() {
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
         >
-          {/* 🔔 POPUP NOTIFICATION */}
           {notifVisible && (
             <View
               style={{
                 position: "absolute",
-                top: 60,
+                top: 50,
                 left: 20,
                 right: 20,
                 backgroundColor: "#4CB050",
                 padding: 15,
-                borderRadius: 10,
+                borderRadius: 8,
                 zIndex: 999,
                 flexDirection: "row",
                 alignItems: "center",
-                elevation: 5,
               }}
             >
               <FontAwesome name="bell" size={20} color="#fff" />
               <Text
-                style={{
-                  color: "#fff",
-                  marginLeft: 10,
-                  fontWeight: "600",
-                  flex: 1,
-                }}
+                style={{ color: "#fff", marginLeft: 10, fontWeight: "600" }}
               >
                 {notifMessage}
               </Text>
