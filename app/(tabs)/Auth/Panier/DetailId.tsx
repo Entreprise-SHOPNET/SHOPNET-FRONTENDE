@@ -1,6 +1,4 @@
 
-
-
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
@@ -467,7 +465,7 @@ export default function DetailId() {
         setSeller(cachedData.seller);
         setBoutique(cachedData.boutique);
         setDetectedLinks(extractUrls(cachedData.product.description || ""));
-        const initialSimilars = (cachedData.similar_products || []).map((p: any) => ({
+        const initialSimilars = (cachedData.similar_products || []).slice(0, 10).map((p: any) => ({
           id: p.id,
           title: p.title,
           price: parseFloat(p.price) || 0,
@@ -478,10 +476,10 @@ export default function DetailId() {
           duration_days: p.duration_days,
         }));
         setSimilarProducts(initialSimilars);
+        setSimilarHasMore(initialSimilars.length >= 10 ? false : true);
         setLoading(false);
         
-        // Appel en arrière‑plan pour rafraîchir (optionnel)
-        // Rafraîchissement en arrière‑plan sans bloquer l'UI
+        // Appel en arrière‑plan pour rafraîchir
         fetchProductDetailFromNetwork(cacheKey);
         return;
       }
@@ -507,7 +505,8 @@ export default function DetailId() {
         setBoutique(data.boutique);
         setDetectedLinks(extractUrls(data.product.description || ""));
         
-        const initialSimilars = (data.similar_products || []).map((p: any) => ({
+        // Limiter à 10 produits similaires
+        const initialSimilars = (data.similar_products || []).slice(0, 10).map((p: any) => ({
           id: p.id,
           title: p.title,
           price: parseFloat(p.price) || 0,
@@ -518,6 +517,7 @@ export default function DetailId() {
           duration_days: p.duration_days,
         }));
         setSimilarProducts(initialSimilars);
+        setSimilarHasMore(initialSimilars.length >= 10 ? false : true);
         
         // Mise en cache
         if (cacheKey) {
@@ -548,10 +548,11 @@ export default function DetailId() {
   };
 
   // ------------------------------------------------------------
-  // Chargement paginé des produits similaires (pas de cache)
+  // Chargement paginé des produits similaires (max 10)
   // ------------------------------------------------------------
   const fetchMoreSimilar = async () => {
-    if (!similarHasMore || similarLoadingMore) return;
+    // Ne pas charger si déjà 10 produits ou plus, ou plus de pages disponibles
+    if (similarProducts.length >= 10 || !similarHasMore || similarLoadingMore) return;
 
     setSimilarLoadingMore(true);
     try {
@@ -572,9 +573,17 @@ export default function DetailId() {
           duration_days: p.duration_days,
         }));
 
-        setSimilarProducts(prev => [...prev, ...newProducts]);
+        // Fusionner et limiter à 10
+        const merged = [...similarProducts, ...newProducts];
+        const limited = merged.slice(0, 10);
+        setSimilarProducts(limited);
         setSimilarPage(prev => prev + 1);
-        setSimilarHasMore(data.has_more === true);
+        // S'il y a plus de 10 produits ou si le backend n'a plus de produits, on désactive
+        if (limited.length >= 10 || !data.has_more) {
+          setSimilarHasMore(false);
+        } else {
+          setSimilarHasMore(data.has_more === true);
+        }
       } else {
         setSimilarHasMore(false);
       }
@@ -873,9 +882,9 @@ export default function DetailId() {
   const categories = [
     {
       id: "electronics",
-      name: "Électronique",
+      name: "Électronique                   IA 🔥",
       icon: "📱",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/Auth/Categorie/ElectroniqueScreen")
     },
     {
       id: "fashion",
@@ -1157,7 +1166,7 @@ export default function DetailId() {
 
   const renderFooter = () => (
     <View style={styles.content}>
-      {/* Catégories en boutons (déplacé ici) */}
+      {/* Catégories en boutons */}
       <View style={styles.categoriesSection}>
         <Text style={styles.sectionTitle}>Explorer d’autres catégories</Text>
         <FlatList
@@ -1185,7 +1194,7 @@ export default function DetailId() {
         </View>
       )}
 
-      {/* Produits similaires */}
+      {/* Produits similaires (max 10) */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Produits similaires</Text>
         <FlatList
@@ -1285,7 +1294,7 @@ export default function DetailId() {
         </Animated.View>
       )}
 
-      {/* Contenu principal avec FlatList pour éviter l'erreur de virtualisation */}
+      {/* Contenu principal avec FlatList */}
       <FlatList
         data={[]}
         renderItem={() => null}
