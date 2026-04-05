@@ -890,7 +890,7 @@ export default function DetailId() {
       id: "fashion",
       name: "Mode",
       icon: "👕",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/Auth/Categorie/ModeScreen")
     },
     {
       id: "home",
