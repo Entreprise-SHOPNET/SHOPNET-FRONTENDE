@@ -902,7 +902,7 @@ export default function DetailId() {
       id: "computer",
       name: "Informatique",
       icon: "💻",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/Auth/Categorie/ComputersScreen")
     },
     {
       id: "beauty",
