@@ -896,7 +896,7 @@ export default function DetailId() {
       id: "home",
       name: "Maison",
       icon: "🏠",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/Auth/Categorie/MaisonScreen")
     },
     {
       id: "computer",
