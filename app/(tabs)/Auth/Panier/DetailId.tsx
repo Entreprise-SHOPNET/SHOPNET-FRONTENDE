@@ -907,8 +907,8 @@ export default function DetailId() {
     {
       id: "beauty",
       name: "Beauté",
-      icon: "🧴",
-      onPress: () => router.push("/MisAjour")
+      icon: "💄",
+      onPress: () => router.push("/Auth/Categorie/BeautyScreen")
     },
     {
       id: "auto",
