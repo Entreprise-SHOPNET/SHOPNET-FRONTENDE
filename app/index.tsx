@@ -4,13 +4,16 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getToken } from './(tabs)/Auth/authService';
-import { registerForPushNotificationsAsync, listenNotifications } from '../services/notifications';
+import {
+  registerForPushNotificationsAsync,
+  listenNotifications
+} from '../services/notifications';
 
 export default function Index() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // 🎬 Animation splash
+  // 🎬 SPLASH ANIMATION
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -20,38 +23,92 @@ export default function Index() {
 
     const timer = setTimeout(async () => {
       const token = await getToken();
-      if (token) router.replace('/Auth/Produits/Fil');
-      else router.replace('/splash');
+
+      if (token) {
+        router.replace('/Auth/Produits/Fil');
+      } else {
+        router.replace('/splash');
+      }
     }, 2500);
 
     return () => clearTimeout(timer);
   }, []);
 
-  // 🔔 Notifications
+  // 🔔 NOTIFICATIONS SYSTEM
   useEffect(() => {
     const setupNotifications = async () => {
-      const userId = await getToken(); // ou user.id selon ton backend
+      const userId = await getToken();
+
       if (userId) {
-        console.log('⚡️ Demande permission notifications pour userId:', userId);
+        console.log('⚡️ Activation notifications pour userId:', userId);
         await registerForPushNotificationsAsync(userId);
       }
     };
 
     setupNotifications();
 
-    // Écoute notifications reçues et cliquées
     const unsubscribe = listenNotifications(
-      (notification) => console.log('🔔 Notification reçue:', notification),
+      (notification) => {
+        console.log('🔔 Notification reçue:', notification);
+      },
+
       (response) => {
         console.log('📱 Notification cliquée:', response);
-        const data = response.notification.request.content.data;
-        if (data?.type === 'commande' && data?.commandeId) {
-          router.push(`/(tabs)/Auth/Panier/id`);
+
+        const data =
+          response?.notification?.request?.content?.data;
+
+        if (!data) {
+          router.push('/(tabs)/Auth/Produits/Fil');
+          return;
         }
+
+        // 🛒 COMMANDE
+        if (data.type === 'commande' && data.commandeId) {
+          router.push({
+            pathname: '/(tabs)/Auth/Panier/DetailId',
+            params: {
+              id: data.commandeId,
+            },
+          });
+          return;
+        }
+
+        // 📦 PRODUIT (likes, boost, promo, IA)
+        if (data.type === 'product' && data.productId) {
+          router.push({
+            pathname: '/(tabs)/Auth/Produits/DetailId',
+            params: {
+              id: data.productId,
+            },
+          });
+          return;
+        }
+
+        // 💬 COMMENTAIRE
+        if (data.type === 'comment' && data.productId) {
+          router.push({
+            pathname: '/(tabs)/Auth/Produits/DetailId',
+            params: {
+              id: data.productId,
+              openComments: 'true',
+            },
+          });
+          return;
+        }
+
+        // 🔥 PROMO / IA MARKETING
+        if (data.type === 'promo') {
+          router.push('/(tabs)/Auth/Produits/Fil');
+          return;
+        }
+
+        // 🧠 FALLBACK (sécurité)
+        router.push('/(tabs)/Auth/Produits/Fil');
       }
     );
 
-    return unsubscribe; // nettoyage
+    return unsubscribe;
   }, []);
 
   return (
