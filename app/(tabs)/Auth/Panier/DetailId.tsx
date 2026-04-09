@@ -914,7 +914,7 @@ export default function DetailId() {
       id: "auto",
       name: "Auto & Moto",
       icon: "🚗",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/Auth/Categorie/AutoMotoScreen")
     },
     {
       id: "food",
