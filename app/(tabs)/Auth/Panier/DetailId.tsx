@@ -1211,7 +1211,7 @@ export default function DetailId() {
       id: "services",
       name: "Services",
       icon: "🧰",
-      onPress: () => router.push("/MisAjour"),
+      onPress: () => router.push("/Auth/Categorie/ServicesScreen"),
     },
     {
       id: "shops",
