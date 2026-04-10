@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
@@ -160,14 +159,16 @@ const getValidToken = async () => {
 
 const cleanText = (text: string) => {
   if (!text) return "";
-  return text.replace(/\s+/g, ' ').trim();
+  return text.replace(/\s+/g, " ").trim();
 };
 
 const getRelativeDate = (dateString: string) => {
   if (!dateString) return "";
   const created = new Date(dateString);
   const now = new Date();
-  const diffDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor(
+    (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24),
+  );
   if (diffDays < 7) return `Il y a ${diffDays} jour${diffDays > 1 ? "s" : ""}`;
   return "Plus de 7 jours";
 };
@@ -175,14 +176,68 @@ const getRelativeDate = (dateString: string) => {
 // Génération de 100 avis mockés avec noms congolais
 const generateMockReviews = () => {
   const firstNames = [
-    "Jean", "Marie", "Paul", "Joseph", "Pierre", "Albert", "Antoine", "Benoît", "Charles", "Daniel",
-    "Emmanuel", "Fabrice", "Georges", "Henri", "Isaac", "Jacques", "Koffi", "Léon", "Michel", "Nicolas",
-    "Olivier", "Patrice", "Quentin", "Roger", "Serge", "Thierry", "Ulrich", "Vincent", "Wilfried", "Xavier",
-    "Yves", "Zacharie", "Aimé", "Blaise", "Célestin", "Didier", "Étienne", "Félix", "Gaston", "Hugo"
+    "Jean",
+    "Marie",
+    "Paul",
+    "Joseph",
+    "Pierre",
+    "Albert",
+    "Antoine",
+    "Benoît",
+    "Charles",
+    "Daniel",
+    "Emmanuel",
+    "Fabrice",
+    "Georges",
+    "Henri",
+    "Isaac",
+    "Jacques",
+    "Koffi",
+    "Léon",
+    "Michel",
+    "Nicolas",
+    "Olivier",
+    "Patrice",
+    "Quentin",
+    "Roger",
+    "Serge",
+    "Thierry",
+    "Ulrich",
+    "Vincent",
+    "Wilfried",
+    "Xavier",
+    "Yves",
+    "Zacharie",
+    "Aimé",
+    "Blaise",
+    "Célestin",
+    "Didier",
+    "Étienne",
+    "Félix",
+    "Gaston",
+    "Hugo",
   ];
   const lastNames = [
-    "Mbala", "Kabasele", "Tshibola", "Lukusa", "Mukendi", "Kazadi", "Ilunga", "Ntumba", "Mbuyi", "Tshimanga",
-    "Kabongo", "Mpoyi", "Banza", "Kalonji", "Lumumba", "Mobutu", "Tshisekedi", "Kabila", "Malu", "Ngoy"
+    "Mbala",
+    "Kabasele",
+    "Tshibola",
+    "Lukusa",
+    "Mukendi",
+    "Kazadi",
+    "Ilunga",
+    "Ntumba",
+    "Mbuyi",
+    "Tshimanga",
+    "Kabongo",
+    "Mpoyi",
+    "Banza",
+    "Kalonji",
+    "Lumumba",
+    "Mobutu",
+    "Tshisekedi",
+    "Kabila",
+    "Malu",
+    "Ngoy",
   ];
   const comments = [
     "Excellent produit, je recommande !",
@@ -204,7 +259,7 @@ const generateMockReviews = () => {
     "Service client réactif, merci.",
     "Produit bien emballé, rien à signaler.",
     "Je le conseille à tout le monde.",
-    "Super produit, je l'utilise depuis une semaine et rien à redire."
+    "Super produit, je l'utilise depuis une semaine et rien à redire.",
   ];
   const reviews = [];
   for (let i = 1; i <= 100; i++) {
@@ -216,10 +271,12 @@ const generateMockReviews = () => {
     reviews.push({
       id: i,
       user: fullName,
-      avatar: `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 100)}.jpg`,
+      avatar: `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? "men" : "women"}/${Math.floor(Math.random() * 100)}.jpg`,
       rating,
       comment,
-      date: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
+      date: new Date(
+        Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000,
+      ).toISOString(),
     });
   }
   return reviews;
@@ -228,57 +285,98 @@ const generateMockReviews = () => {
 // Détection d'URLs
 const extractUrls = (text: string): { url: string; type: string }[] => {
   if (!text) return [];
-  const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
+  const urlRegex =
+    /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
   const urls: { url: string; type: string }[] = [];
   let match;
   while ((match = urlRegex.exec(text)) !== null) {
     let url = match[0];
     let type = "lien";
-    if (url.includes('youtube.com') || url.includes('youtu.be')) type = "youtube";
-    else if (url.includes('facebook.com')) type = "facebook";
-    else if (url.includes('instagram.com')) type = "instagram";
-    else if (url.includes('twitter.com') || url.includes('x.com')) type = "twitter";
-    else if (url.includes('tiktok.com')) type = "tiktok";
-    else if (url.includes('amazon.com') || url.includes('amzn.to')) type = "amazon";
-    else if (url.includes('ebay.com')) type = "ebay";
-    else if (url.includes('.pdf')) type = "pdf";
-    else if (url.includes('.jpg') || url.includes('.png') || url.includes('.gif')) type = "image";
-    if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+    if (url.includes("youtube.com") || url.includes("youtu.be"))
+      type = "youtube";
+    else if (url.includes("facebook.com")) type = "facebook";
+    else if (url.includes("instagram.com")) type = "instagram";
+    else if (url.includes("twitter.com") || url.includes("x.com"))
+      type = "twitter";
+    else if (url.includes("tiktok.com")) type = "tiktok";
+    else if (url.includes("amazon.com") || url.includes("amzn.to"))
+      type = "amazon";
+    else if (url.includes("ebay.com")) type = "ebay";
+    else if (url.includes(".pdf")) type = "pdf";
+    else if (
+      url.includes(".jpg") ||
+      url.includes(".png") ||
+      url.includes(".gif")
+    )
+      type = "image";
+    if (!url.startsWith("http://") && !url.startsWith("https://"))
+      url = "https://" + url;
     urls.push({ url, type });
   }
   return urls;
 };
 
 // Composant lien
-const LinkComponent = ({ url, type, onPress }: { url: string; type: string; onPress: (url: string) => void }) => {
+const LinkComponent = ({
+  url,
+  type,
+  onPress,
+}: {
+  url: string;
+  type: string;
+  onPress: (url: string) => void;
+}) => {
   const getIconForType = () => {
-    switch(type) {
-      case "youtube": return <Ionicons name="logo-youtube" size={20} color="#FF0000" />;
-      case "facebook": return <Ionicons name="logo-facebook" size={20} color="#1877F2" />;
-      case "instagram": return <Ionicons name="logo-instagram" size={20} color="#E4405F" />;
-      case "twitter": return <Ionicons name="logo-twitter" size={20} color="#1DA1F2" />;
-      case "tiktok": return <Ionicons name="logo-tiktok" size={20} color="#000000" />;
-      case "amazon": return <Ionicons name="cart" size={20} color="#FF9900" />;
-      case "ebay": return <Ionicons name="pricetag" size={20} color="#E53238" />;
-      case "pdf": return <Ionicons name="document-text" size={20} color="#FF5722" />;
-      case "image": return <Ionicons name="image" size={20} color="#4CAF50" />;
-      default: return <Ionicons name="link" size={20} color="#1877F2" />;
+    switch (type) {
+      case "youtube":
+        return <Ionicons name="logo-youtube" size={20} color="#FF0000" />;
+      case "facebook":
+        return <Ionicons name="logo-facebook" size={20} color="#1877F2" />;
+      case "instagram":
+        return <Ionicons name="logo-instagram" size={20} color="#E4405F" />;
+      case "twitter":
+        return <Ionicons name="logo-twitter" size={20} color="#1DA1F2" />;
+      case "tiktok":
+        return <Ionicons name="logo-tiktok" size={20} color="#000000" />;
+      case "amazon":
+        return <Ionicons name="cart" size={20} color="#FF9900" />;
+      case "ebay":
+        return <Ionicons name="pricetag" size={20} color="#E53238" />;
+      case "pdf":
+        return <Ionicons name="document-text" size={20} color="#FF5722" />;
+      case "image":
+        return <Ionicons name="image" size={20} color="#4CAF50" />;
+      default:
+        return <Ionicons name="link" size={20} color="#1877F2" />;
     }
   };
 
   const getDomain = (url: string) => {
-    try { return new URL(url).hostname.replace('www.', ''); }
-    catch { return url.substring(0, 30) + (url.length > 30 ? '...' : ''); }
+    try {
+      return new URL(url).hostname.replace("www.", "");
+    } catch {
+      return url.substring(0, 30) + (url.length > 30 ? "..." : "");
+    }
   };
 
   return (
-    <TouchableOpacity style={styles.linkItem} onPress={() => onPress(url)} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.linkItem}
+      onPress={() => onPress(url)}
+      activeOpacity={0.7}
+    >
       <View style={styles.linkIconContainer}>{getIconForType()}</View>
       <View style={styles.linkContent}>
-        <Text style={styles.linkDomain} numberOfLines={1}>{getDomain(url)}</Text>
-        <Text style={styles.linkUrl} numberOfLines={1}>{url}</Text>
+        <Text style={styles.linkDomain} numberOfLines={1}>
+          {getDomain(url)}
+        </Text>
+        <Text style={styles.linkUrl} numberOfLines={1}>
+          {url}
+        </Text>
       </View>
-      <View style={styles.linkArrow}><Ionicons name="open-outline" size={18} color={COLORS.secondary} /></View>
+      <View style={styles.linkArrow}>
+        <Ionicons name="open-outline" size={18} color={COLORS.secondary} />
+      </View>
     </TouchableOpacity>
   );
 };
@@ -296,24 +394,50 @@ const ExpandableDescription = ({ description }: { description: string }) => {
   }, [cleanDescription]);
 
   const toggleExpand = () => {
-    LayoutAnimation.configureNext({ duration: 300, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, update: { type: LayoutAnimation.Types.easeInEaseOut } });
-    Animated.timing(animationValue, { toValue: expanded ? 0 : 1, duration: 300, useNativeDriver: true }).start();
+    LayoutAnimation.configureNext({
+      duration: 300,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+    });
+    Animated.timing(animationValue, {
+      toValue: expanded ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
     setExpanded(!expanded);
   };
 
-  const rotateIcon = animationValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+  const rotateIcon = animationValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
 
-  if (!description) return <Text style={styles.description}>Aucune description disponible.</Text>;
+  if (!description)
+    return (
+      <Text style={styles.description}>Aucune description disponible.</Text>
+    );
 
   return (
     <View style={styles.descriptionContainer}>
-      <Text style={[styles.description, !expanded && styles.descriptionCollapsed]} numberOfLines={expanded ? undefined : 4}>
+      <Text
+        style={[styles.description, !expanded && styles.descriptionCollapsed]}
+        numberOfLines={expanded ? undefined : 4}
+      >
         {cleanDescription}
       </Text>
       {isLongText && (
-        <TouchableOpacity style={styles.readMoreButton} onPress={toggleExpand} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.readMoreButton}
+          onPress={toggleExpand}
+          activeOpacity={0.7}
+        >
           <View style={styles.readMoreContent}>
-            <Text style={styles.readMoreText}>{expanded ? "Voir moins" : "Voir plus"}</Text>
+            <Text style={styles.readMoreText}>
+              {expanded ? "Voir moins" : "Voir plus"}
+            </Text>
             <Animated.View style={{ transform: [{ rotate: rotateIcon }] }}>
               <Ionicons name="chevron-down" size={18} color={COLORS.accent} />
             </Animated.View>
@@ -325,9 +449,17 @@ const ExpandableDescription = ({ description }: { description: string }) => {
 };
 
 // Étoiles
-const StarRating = ({ rating, onRatingChange, size = 30 }: { rating: number; onRatingChange: (r: number) => void; size?: number }) => {
+const StarRating = ({
+  rating,
+  onRatingChange,
+  size = 30,
+}: {
+  rating: number;
+  onRatingChange: (r: number) => void;
+  size?: number;
+}) => {
   return (
-    <View style={{ flexDirection: 'row' }}>
+    <View style={{ flexDirection: "row" }}>
       {[1, 2, 3, 4, 5].map((star) => (
         <TouchableOpacity key={star} onPress={() => onRatingChange(star)}>
           <Ionicons
@@ -344,7 +476,12 @@ const StarRating = ({ rating, onRatingChange, size = 30 }: { rating: number; onR
 
 // Composant compte à rebours pour promotion
 const CountdownTimer = ({ endDate }: { endDate: Date }) => {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -356,7 +493,9 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
         return;
       }
       const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const hours = Math.floor(
+        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+      );
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
       setTimeLeft({ days, hours, minutes, seconds });
@@ -364,7 +503,12 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
     return () => clearInterval(interval);
   }, [endDate]);
 
-  if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0) {
+  if (
+    timeLeft.days === 0 &&
+    timeLeft.hours === 0 &&
+    timeLeft.minutes === 0 &&
+    timeLeft.seconds === 0
+  ) {
     return null;
   }
 
@@ -405,7 +549,9 @@ export default function DetailId() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [detectedLinks, setDetectedLinks] = useState<{url: string; type: string}[]>([]);
+  const [detectedLinks, setDetectedLinks] = useState<
+    { url: string; type: string }[]
+  >([]);
 
   // Avis
   const [allReviews] = useState(generateMockReviews());
@@ -432,9 +578,17 @@ export default function DetailId() {
     setNotificationMessage(message);
     setNotificationVisible(true);
     Animated.sequence([
-      Animated.timing(notificationPosition, { toValue: 60, duration: 400, useNativeDriver: true }),
+      Animated.timing(notificationPosition, {
+        toValue: 60,
+        duration: 400,
+        useNativeDriver: true,
+      }),
       Animated.delay(2000),
-      Animated.timing(notificationPosition, { toValue: -100, duration: 400, useNativeDriver: true }),
+      Animated.timing(notificationPosition, {
+        toValue: -100,
+        duration: 400,
+        useNativeDriver: true,
+      }),
     ]).start(() => setNotificationVisible(false));
   };
 
@@ -458,32 +612,36 @@ export default function DetailId() {
     try {
       const cacheKey = `product_${id}`;
       const cachedData = await getCachedData(cacheKey);
-      
+
       if (cachedData) {
         // Utilisation du cache
         setProduct(cachedData.product);
         setSeller(cachedData.seller);
         setBoutique(cachedData.boutique);
         setDetectedLinks(extractUrls(cachedData.product.description || ""));
-        const initialSimilars = (cachedData.similar_products || []).slice(0, 10).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          price: parseFloat(p.price) || 0,
-          original_price: p.original_price ? parseFloat(p.original_price) : null,
-          image_url: p.image_url,
-          is_boosted: p.is_boosted || false,
-          created_at: p.created_at,
-          duration_days: p.duration_days,
-        }));
+        const initialSimilars = (cachedData.similar_products || [])
+          .slice(0, 10)
+          .map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            price: parseFloat(p.price) || 0,
+            original_price: p.original_price
+              ? parseFloat(p.original_price)
+              : null,
+            image_url: p.image_url,
+            is_boosted: p.is_boosted || false,
+            created_at: p.created_at,
+            duration_days: p.duration_days,
+          }));
         setSimilarProducts(initialSimilars);
         setSimilarHasMore(initialSimilars.length >= 10 ? false : true);
         setLoading(false);
-        
+
         // Appel en arrière‑plan pour rafraîchir
         fetchProductDetailFromNetwork(cacheKey);
         return;
       }
-      
+
       // Pas de cache → appel réseau
       await fetchProductDetailFromNetwork(cacheKey);
     } catch (err) {
@@ -491,7 +649,7 @@ export default function DetailId() {
       setError("Erreur de connexion");
     }
   };
-  
+
   const fetchProductDetailFromNetwork = async (cacheKey?: string) => {
     try {
       const token = await getValidToken();
@@ -504,21 +662,25 @@ export default function DetailId() {
         setSeller(data.seller);
         setBoutique(data.boutique);
         setDetectedLinks(extractUrls(data.product.description || ""));
-        
+
         // Limiter à 10 produits similaires
-        const initialSimilars = (data.similar_products || []).slice(0, 10).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          price: parseFloat(p.price) || 0,
-          original_price: p.original_price ? parseFloat(p.original_price) : null,
-          image_url: p.image_url,
-          is_boosted: p.is_boosted || false,
-          created_at: p.created_at,
-          duration_days: p.duration_days,
-        }));
+        const initialSimilars = (data.similar_products || [])
+          .slice(0, 10)
+          .map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            price: parseFloat(p.price) || 0,
+            original_price: p.original_price
+              ? parseFloat(p.original_price)
+              : null,
+            image_url: p.image_url,
+            is_boosted: p.is_boosted || false,
+            created_at: p.created_at,
+            duration_days: p.duration_days,
+          }));
         setSimilarProducts(initialSimilars);
         setSimilarHasMore(initialSimilars.length >= 10 ? false : true);
-        
+
         // Mise en cache
         if (cacheKey) {
           await setCachedData(cacheKey, {
@@ -528,13 +690,21 @@ export default function DetailId() {
             similar_products: data.similar_products,
           });
         }
-        
+
         await fetchViral();
         await fetchSuggestions();
-        
+
         Animated.parallel([
-          Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-          Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
         ]).start();
       } else {
         setError(data.message || "Produit non trouvé");
@@ -552,21 +722,27 @@ export default function DetailId() {
   // ------------------------------------------------------------
   const fetchMoreSimilar = async () => {
     // Ne pas charger si déjà 10 produits ou plus, ou plus de pages disponibles
-    if (similarProducts.length >= 10 || !similarHasMore || similarLoadingMore) return;
+    if (similarProducts.length >= 10 || !similarHasMore || similarLoadingMore)
+      return;
 
     setSimilarLoadingMore(true);
     try {
       const token = await getValidToken();
-      const res = await fetch(`${LOCAL_API}/products/${id}/similar?page=${similarPage}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await fetch(
+        `${LOCAL_API}/products/${id}/similar?page=${similarPage}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
       const data = await res.json();
       if (data.success) {
         const newProducts = (data.products || []).map((p: any) => ({
           id: p.id,
           title: p.title,
           price: parseFloat(p.price) || 0,
-          original_price: p.original_price ? parseFloat(p.original_price) : null,
+          original_price: p.original_price
+            ? parseFloat(p.original_price)
+            : null,
           image_url: p.image_url,
           is_boosted: p.is_boosted || false,
           created_at: p.created_at,
@@ -577,7 +753,7 @@ export default function DetailId() {
         const merged = [...similarProducts, ...newProducts];
         const limited = merged.slice(0, 10);
         setSimilarProducts(limited);
-        setSimilarPage(prev => prev + 1);
+        setSimilarPage((prev) => prev + 1);
         // S'il y a plus de 10 produits ou si le backend n'a plus de produits, on désactive
         if (limited.length >= 10 || !data.has_more) {
           setSimilarHasMore(false);
@@ -605,7 +781,7 @@ export default function DetailId() {
         setViralProducts(cached);
         return;
       }
-      
+
       const token = await getValidToken();
       const res = await fetch(`${LOCAL_API}/products/popular?limit=10`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -628,11 +804,13 @@ export default function DetailId() {
         setSuggestions(cached);
         return;
       }
-      
+
       const res = await fetch(`${LOCAL_API}/products?limit=8`);
       const data = await res.json();
       if (data.success) {
-        const others = data.products.filter((p: any) => p.id !== Number(id)).slice(0, 8);
+        const others = data.products
+          .filter((p: any) => p.id !== Number(id))
+          .slice(0, 8);
         setSuggestions(others);
         await setCachedData(cacheKey, others);
       }
@@ -656,29 +834,43 @@ export default function DetailId() {
   // ------------------------------------------------------------
   const openWhatsApp = () => {
     const phone = seller?.phone;
-    if (!phone) { showNotification("Numéro WhatsApp non disponible"); return; }
+    if (!phone) {
+      showNotification("Numéro WhatsApp non disponible");
+      return;
+    }
     const message = `Bonjour, je suis intéressé par "${product?.title}" sur SHOPNET. Prix: $${product?.price}`;
-    Linking.openURL(`https://wa.me/${formatPhoneNumber(phone)}?text=${encodeURIComponent(message)}`).catch(() =>
-      showNotification("Impossible d'ouvrir WhatsApp")
-    );
+    Linking.openURL(
+      `https://wa.me/${formatPhoneNumber(phone)}?text=${encodeURIComponent(message)}`,
+    ).catch(() => showNotification("Impossible d'ouvrir WhatsApp"));
   };
 
   const sendEmail = () => {
     const email = seller?.email;
-    if (!email) { showNotification("Email non disponible"); return; }
+    if (!email) {
+      showNotification("Email non disponible");
+      return;
+    }
     const subject = `Question concernant le produit : ${product?.title}`;
     const body = `Bonjour,\n\nJe suis intéressé par votre produit "${product?.title}" sur SHOPNET.\n\nPrix : ${product?.price} USD\n\nMerci de me contacter pour la disponibilité.\n\nCordialement.`;
     const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    Linking.openURL(url).catch(() => showNotification("Impossible d'ouvrir l'application mail"));
+    Linking.openURL(url).catch(() =>
+      showNotification("Impossible d'ouvrir l'application mail"),
+    );
   };
 
   const commanderProduit = async () => {
     try {
       const token = await getValidToken();
-      if (!token) { showNotification("Connectez-vous pour commander"); return; }
+      if (!token) {
+        showNotification("Connectez-vous pour commander");
+        return;
+      }
       const res = await fetch(`${LOCAL_API}/commandes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           produits: [{ produit_id: product?.id, quantite: 1 }],
           adresse_livraison: "Adresse par défaut",
@@ -688,16 +880,24 @@ export default function DetailId() {
       const data = await res.json();
       if (data.success) showNotification("Commande envoyée !");
       else showNotification(data.error || "Erreur");
-    } catch { showNotification("Erreur réseau"); }
+    } catch {
+      showNotification("Erreur réseau");
+    }
   };
 
   const ajouterAuPanier = async () => {
     try {
       const token = await getValidToken();
-      if (!token) { showNotification("Connectez-vous pour ajouter au panier"); return; }
+      if (!token) {
+        showNotification("Connectez-vous pour ajouter au panier");
+        return;
+      }
       const res = await fetch(`${LOCAL_API}/cart`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           product_id: product?.id,
           title: product?.title,
@@ -710,19 +910,24 @@ export default function DetailId() {
       const data = await res.json();
       if (data.success) showNotification("Ajouté au panier !");
       else showNotification(data.error || "Erreur");
-    } catch { showNotification("Erreur réseau"); }
+    } catch {
+      showNotification("Erreur réseau");
+    }
   };
 
   const callSeller = () => {
     const phone = seller?.phone;
-    if (!phone) { showNotification("Numéro non disponible"); return; }
+    if (!phone) {
+      showNotification("Numéro non disponible");
+      return;
+    }
     Linking.openURL(`tel:${phone}`);
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `💰 Découvrez ce produit sur SHOPNET : ${product?.title}\nPrix : $${product?.price}\n${product?.images?.[0] || ''}`,
+        message: `💰 Découvrez ce produit sur SHOPNET : ${product?.title}\nPrix : $${product?.price}\n${product?.images?.[0] || ""}`,
       });
     } catch (error) {
       console.log("Erreur partage", error);
@@ -735,8 +940,12 @@ export default function DetailId() {
       "Veuillez décrire le problème (spam, contenu inapproprié, etc.)",
       [
         { text: "Annuler", style: "cancel" },
-        { text: "Envoyer", onPress: () => showNotification("Merci, votre signalement a été envoyé.") }
-      ]
+        {
+          text: "Envoyer",
+          onPress: () =>
+            showNotification("Merci, votre signalement a été envoyé."),
+        },
+      ],
     );
   };
 
@@ -781,7 +990,10 @@ export default function DetailId() {
   };
 
   const navigateToProduct = (item: SimilarProduct | ProductDetail) => {
-    router.push({ pathname: '/(tabs)/Auth/Panier/DetailId', params: { id: item.id.toString() } });
+    router.push({
+      pathname: "/(tabs)/Auth/Panier/DetailId",
+      params: { id: item.id.toString() },
+    });
   };
 
   const showImage = (url: string, index: number) => {
@@ -791,7 +1003,8 @@ export default function DetailId() {
   };
 
   const scrollToImage = (index: number) => {
-    if (flatListRef.current) flatListRef.current.scrollToIndex({ index, animated: true });
+    if (flatListRef.current)
+      flatListRef.current.scrollToIndex({ index, animated: true });
     setActiveImageIndex(index);
     setSelectedImage(product?.images?.[index] || null);
   };
@@ -799,46 +1012,105 @@ export default function DetailId() {
   const navigateToImage = (direction: "prev" | "next") => {
     const images = product?.images || [];
     if (images.length <= 1) return;
-    let newIndex = direction === "next" ? (activeImageIndex + 1) % images.length : (activeImageIndex - 1 + images.length) % images.length;
+    let newIndex =
+      direction === "next"
+        ? (activeImageIndex + 1) % images.length
+        : (activeImageIndex - 1 + images.length) % images.length;
     scrollToImage(newIndex);
   };
 
   const openLink = (url: string) => {
-    Linking.openURL(url).catch(() => showNotification("Impossible d'ouvrir ce lien"));
+    Linking.openURL(url).catch(() =>
+      showNotification("Impossible d'ouvrir ce lien"),
+    );
   };
 
   // ------------------------------------------------------------
   // Renderers
   // ------------------------------------------------------------
-  const renderImageItem = ({ item, index }: { item: string; index: number }) => (
-    <TouchableOpacity activeOpacity={0.9} onPress={() => showImage(item, index)} style={styles.imageWrapper}>
-      <Image source={{ uri: item }} style={styles.mainImage} resizeMode="cover" />
-      {index === 0 && product?.original_price && product?.original_price > product?.price && (
-        <View style={styles.promoBadge}><Ionicons name="flash" size={16} color={COLORS.white} /><Text style={styles.promoBadgeText}>PROMO</Text></View>
-      )}
+  const renderImageItem = ({
+    item,
+    index,
+  }: {
+    item: string;
+    index: number;
+  }) => (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={() => showImage(item, index)}
+      style={styles.imageWrapper}
+    >
+      <Image
+        source={{ uri: item }}
+        style={styles.mainImage}
+        resizeMode="cover"
+      />
+      {index === 0 &&
+        product?.original_price &&
+        product?.original_price > product?.price && (
+          <View style={styles.promoBadge}>
+            <Ionicons name="flash" size={16} color={COLORS.white} />
+            <Text style={styles.promoBadgeText}>PROMO</Text>
+          </View>
+        )}
     </TouchableOpacity>
   );
 
-  const renderThumbnailItem = ({ item, index }: { item: string; index: number }) => (
-    <TouchableOpacity onPress={() => scrollToImage(index)} activeOpacity={0.8} style={[styles.thumbnailWrapper, index === activeImageIndex && styles.activeThumbnail]}>
+  const renderThumbnailItem = ({
+    item,
+    index,
+  }: {
+    item: string;
+    index: number;
+  }) => (
+    <TouchableOpacity
+      onPress={() => scrollToImage(index)}
+      activeOpacity={0.8}
+      style={[
+        styles.thumbnailWrapper,
+        index === activeImageIndex && styles.activeThumbnail,
+      ]}
+    >
       <Image source={{ uri: item }} style={styles.thumbnailImage} />
     </TouchableOpacity>
   );
 
   // Carte pour produits similaires et suggestions (grille)
-  const renderProductCard = (item: SimilarProduct | ProductDetail, isPromo?: boolean) => {
-    const discount = item.original_price && item.original_price > item.price
-      ? Math.round(((item.original_price - item.price) / item.original_price) * 100)
-      : 0;
+  const renderProductCard = (
+    item: SimilarProduct | ProductDetail,
+    isPromo?: boolean,
+  ) => {
+    const discount =
+      item.original_price && item.original_price > item.price
+        ? Math.round(
+            ((item.original_price - item.price) / item.original_price) * 100,
+          )
+        : 0;
     const isBoosted = (item as any).is_boosted || false;
-    const endDate = item.created_at && (item as any).duration_days
-      ? new Date(new Date(item.created_at).getTime() + (item as any).duration_days * 24 * 60 * 60 * 1000)
-      : null;
+    const endDate =
+      item.created_at && (item as any).duration_days
+        ? new Date(
+            new Date(item.created_at).getTime() +
+              (item as any).duration_days * 24 * 60 * 60 * 1000,
+          )
+        : null;
 
     return (
-      <TouchableOpacity style={styles.productCard} onPress={() => navigateToProduct(item)} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.productCard}
+        onPress={() => navigateToProduct(item)}
+        activeOpacity={0.8}
+      >
         <View style={styles.productImageContainer}>
-          <Image source={{ uri: (item as any).image_url || (item as any).images?.[0] || "https://via.placeholder.com/150" }} style={styles.productCardImage} />
+          <Image
+            source={{
+              uri:
+                (item as any).image_url ||
+                (item as any).images?.[0] ||
+                "https://via.placeholder.com/150",
+            }}
+            style={styles.productCardImage}
+          />
           {isBoosted && (
             <View style={styles.sponsoredBadge}>
               <Ionicons name="star" size={12} color={COLORS.white} />
@@ -852,10 +1124,18 @@ export default function DetailId() {
           )}
           {endDate && <CountdownTimer endDate={endDate} />}
         </View>
-        <Text style={styles.productCardTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.productCardTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
         <View style={styles.productCardPriceRow}>
-          <Text style={styles.productCardPrice}>${formatPrice(item.price)}</Text>
-          {discount > 0 && <Text style={styles.productCardOriginalPrice}>${formatPrice(item.original_price!)}</Text>}
+          <Text style={styles.productCardPrice}>
+            ${formatPrice(item.price)}
+          </Text>
+          {discount > 0 && (
+            <Text style={styles.productCardOriginalPrice}>
+              ${formatPrice(item.original_price!)}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -869,7 +1149,12 @@ export default function DetailId() {
           <Text style={styles.reviewName}>{item.user}</Text>
           <View style={styles.reviewStars}>
             {[...Array(5)].map((_, i) => (
-              <FontAwesome key={i} name="star" size={12} color={i < item.rating ? "#FFC107" : "#E0E0E0"} />
+              <FontAwesome
+                key={i}
+                name="star"
+                size={12}
+                color={i < item.rating ? "#FFC107" : "#E0E0E0"}
+              />
             ))}
           </View>
         </View>
@@ -884,86 +1169,86 @@ export default function DetailId() {
       id: "electronics",
       name: "Électronique                   IA 🔥",
       icon: "📱",
-      onPress: () => router.push("/Auth/Categorie/ElectroniqueScreen")
+      onPress: () => router.push("/Auth/Categorie/ElectroniqueScreen"),
     },
     {
       id: "fashion",
       name: "Mode",
       icon: "👕",
-      onPress: () => router.push("/Auth/Categorie/ModeScreen")
+      onPress: () => router.push("/Auth/Categorie/ModeScreen"),
     },
     {
       id: "home",
       name: "Maison",
       icon: "🏠",
-      onPress: () => router.push("/Auth/Categorie/MaisonScreen")
+      onPress: () => router.push("/Auth/Categorie/MaisonScreen"),
     },
     {
       id: "computer",
       name: "Informatique",
       icon: "💻",
-      onPress: () => router.push("/Auth/Categorie/ComputersScreen")
+      onPress: () => router.push("/Auth/Categorie/ComputersScreen"),
     },
     {
       id: "beauty",
       name: "Beauté",
       icon: "💄",
-      onPress: () => router.push("/Auth/Categorie/BeautyScreen")
+      onPress: () => router.push("/Auth/Categorie/BeautyScreen"),
     },
     {
       id: "auto",
       name: "Auto & Moto",
       icon: "🚗",
-      onPress: () => router.push("/Auth/Categorie/AutoMotoScreen")
+      onPress: () => router.push("/Auth/Categorie/AutoMotoScreen"),
     },
     {
       id: "food",
       name: "Alimentaire",
       icon: "🍔",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/Auth/Categorie/FoodScreen"),
     },
     {
       id: "services",
       name: "Services",
       icon: "🧰",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/MisAjour"),
     },
     {
       id: "shops",
       name: "Boutiques",
       icon: "🏪",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/MisAjour"),
     },
     {
       id: "popular",
       name: "Produits populaires",
       icon: "🔥",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/MisAjour"),
     },
     {
       id: "new",
       name: "Nouveautés",
       icon: "🆕",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/MisAjour"),
     },
     {
       id: "bargains",
       name: "Bons prix",
       icon: "💰",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/MisAjour"),
     },
     {
       id: "top",
       name: "Top ventes",
       icon: "⭐",
-      onPress: () => router.push("/MisAjour")
+      onPress: () => router.push("/MisAjour"),
     },
     {
       id: "nearby",
       name: "Près de vous",
       icon: "📍",
-      onPress: () => router.push("/MisAjour")
-    }
+      onPress: () => router.push("/MisAjour"),
+    },
   ];
 
   const renderCategoryItem = ({ item }: { item: Category }) => (
@@ -1004,7 +1289,9 @@ export default function DetailId() {
               keyExtractor={(item, i) => `thumb-${i}`}
             />
             <View style={styles.pageIndicator}>
-              <Text style={styles.pageText}>{activeImageIndex + 1}/{product?.images?.length}</Text>
+              <Text style={styles.pageText}>
+                {activeImageIndex + 1}/{product?.images?.length}
+              </Text>
             </View>
           </>
         )}
@@ -1014,28 +1301,59 @@ export default function DetailId() {
         {/* Titre et catégorie */}
         <Text style={styles.title}>{product?.title}</Text>
         <View style={styles.categoryRow}>
-          <Ionicons name="pricetag-outline" size={16} color={COLORS.secondary} />
+          <Ionicons
+            name="pricetag-outline"
+            size={16}
+            color={COLORS.secondary}
+          />
           <Text style={styles.category}>{product?.category}</Text>
         </View>
 
         {/* Prix USD et CDF */}
         <View style={styles.priceRow}>
           <View>
-            <Text style={styles.priceUSD}>${formatPrice(product?.price || 0)}</Text>
-            <Text style={styles.priceCDF}>{formatPriceCDF(product?.price || 0)}</Text>
+            <Text style={styles.priceUSD}>
+              ${formatPrice(product?.price || 0)}
+            </Text>
+            <Text style={styles.priceCDF}>
+              {formatPriceCDF(product?.price || 0)}
+            </Text>
           </View>
-          {product?.original_price && product.original_price > product.price && (
-            <View style={styles.promoBadgeRight}>
-              <Text style={styles.promoText}>PROMO</Text>
-              <Text style={styles.promoDate}>jusqu'au 31 déc 2025</Text>
-            </View>
-          )}
+          {product?.original_price &&
+            product.original_price > product.price && (
+              <View style={styles.promoBadgeRight}>
+                <Text style={styles.promoText}>PROMO</Text>
+                <Text style={styles.promoDate}>jusqu'au 31 déc 2025</Text>
+              </View>
+            )}
         </View>
 
         {/* Stock et date */}
         <View style={styles.stockRow}>
-          <Ionicons name={product?.stock && product.stock > 0 ? "checkmark-circle" : "close-circle"} size={18} color={product?.stock && product.stock > 0 ? COLORS.success : COLORS.error} />
-          <Text style={[styles.stockText, { color: product?.stock && product.stock > 0 ? COLORS.success : COLORS.error }]}>
+          <Ionicons
+            name={
+              product?.stock && product.stock > 0
+                ? "checkmark-circle"
+                : "close-circle"
+            }
+            size={18}
+            color={
+              product?.stock && product.stock > 0
+                ? COLORS.success
+                : COLORS.error
+            }
+          />
+          <Text
+            style={[
+              styles.stockText,
+              {
+                color:
+                  product?.stock && product.stock > 0
+                    ? COLORS.success
+                    : COLORS.error,
+              },
+            ]}
+          >
             {product?.stock && product.stock > 0 ? "En stock" : "Rupture"}
           </Text>
           {product?.stock && product.stock > 0 && (
@@ -1044,14 +1362,20 @@ export default function DetailId() {
             </View>
           )}
         </View>
-        <Text style={styles.dateText}>Publié : {getRelativeDate(product?.created_at || "")}</Text>
+        <Text style={styles.dateText}>
+          Publié : {getRelativeDate(product?.created_at || "")}
+        </Text>
 
         {/* Livraison */}
         <View style={styles.deliveryRow}>
           <Ionicons name="bicycle-outline" size={18} color={COLORS.secondary} />
           <View style={{ marginLeft: 6 }}>
-            <Text style={styles.deliveryText}>Livraison : À convenir avec le vendeur</Text>
-            <Text style={styles.deliveryTime}>Disponibilité : Flexible selon accord</Text>
+            <Text style={styles.deliveryText}>
+              Livraison : À convenir avec le vendeur
+            </Text>
+            <Text style={styles.deliveryTime}>
+              Disponibilité : Flexible selon accord
+            </Text>
           </View>
         </View>
 
@@ -1063,10 +1387,18 @@ export default function DetailId() {
             <View style={styles.linksSection}>
               <View style={styles.linksHeader}>
                 <Ionicons name="link" size={18} color={COLORS.secondary} />
-                <Text style={styles.linksTitle}>{detectedLinks.length} lien{detectedLinks.length > 1 ? 's' : ''}</Text>
+                <Text style={styles.linksTitle}>
+                  {detectedLinks.length} lien
+                  {detectedLinks.length > 1 ? "s" : ""}
+                </Text>
               </View>
               {detectedLinks.map((link, index) => (
-                <LinkComponent key={index} url={link.url} type={link.type} onPress={openLink} />
+                <LinkComponent
+                  key={index}
+                  url={link.url}
+                  type={link.type}
+                  onPress={openLink}
+                />
               ))}
             </View>
           )}
@@ -1074,10 +1406,15 @@ export default function DetailId() {
 
         {/* Avis clients */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Avis clients ({allReviews.length})</Text>
+          <Text style={styles.sectionTitle}>
+            Avis clients ({allReviews.length})
+          </Text>
           {visibleReviews.map((review) => renderReviewItem({ item: review }))}
           {reviewsOffset < allReviews.length && (
-            <TouchableOpacity style={styles.loadMoreButton} onPress={loadMoreReviews}>
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={loadMoreReviews}
+            >
               <Text style={styles.loadMoreText}>Voir plus d'avis</Text>
             </TouchableOpacity>
           )}
@@ -1089,18 +1426,33 @@ export default function DetailId() {
           <View style={styles.sellerContainer}>
             <View style={styles.sellerLine}>
               <Text style={styles.sellerLabel}>Produit proposé par :</Text>
-              <Text style={styles.sellerValue}>{seller?.nom || "Vendeur SHOPNET"}</Text>
+              <Text style={styles.sellerValue}>
+                {seller?.nom || "Vendeur SHOPNET"}
+              </Text>
             </View>
             <View style={styles.sellerLine}>
-              <Text style={styles.sellerLabel}>Ce produit est vendu dans la ville de :</Text>
-              <Text style={styles.sellerValue}>{product?.location || "Ville inconnue"}</Text>
+              <Text style={styles.sellerLabel}>
+                Ce produit est vendu dans la ville de :
+              </Text>
+              <Text style={styles.sellerValue}>
+                {product?.location || "Ville inconnue"}
+              </Text>
             </View>
             <View style={styles.sellerLine}>
               <Text style={styles.sellerLabel}>Email du vendeur :</Text>
               {seller?.email ? (
-                <TouchableOpacity onPress={sendEmail} style={styles.emailButton}>
-                  <Ionicons name="mail-outline" size={20} color={COLORS.accent} />
-                  <Text style={[styles.sellerValue, styles.emailText]}>{seller.email}</Text>
+                <TouchableOpacity
+                  onPress={sendEmail}
+                  style={styles.emailButton}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color={COLORS.accent}
+                  />
+                  <Text style={[styles.sellerValue, styles.emailText]}>
+                    {seller.email}
+                  </Text>
                 </TouchableOpacity>
               ) : (
                 <Text style={styles.sellerValue}>Non renseigné</Text>
@@ -1112,21 +1464,37 @@ export default function DetailId() {
         {/* Boutons d'action */}
         <View style={styles.actionsContainer}>
           <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.actionButton, styles.whatsappButton]} onPress={openWhatsApp}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.whatsappButton]}
+              onPress={openWhatsApp}
+            >
               <Ionicons name="logo-whatsapp" size={20} color={COLORS.white} />
               <Text style={styles.actionText}>WhatsApp</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.cartButton]} onPress={ajouterAuPanier}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.cartButton]}
+              onPress={ajouterAuPanier}
+            >
               <Ionicons name="cart-outline" size={20} color={COLORS.white} />
               <Text style={styles.actionText}>Panier</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.actionButton, styles.orderButton]} onPress={commanderProduit}>
-              <Ionicons name="bag-check-outline" size={20} color={COLORS.white} />
+            <TouchableOpacity
+              style={[styles.actionButton, styles.orderButton]}
+              onPress={commanderProduit}
+            >
+              <Ionicons
+                name="bag-check-outline"
+                size={20}
+                color={COLORS.white}
+              />
               <Text style={styles.actionText}>Commander</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.buyNowButton]} onPress={callSeller}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.buyNowButton]}
+              onPress={callSeller}
+            >
               <Ionicons name="call-outline" size={20} color={COLORS.white} />
               <Text style={styles.actionText}>Acheter</Text>
             </TouchableOpacity>
@@ -1135,22 +1503,38 @@ export default function DetailId() {
 
         {/* Nouveaux boutons de navigation */}
         <View style={styles.navButtonsContainer}>
-          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/MisAjour')}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => router.push("/MisAjour")}
+          >
             <Ionicons name="flame-outline" size={32} color={COLORS.accent} />
-            <Text style={styles.navButtonTitle}>Voir plus de promotions similaires</Text>
-            <Text style={styles.navButtonSubtitle}>Découvrez d'autres offres</Text>
+            <Text style={styles.navButtonTitle}>
+              Voir plus de promotions similaires
+            </Text>
+            <Text style={styles.navButtonSubtitle}>
+              Découvrez d'autres offres
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/(tabs)/Auth/Panier/AllShops')}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => router.push("/(tabs)/Auth/Panier/AllShops")}
+          >
             <Ionicons name="business-outline" size={32} color={COLORS.accent} />
-            <Text style={styles.navButtonTitle}>Voir des boutiques proches</Text>
-            <Text style={styles.navButtonSubtitle}>Trouvez des vendeurs près de vous</Text>
+            <Text style={styles.navButtonTitle}>
+              Voir des boutiques proches
+            </Text>
+            <Text style={styles.navButtonSubtitle}>
+              Trouvez des vendeurs près de vous
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Produits viraux */}
         {viralProducts.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔥 Produits viraux près de chez vous</Text>
+            <Text style={styles.sectionTitle}>
+              🔥 Produits viraux près de chez vous
+            </Text>
             <FlatList
               data={viralProducts}
               horizontal
@@ -1228,12 +1612,17 @@ export default function DetailId() {
           <Text style={styles.bottomButtonTitle}>Signaler ce produit</Text>
           <Text style={styles.bottomButtonSubtitle}>Contenu inapproprié ?</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomButton} onPress={() => setReviewModalVisible(true)}>
+        <TouchableOpacity
+          style={styles.bottomButton}
+          onPress={() => setReviewModalVisible(true)}
+        >
           <View style={styles.bottomIconContainer}>
             <Ionicons name="star-outline" size={28} color={COLORS.accent} />
           </View>
           <Text style={styles.bottomButtonTitle}>Donner mon avis</Text>
-          <Text style={styles.bottomButtonSubtitle}>Partagez votre expérience</Text>
+          <Text style={styles.bottomButtonSubtitle}>
+            Partagez votre expérience
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -1242,7 +1631,10 @@ export default function DetailId() {
   if (loading && !product) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar backgroundColor={COLORS.background} barStyle="dark-content" />
+        <StatusBar
+          backgroundColor={COLORS.background}
+          barStyle="dark-content"
+        />
         <ActivityIndicator size="large" color={COLORS.accent} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </SafeAreaView>
@@ -1252,11 +1644,17 @@ export default function DetailId() {
   if (error && !product) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <StatusBar backgroundColor={COLORS.background} barStyle="dark-content" />
+        <StatusBar
+          backgroundColor={COLORS.background}
+          barStyle="dark-content"
+        />
         <Ionicons name="alert-circle-outline" size={80} color={COLORS.error} />
         <Text style={styles.errorTitle}>Erreur</Text>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={20} color={COLORS.white} />
           <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
@@ -1272,12 +1670,18 @@ export default function DetailId() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerIcon}
+        >
           <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Détail produit</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => router.push("/Auth/Produits/Recherche")}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => router.push("/Auth/Produits/Recherche")}
+          >
             <Ionicons name="search-outline" size={24} color={COLORS.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIcon} onPress={handleShare}>
@@ -1288,7 +1692,12 @@ export default function DetailId() {
 
       {/* Notification */}
       {notificationVisible && (
-        <Animated.View style={[styles.notification, { transform: [{ translateY: notificationPosition }] }]}>
+        <Animated.View
+          style={[
+            styles.notification,
+            { transform: [{ translateY: notificationPosition }] },
+          ]}
+        >
           <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
           <Text style={styles.notificationText}>{notificationMessage}</Text>
         </Animated.View>
@@ -1307,20 +1716,37 @@ export default function DetailId() {
       {/* Modals */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalContainer}>
-          <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalClose}>
+          <TouchableOpacity
+            onPress={() => setModalVisible(false)}
+            style={styles.modalClose}
+          >
             <Ionicons name="close" size={28} color={COLORS.white} />
           </TouchableOpacity>
           {(product?.images?.length ?? 0) > 1 && (
             <>
-              <TouchableOpacity onPress={() => navigateToImage("prev")} style={[styles.modalNav, { left: 10 }]}>
+              <TouchableOpacity
+                onPress={() => navigateToImage("prev")}
+                style={[styles.modalNav, { left: 10 }]}
+              >
                 <Ionicons name="chevron-back" size={28} color={COLORS.white} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigateToImage("next")} style={[styles.modalNav, { right: 10 }]}>
-                <Ionicons name="chevron-forward" size={28} color={COLORS.white} />
+              <TouchableOpacity
+                onPress={() => navigateToImage("next")}
+                style={[styles.modalNav, { right: 10 }]}
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={28}
+                  color={COLORS.white}
+                />
               </TouchableOpacity>
             </>
           )}
-          <Image source={{ uri: product?.images?.[activeImageIndex] || "" }} style={styles.modalImage} resizeMode="contain" />
+          <Image
+            source={{ uri: product?.images?.[activeImageIndex] || "" }}
+            style={styles.modalImage}
+            resizeMode="contain"
+          />
         </View>
       </Modal>
 
@@ -1328,7 +1754,11 @@ export default function DetailId() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalReviewContainer}>
             <Text style={styles.modalTitle}>Donnez votre avis</Text>
-            <StarRating rating={newRating} onRatingChange={setNewRating} size={30} />
+            <StarRating
+              rating={newRating}
+              onRatingChange={setNewRating}
+              size={30}
+            />
             <TextInput
               style={styles.commentInput}
               placeholder="Votre commentaire..."
@@ -1338,11 +1768,22 @@ export default function DetailId() {
               onChangeText={setNewComment}
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setReviewModalVisible(false)}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setReviewModalVisible(false)}
+              >
                 <Text style={styles.cancelButtonText}>Annuler</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButton} onPress={submitReview} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.submitButtonText}>Envoyer</Text>}
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={submitReview}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Text style={styles.submitButtonText}>Envoyer</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1358,13 +1799,45 @@ export default function DetailId() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollContainer: { paddingBottom: 20 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
-  errorContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20, backgroundColor: COLORS.background },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: COLORS.background,
+  },
   loadingText: { marginTop: 12, fontSize: 16, color: COLORS.secondary },
-  errorTitle: { fontSize: 22, fontWeight: "600", color: COLORS.primary, marginTop: 16 },
-  errorText: { fontSize: 16, color: COLORS.secondary, textAlign: "center", marginVertical: 12 },
-  backButton: { backgroundColor: COLORS.accent, flexDirection: "row", paddingVertical: 12, paddingHorizontal: 24, alignItems: "center" },
-  backButtonText: { color: COLORS.white, fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: COLORS.primary,
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    textAlign: "center",
+    marginVertical: 12,
+  },
+  backButton: {
+    backgroundColor: COLORS.accent,
+    flexDirection: "row",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  backButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -1391,9 +1864,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 1000,
   },
-  notificationText: { marginLeft: 8, fontSize: 14, color: COLORS.primary, flex: 1 },
+  notificationText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: COLORS.primary,
+    flex: 1,
+  },
   imageSection: { marginBottom: 16 },
-  imageWrapper: { width, height: width, backgroundColor: COLORS.cardBackground },
+  imageWrapper: {
+    width,
+    height: width,
+    backgroundColor: COLORS.cardBackground,
+  },
   mainImage: { width: "100%", height: "100%" },
   promoBadge: {
     position: "absolute",
@@ -1405,7 +1887,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  promoBadgeText: { color: COLORS.white, fontSize: 12, fontWeight: "600", marginLeft: 4 },
+  promoBadgeText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
   pageIndicator: {
     position: "absolute",
     bottom: 70,
@@ -1416,38 +1903,87 @@ const styles = StyleSheet.create({
   },
   pageText: { color: COLORS.white, fontSize: 12 },
   thumbnailList: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  thumbnailWrapper: { width: 60, height: 60, marginRight: 8, borderWidth: 1, borderColor: COLORS.border },
+  thumbnailWrapper: {
+    width: 60,
+    height: 60,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   activeThumbnail: { borderColor: COLORS.accent, borderWidth: 2 },
   thumbnailImage: { width: "100%", height: "100%", resizeMode: "cover" },
   content: { paddingHorizontal: 16 },
-  title: { fontSize: 22, fontWeight: "600", color: COLORS.primary, marginBottom: 6 },
+  title: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: COLORS.primary,
+    marginBottom: 6,
+  },
   categoryRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   category: { fontSize: 14, color: COLORS.secondary, marginLeft: 4 },
-  priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   priceUSD: { fontSize: 28, fontWeight: "700", color: COLORS.accent },
   priceCDF: { fontSize: 16, color: COLORS.secondary, marginTop: 4 },
-  promoBadgeRight: { backgroundColor: COLORS.accent + "10", paddingHorizontal: 8, paddingVertical: 4 },
+  promoBadgeRight: {
+    backgroundColor: COLORS.accent + "10",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   promoText: { fontSize: 12, fontWeight: "600", color: COLORS.accent },
   promoDate: { fontSize: 10, color: COLORS.secondary },
   stockRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  stockText: { fontSize: 14, fontWeight: "500", marginLeft: 6, marginRight: 12 },
-  wholesaleBadge: { backgroundColor: COLORS.cardBackground, paddingHorizontal: 8, paddingVertical: 4 },
+  stockText: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginLeft: 6,
+    marginRight: 12,
+  },
+  wholesaleBadge: {
+    backgroundColor: COLORS.cardBackground,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   wholesaleText: { fontSize: 12, color: COLORS.primary },
   dateText: { fontSize: 12, color: COLORS.secondary, marginBottom: 12 },
-  deliveryRow: { flexDirection: "row", alignItems: "center", marginBottom: 16, flexWrap: "wrap" },
+  deliveryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    flexWrap: "wrap",
+  },
   deliveryText: { fontSize: 14, color: COLORS.primary },
   deliveryTime: { fontSize: 14, color: COLORS.primary },
   section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: "600", color: COLORS.primary, marginBottom: 12 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.primary,
+    marginBottom: 12,
+  },
   descriptionContainer: {},
   description: { fontSize: 15, lineHeight: 22, color: COLORS.primary },
   descriptionCollapsed: { overflow: "hidden" },
   readMoreButton: { marginTop: 8, alignSelf: "flex-start" },
   readMoreContent: { flexDirection: "row", alignItems: "center" },
-  readMoreText: { fontSize: 14, color: COLORS.accent, fontWeight: "500", marginRight: 4 },
+  readMoreText: {
+    fontSize: 14,
+    color: COLORS.accent,
+    fontWeight: "500",
+    marginRight: 4,
+  },
   linksSection: { marginTop: 16 },
   linksHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  linksTitle: { fontSize: 15, fontWeight: "500", color: COLORS.primary, marginLeft: 6 },
+  linksTitle: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: COLORS.primary,
+    marginLeft: 6,
+  },
   linkItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -1455,7 +1991,14 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  linkIconContainer: { width: 36, height: 36, backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center", marginRight: 12 },
+  linkIconContainer: {
+    width: 36,
+    height: 36,
+    backgroundColor: COLORS.white,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
   linkContent: { flex: 1 },
   linkDomain: { fontSize: 14, fontWeight: "600", color: COLORS.primary },
   linkUrl: { fontSize: 12, color: COLORS.secondary, marginTop: 2 },
@@ -1513,13 +2056,30 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   actionsContainer: { marginBottom: 24 },
-  actionRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-  actionButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, marginHorizontal: 4, borderRadius: 4 },
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    marginHorizontal: 4,
+    borderRadius: 4,
+  },
   whatsappButton: { backgroundColor: COLORS.whatsapp },
   cartButton: { backgroundColor: COLORS.accent },
   orderButton: { backgroundColor: COLORS.primary },
   buyNowButton: { backgroundColor: COLORS.blue },
-  actionText: { color: COLORS.white, fontSize: 15, fontWeight: "600", marginLeft: 8 },
+  actionText: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
   navButtonsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1576,7 +2136,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     zIndex: 2,
   },
-  sponsoredBadgeText: { color: COLORS.white, fontSize: 8, fontWeight: "600", marginLeft: 2 },
+  sponsoredBadgeText: {
+    color: COLORS.white,
+    fontSize: 8,
+    fontWeight: "600",
+    marginLeft: 2,
+  },
   discountBadge: {
     position: "absolute",
     top: 4,
@@ -1600,13 +2165,35 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   countdownText: { color: COLORS.white, fontSize: 9, marginLeft: 2 },
-  productCardTitle: { fontSize: 13, fontWeight: "500", color: COLORS.primary, paddingHorizontal: 8, paddingTop: 8, marginBottom: 4 },
-  productCardPriceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingBottom: 8 },
+  productCardTitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    marginBottom: 4,
+  },
+  productCardPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
   productCardPrice: { fontSize: 14, fontWeight: "700", color: COLORS.accent },
-  productCardOriginalPrice: { fontSize: 11, color: COLORS.secondary, textDecorationLine: "line-through" },
+  productCardOriginalPrice: {
+    fontSize: 11,
+    color: COLORS.secondary,
+    textDecorationLine: "line-through",
+  },
   suggestionsGrid: { justifyContent: "space-between", gap: 16 },
   footerLoader: { paddingVertical: 20, alignItems: "center" },
-  endMessage: { textAlign: "center", color: COLORS.secondary, fontSize: 12, marginVertical: 8 },
+  endMessage: {
+    textAlign: "center",
+    color: COLORS.secondary,
+    fontSize: 12,
+    marginVertical: 8,
+  },
   bottomButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1622,10 +2209,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   bottomIconContainer: { marginBottom: 8 },
-  bottomButtonTitle: { fontSize: 15, fontWeight: "600", color: COLORS.primary, marginBottom: 4 },
-  bottomButtonSubtitle: { fontSize: 12, color: COLORS.secondary, textAlign: "center" },
+  bottomButtonTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.primary,
+    marginBottom: 4,
+  },
+  bottomButtonSubtitle: {
+    fontSize: 12,
+    color: COLORS.secondary,
+    textAlign: "center",
+  },
   categoriesSection: { marginBottom: 20 },
-  categoriesGrid: { justifyContent: "space-between", marginBottom: 12, gap: 12 },
+  categoriesGrid: {
+    justifyContent: "space-between",
+    marginBottom: 12,
+    gap: 12,
+  },
   categoryButton: {
     width: (width - 48) / 4,
     alignItems: "center",
@@ -1636,17 +2236,73 @@ const styles = StyleSheet.create({
   },
   categoryIcon: { fontSize: 28, marginBottom: 4 },
   categoryName: { fontSize: 11, textAlign: "center", color: COLORS.primary },
-  modalContainer: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
-  modalClose: { position: "absolute", top: 50, right: 20, zIndex: 10, padding: 8 },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalClose: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
+  },
   modalNav: { position: "absolute", top: "50%", zIndex: 10, padding: 16 },
   modalImage: { width: width, height: height * 0.8 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
-  modalReviewContainer: { width: width * 0.9, backgroundColor: COLORS.white, borderRadius: 12, padding: 20, alignItems: "center" },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20, color: COLORS.primary },
-  commentInput: { width: "100%", borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 12, marginTop: 20, marginBottom: 20, textAlignVertical: "top", minHeight: 100 },
-  modalButtons: { flexDirection: "row", justifyContent: "space-between", width: "100%" },
-  cancelButton: { flex: 1, paddingVertical: 12, marginRight: 8, backgroundColor: COLORS.cardBackground, alignItems: "center", borderRadius: 8 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalReviewContainer: {
+    width: width * 0.9,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 20,
+    color: COLORS.primary,
+  },
+  commentInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 20,
+    marginBottom: 20,
+    textAlignVertical: "top",
+    minHeight: 100,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    marginRight: 8,
+    backgroundColor: COLORS.cardBackground,
+    alignItems: "center",
+    borderRadius: 8,
+  },
   cancelButtonText: { color: COLORS.secondary, fontWeight: "600" },
-  submitButton: { flex: 1, paddingVertical: 12, marginLeft: 8, backgroundColor: COLORS.accent, alignItems: "center", borderRadius: 8 },
+  submitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    marginLeft: 8,
+    backgroundColor: COLORS.accent,
+    alignItems: "center",
+    borderRadius: 8,
+  },
   submitButtonText: { color: COLORS.white, fontWeight: "600" },
 });
