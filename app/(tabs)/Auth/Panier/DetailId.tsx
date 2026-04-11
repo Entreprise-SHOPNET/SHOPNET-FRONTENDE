@@ -1163,6 +1163,7 @@ export default function DetailId() {
     </View>
   );
 
+  
   // Catégories horizontales (boutons) – version avec onPress
   const categories = [
     {
@@ -1217,37 +1218,37 @@ export default function DetailId() {
       id: "shops",
       name: "Boutiques",
       icon: "🏪",
-      onPress: () => router.push("/MisAjour"),
+      onPress: () => router.push("/(tabs)/Auth/Panier/AllShops"),
     },
     {
       id: "popular",
       name: "Produits populaires",
       icon: "🔥",
-      onPress: () => router.push("/MisAjour"),
+      onPress: () => router.push("/Auth/Categorie/GlobalScreen"),
     },
     {
       id: "new",
       name: "Nouveautés",
       icon: "🆕",
-      onPress: () => router.push("/MisAjour"),
+      onPress: () => router.push("/Auth/Categorie/RecentLocalScreen"),
     },
     {
       id: "bargains",
       name: "Bons prix",
       icon: "💰",
-      onPress: () => router.push("/MisAjour"),
+      onPress: () => router.push("/Auth/Categorie/FlashDealsScreen"),
     },
     {
       id: "top",
       name: "Top ventes",
       icon: "⭐",
-      onPress: () => router.push("/MisAjour"),
+      onPress: () => router.push("/Auth/Categorie/TopVentesScreen"),
     },
     {
       id: "nearby",
       name: "Près de vous",
       icon: "📍",
-      onPress: () => router.push("/MisAjour"),
+      onPress: () => router.push("/Auth/Categorie/NearbyScreen"),
     },
   ];
 
