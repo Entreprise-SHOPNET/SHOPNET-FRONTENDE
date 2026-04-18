@@ -1,5 +1,6 @@
 // app/(tabs)/Auth/Inscription.tsx
 // app/(tabs)/Auth/Inscription.tsx
+// app/(tabs)/Auth/Inscription.tsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -39,7 +40,6 @@ export default function Inscription() {
   // Step 2
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
-  const [email, setEmail] = useState("");
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -50,11 +50,6 @@ export default function Inscription() {
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const termsHighlightAnim = useRef(new Animated.Value(0)).current;
-
-  const validateEmail = (email: string) => {
-    if (email === "") return true;
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.toLowerCase());
-  };
 
   const validatePhone = (phone: string) => /^\d{10,15}$/.test(phone);
 
@@ -123,18 +118,12 @@ export default function Inscription() {
       return;
     }
 
-    if (email.trim() !== "" && !validateEmail(email)) {
-      setErrorMessage("Email invalide");
-      Vibration.vibrate(500);
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       const response = await axios.post(`${API_URL}/register`, {
         fullName,
-        email: email.trim() || null,
+        email: null,
         phone,
         password,
         companyName: companyName.trim() || null,
@@ -162,7 +151,7 @@ export default function Inscription() {
       router.push({
         pathname: "/Auth/Inscription/CodeConfirmation",
         params: {
-          email: email.trim() || "",
+          email: "",
           phone,
           registrationId: userId,
           otp: response.data.otp,
@@ -182,10 +171,10 @@ export default function Inscription() {
     }
   };
 
-  const registerButtonColor = termsAccepted ? "#00C851" : "#6FBF6F";
+  const registerButtonColor = termsAccepted ? "#00c2ff" : "#5a8bb3";
   const termsBackgroundColor = termsHighlightAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["transparent", "rgba(76, 175, 80, 0.3)"],
+    outputRange: ["transparent", "rgba(0, 194, 255, 0.2)"],
   });
 
   const toggleTerms = () => setTermsAccepted(!termsAccepted);
@@ -201,21 +190,25 @@ export default function Inscription() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Inscription • SHOPNet</Text>
+        {/* Titre et sous-titre alignés à gauche */}
+        <Text style={styles.title}>Créer un compte</Text>
+        <Text style={styles.subtitle}>
+          Rejoignez SHOPNET et commencez à vendre et gagner de l'argent
+        </Text>
 
         {step === 1 && (
           <>
             <TextInput
               style={styles.input}
-              placeholder="Nom complet *"
-              placeholderTextColor="#BCCCDC"
+              placeholder="Nom complet"
+              placeholderTextColor="#b0c4de"
               value={fullName}
               onChangeText={setFullName}
             />
             <TextInput
               style={styles.input}
-              placeholder="Numéro de téléphone *"
-              placeholderTextColor="#BCCCDC"
+              placeholder="Numéro de téléphone"
+              placeholderTextColor="#b0c4de"
               value={phone}
               keyboardType="phone-pad"
               onChangeText={setPhone}
@@ -223,8 +216,8 @@ export default function Inscription() {
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="Mot de passe * (6 caractères)"
-                placeholderTextColor="#BCCCDC"
+                placeholder="Mot de passe (6 caractères)"
+                placeholderTextColor="#b0c4de"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
@@ -237,7 +230,7 @@ export default function Inscription() {
                 <FontAwesome
                   name={showPassword ? "eye-slash" : "eye"}
                   size={22}
-                  color="#BCCCDC"
+                  color="#b0c4de"
                 />
               </TouchableOpacity>
             </View>
@@ -252,26 +245,17 @@ export default function Inscription() {
           <>
             <TextInput
               style={styles.input}
-              placeholder="Nom d’activité   (facultatif)"
-              placeholderTextColor="#BCCCDC"
+              placeholder="Nom d’activité (ex: Boutique, Restaurant)"
+              placeholderTextColor="#b0c4de"
               value={companyName}
               onChangeText={setCompanyName}
             />
             <TextInput
               style={styles.input}
-              placeholder="Adresse (facultatif)"
-              placeholderTextColor="#BCCCDC"
+              placeholder="Ville (ex: Kinshasa)"
+              placeholderTextColor="#b0c4de"
               value={address}
               onChangeText={setAddress}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Email (non obligatoire)"
-              placeholderTextColor="#BCCCDC"
-              value={email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              onChangeText={setEmail}
             />
 
             <Animated.View
@@ -283,14 +267,14 @@ export default function Inscription() {
               <Switch
                 value={termsAccepted}
                 onValueChange={setTermsAccepted}
-                thumbColor={termsAccepted ? "#00C851" : "#BCCCDC"}
-                trackColor={{ false: "#3A526A", true: "#34c759" }}
+                thumbColor={termsAccepted ? "#00c2ff" : "#b0c4de"}
+                trackColor={{ false: "#3A526A", true: "#00c2ff" }}
               />
               <TouchableOpacity onPress={toggleTerms} activeOpacity={0.7}>
-                <Text style={styles.termsTextGreen}>
+                <Text style={styles.termsText}>
                   En utilisant SHOPNET, vous acceptez les{" "}
                   <Text
-                    style={styles.linkTextGreen}
+                    style={styles.linkText}
                     onPress={() =>
                       Linking.openURL(
                         "https://entreprise-shopnet.github.io/SHOPNET-CONDITION/"
@@ -365,29 +349,39 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#2B3E4F",
+    backgroundColor: "#1f3b57",
     padding: 20,
     paddingBottom: 40,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "bold",
     color: "#FFFFFF",
-    marginBottom: 20,
+    marginBottom: 8,
+    textAlign: "left",       // aligné à gauche
+    alignSelf: "flex-start", // pour rester à gauche dans le conteneur centré
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#cbd5e1",
+    textAlign: "left",       // aligné à gauche
+    alignSelf: "flex-start", // pour rester à gauche
+    marginBottom: 30,
+    paddingHorizontal: 0,    // plus de padding horizontal pour ne pas créer de décalage
   },
   input: {
     width: "100%",
     padding: 15,
     marginBottom: 15,
-    borderRadius: 10,
+    borderRadius: 16,
     fontSize: 16,
-    backgroundColor: "#3A526A",
+    backgroundColor: "#2a4a6e",
     color: "#FFFFFF",
   },
   passwordContainer: {
     flexDirection: "row",
-    backgroundColor: "#3A526A",
-    borderRadius: 10,
+    backgroundColor: "#2a4a6e",
+    borderRadius: 16,
     alignItems: "center",
     paddingRight: 10,
     marginBottom: 15,
@@ -403,32 +397,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   button: {
-    backgroundColor: "#4F657C",
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: "#2a4a6e",
+    padding: 14,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 55,
+    width: "100%",
   },
   buttonSecondary: {
-    backgroundColor: "#35526A",
-    flex: 1,
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: "#00c2ff",
     marginRight: 10,
+    flex: 1,
   },
   buttonRegister: {
-    borderRadius: 10,
+    borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
+    flex: 1,
   },
   buttonRegisterPressed: {
-    backgroundColor: "#00A844",
+    backgroundColor: "#0099cc",
   },
   registerInner: {
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 55,
@@ -449,26 +442,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginVertical: 15,
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 16,
   },
-  termsTextGreen: {
-    color: "#4CAF50",
+  termsText: {
+    color: "#cbd5e1",
     fontSize: 14,
     marginLeft: 10,
     flexWrap: "wrap",
   },
-  linkTextGreen: {
-    color: "#4CAF50",
+  linkText: {
+    color: "#00c2ff",
     textDecorationLine: "underline",
     fontWeight: "bold",
   },
   errorText: {
-    color: "red",
+    color: "#ff6b6b",
     fontSize: 16,
     marginTop: 10,
   },
   successText: {
-    color: "limegreen",
+    color: "#00c2ff",
     fontSize: 16,
     marginTop: 10,
   },
