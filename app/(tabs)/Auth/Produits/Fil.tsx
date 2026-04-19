@@ -156,7 +156,123 @@ const SponsoredBadge = () => (
 );
 
 // ============================================
-// HOOK PERSONNALISÉ useFeed
+// COMPOSANT TEXTE ROTATIF AVEC MESSAGES DYNAMIQUES
+// ============================================
+const RotatingText = ({ product }: { product: Product }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Générer les messages selon les données du produit
+  const generateMessages = (p: Product): string[] => {
+    const msgs: string[] = [];
+    const views = p.likes + p.comments + p.shares;
+    const orders = p.shares || 0;
+    const likes = p.likes || 0;
+    const hasPromo = p.isPromotion || (p.original_price && p.original_price > p.price);
+    const discount = p.discount || (p.original_price ? Math.round(((p.original_price - p.price) / p.original_price) * 100) : 0);
+    const stockLimited = (p as any).stock && (p as any).stock < 10;
+    const isNew = (Date.now() - new Date(p.created_at || 0).getTime()) < 24 * 60 * 60 * 1000;
+
+    // Messages de promotion
+    if (hasPromo) {
+      if (discount > 0) msgs.push(`🔥 -${discount}% aujourd'hui`);
+      else msgs.push(`🔥 Promo active`);
+      if (discount > 1) msgs.push(`🔥 Offre Flash -${discount}%`);
+    }
+    // Vues
+    if (views > 1) msgs.push(`👁️ ${formatNumber(views)} personnes regardent`);
+    else if (views > 0) msgs.push(`👁️ ${formatNumber(views)} vues`);
+    if (views > 1) msgs.push(`👁️ Très populaire`);
+    // Likes (intéressés)
+    if (likes > 1) msgs.push(`❤️ ${formatNumber(likes)} intéressés`);
+    if (likes > 10) msgs.push(`🔥 Très demandé aujourd'hui`);
+    // Commandes / ventes
+    if (orders > 1) msgs.push(`📦 ${formatNumber(orders)} vendus`);
+    if (orders > 1) msgs.push(`📦 Déjà ${formatNumber(orders)}+ commandes`);
+    // Stock limité
+    if (stockLimited) msgs.push(`⚡ Stock limité`);
+    if (stockLimited) msgs.push(`⚡ Derniers stocks disponibles`);
+    // Proximité (simulé via location)
+    if (p.location && p.location.toLowerCase().includes('lubumbashi')) msgs.push(`📍 Disponible près de vous`);
+    // Note
+    if (p.rating > 4.5) msgs.push(`⭐ ${p.rating.toFixed(1)} / 5`);
+    // Nouveauté
+    if (isNew) msgs.push(`🆕 Nouveau produit`);
+    // Ajout panier (simulé)
+    if (views > 1) msgs.push(`🛒 Ajouté récemment au panier`);
+    // Offre limitée dans le temps
+    if (p.time_remaining) msgs.push(`⏳ Offre limitée dans le temps`);
+    // Messages par défaut
+    if (msgs.length === 0) {
+      msgs.push(`✨ Découvrez ce produit`);
+      msgs.push(`📱 Tendance du moment`);
+    }
+    // Limiter à 5 messages maximum
+    return msgs.slice(0, 5);
+  };
+
+  const messages = generateMessages(product);
+
+  const animateTransition = (nextIndex: number) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(translateYAnim, { toValue: -20, duration: 300, useNativeDriver: true }),
+    ]).start(() => {
+      setCurrentIndex(nextIndex);
+      translateYAnim.setValue(20);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(translateYAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    });
+  };
+
+  useEffect(() => {
+    if (messages.length <= 1) return;
+    const interval = setInterval(() => {
+      const nextIndex = (currentIndex + 1) % messages.length;
+      animateTransition(nextIndex);
+    }, 4000);
+    intervalRef.current = interval;
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [messages, currentIndex]);
+
+  if (messages.length === 0) return null;
+  return (
+    <Animated.Text
+      style={[styles.rotatingText, { opacity: fadeAnim, transform: [{ translateY: translateYAnim }] }]}
+      numberOfLines={1}
+    >
+      {messages[currentIndex]}
+    </Animated.Text>
+  );
+};
+
+// ============================================
+// BADGES PRODUIT
+// ============================================
+const ProductBadges = ({ product }: { product: Product }) => {
+  const hasPromo = product.isPromotion || (product.original_price && product.original_price > product.price);
+  const isTrending = (product.likes + product.comments + product.shares) > 100;
+  const isBoosted = product.is_boosted === true;
+  const isForYou = !hasPromo && !isTrending && !isBoosted && (product.rating > 4.5 || (Date.now() - new Date(product.created_at || 0).getTime()) < 24 * 60 * 60 * 1000);
+
+  return (
+    <View style={styles.badgesContainer}>
+      {hasPromo && <View style={[styles.badge, styles.badgePromo]}><Text style={styles.badgeText}>🔥 PROMO</Text></View>}
+      {isTrending && <View style={[styles.badge, styles.badgeTrending]}><Text style={styles.badgeText}>⭐ Tendance</Text></View>}
+      {isBoosted && <View style={[styles.badge, styles.badgeBoost]}><Text style={styles.badgeText}>📢 Pub</Text></View>}
+      {isForYou && <View style={[styles.badge, styles.badgeForYou]}><Text style={styles.badgeText}>🎁 Pour vous</Text></View>}
+    </View>
+  );
+};
+
+// ============================================
+// HOOK PERSONNALISÉ useFeed (inchangé)
 // ============================================
 
 interface UseFeedReturn {
@@ -648,7 +764,7 @@ const NotificationBadge = memo(({ count, small = false }: { count: number; small
   );
 });
 
-const ProductMiniCard = memo(({ item, onPress }: { item: Product; onPress: () => void }) => {
+const ProductMiniCard = memo(({ item, onPress, onSellerPress }: { item: Product; onPress: () => void; onSellerPress: () => void }) => {
   const imageUrl = item.images?.[0] || 'https://via.placeholder.com/120';
   const [imageLoaded, setImageLoaded] = useState(false);
   return (
@@ -659,11 +775,16 @@ const ProductMiniCard = memo(({ item, onPress }: { item: Product; onPress: () =>
       </View>
       <Text numberOfLines={1} style={styles.miniTitle}>{item.title}</Text>
       <Text style={styles.miniPrice}>${item.price?.toFixed(2) ?? '0.00'}</Text>
+      <RotatingText product={item} />
+      <TouchableOpacity onPress={onSellerPress} style={styles.miniSeller}>
+        <Image source={{ uri: item.seller.avatar || 'https://via.placeholder.com/20' }} style={styles.miniSellerAvatar} />
+        <Text numberOfLines={1} style={styles.miniSellerName}>{item.seller.name}</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 });
 
-const HorizontalProductRow = memo(({ products, onProductPress }: { products: Product[]; onProductPress: (product: Product) => void }) => {
+const HorizontalProductRow = memo(({ products, onProductPress, onSellerPress }: { products: Product[]; onProductPress: (product: Product) => void; onSellerPress: (sellerId: string) => void }) => {
   if (products.length === 0) return null;
   return (
     <View style={styles.horizontalRowContainer}>
@@ -671,7 +792,13 @@ const HorizontalProductRow = memo(({ products, onProductPress }: { products: Pro
         horizontal
         data={products}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ProductMiniCard item={item} onPress={() => onProductPress(item)} />}
+        renderItem={({ item }) => (
+          <ProductMiniCard
+            item={item}
+            onPress={() => onProductPress(item)}
+            onSellerPress={() => onSellerPress(item.seller.id)}
+          />
+        )}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalListContent}
         removeClippedSubviews
@@ -690,6 +817,7 @@ const FullWidthProductCard = memo(({
   handleShare,
   handleAddToCart,
   router,
+  onSellerPress,
 }: {
   item: Product;
   handleLike: (id: string) => void;
@@ -697,6 +825,7 @@ const FullWidthProductCard = memo(({
   handleShare: (product: Product) => void;
   handleAddToCart: (product: Product) => void;
   router: any;
+  onSellerPress: (sellerId: string) => void;
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const seller = item.seller ?? { id: '0', name: 'Inconnu', avatar: '' };
@@ -713,7 +842,7 @@ const FullWidthProductCard = memo(({
     <View style={styles.fullWidthCard}>
       <TouchableOpacity
         style={styles.productHeader}
-        onPress={() => router.push({ pathname: '/(tabs)/Auth/Profiles/SellerProfile', params: { sellerId: seller.id } })}
+        onPress={() => onSellerPress(seller.id)}
       >
         <Image source={{ uri: seller.avatar || 'https://via.placeholder.com/40' }} style={styles.avatar} />
         <View style={styles.sellerInfo}>
@@ -737,6 +866,7 @@ const FullWidthProductCard = memo(({
         <View style={styles.fullWidthImageContainer}>
           {!imageLoaded && <View style={[styles.fullWidthImage, styles.imagePlaceholder]}><ActivityIndicator size="large" color="#4CAF50" /></View>}
           <Image source={{ uri: images[0] }} style={styles.fullWidthImage} onLoad={() => setImageLoaded(true)} />
+          <ProductBadges product={item} />
           {item.is_boosted && (
             <View style={styles.imageSponsoredBadge}>
               <Text style={styles.imageSponsoredText}>Offre spéciale</Text>
@@ -776,6 +906,8 @@ const FullWidthProductCard = memo(({
         <Text style={styles.productDescription} numberOfLines={2}>{item.description}</Text>
       </View>
 
+      <RotatingText product={item} />
+
       <TouchableOpacity
         style={styles.ratingContainer}
         onPress={() => router.push({ pathname: '/(tabs)/Auth/Produits/Commentaire', params: { productId: item.id } })}
@@ -789,7 +921,6 @@ const FullWidthProductCard = memo(({
       </TouchableOpacity>
 
       <View style={styles.actionButtons}>
-        {/* ✅ Masquer les boutons sociaux si le produit est en promotion */}
         {!item.isPromotion && (
           <View style={styles.socialActions}>
             <TouchableOpacity style={styles.socialButton} onPress={() => handleLike(item.id)}>
@@ -829,7 +960,7 @@ const FullWidthProductCard = memo(({
   );
 });
 
-const GridProductCard = memo(({ item, onPress }: { item: Product; onPress: () => void }) => {
+const GridProductCard = memo(({ item, onPress, onSellerPress }: { item: Product; onPress: () => void; onSellerPress: () => void }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const seller = item.seller ?? { id: '0', name: 'Vendeur', avatar: '' };
   const price = item.price ?? 0;
@@ -840,6 +971,7 @@ const GridProductCard = memo(({ item, onPress }: { item: Product; onPress: () =>
       <View style={styles.gridImageContainer}>
         {!imageLoaded && <View style={[styles.gridImage, styles.imagePlaceholder]}><ActivityIndicator size="small" color="#4CAF50" /></View>}
         <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/200' }} style={styles.gridImage} onLoad={() => setImageLoaded(true)} />
+        <ProductBadges product={item} />
       </View>
       <Text numberOfLines={2} style={styles.gridTitle}>{item.title}</Text>
       <View style={styles.gridPriceRow}>
@@ -853,19 +985,25 @@ const GridProductCard = memo(({ item, onPress }: { item: Product; onPress: () =>
         )}
         {discount > 0 && <Text style={styles.gridDiscount}>-{discount}%</Text>}
       </View>
-      <View style={styles.gridSellerRow}>
+      <RotatingText product={item} />
+      <TouchableOpacity onPress={onSellerPress} style={styles.gridSellerRow}>
         <Image source={{ uri: seller.avatar || 'https://via.placeholder.com/20' }} style={styles.gridSellerAvatar} />
         <Text numberOfLines={1} style={styles.gridSellerName}>{seller.name || 'Vendeur'}</Text>
-      </View>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 });
 
-const TwoColumnGrid = memo(({ products, onProductPress }: { products: Product[]; onProductPress: (product: Product) => void }) => {
+const TwoColumnGrid = memo(({ products, onProductPress, onSellerPress }: { products: Product[]; onProductPress: (product: Product) => void; onSellerPress: (sellerId: string) => void }) => {
   return (
     <View style={styles.gridContainer}>
       {products.map((item) => (
-        <GridProductCard key={item.id} item={item} onPress={() => onProductPress(item)} />
+        <GridProductCard
+          key={item.id}
+          item={item}
+          onPress={() => onProductPress(item)}
+          onSellerPress={() => onSellerPress(item.seller.id)}
+        />
       ))}
     </View>
   );
@@ -902,7 +1040,6 @@ const ShopApp = () => {
     notification: 0,
   });
 
-  // ✅ NOUVELLES CATÉGORIES AVEC ROUTES
   const categories = [
     { id: "electronics", name: "📱 Électronique", onPress: () => router.push("/Auth/Categorie/ElectroniqueScreen") },
     { id: "fashion", name: "👕 Mode", onPress: () => router.push("/Auth/Categorie/ModeScreen") },
@@ -933,7 +1070,7 @@ const ShopApp = () => {
     handleShare,
     handleAddToCart,
     handleCategoryChange,
-  } = useFeed(0, categories.map(c => c.name)); // on passe les noms pour l'API
+  } = useFeed(0, categories.map(c => c.name));
 
   const onProductPress = useCallback((product: Product) => {
     if (product.isPromotion && product.promotionId) {
@@ -941,6 +1078,10 @@ const ShopApp = () => {
     } else {
       router.push({ pathname: '/(tabs)/Auth/Panier/DetailId', params: { id: product.id.toString() } });
     }
+  }, []);
+
+  const onSellerPress = useCallback((sellerId: string) => {
+    router.push({ pathname: '/(tabs)/Auth/Profiles/SellerProfile', params: { sellerId } });
   }, []);
 
   const onInternalPromoPress = useCallback(() => {
@@ -958,18 +1099,19 @@ const ShopApp = () => {
             handleShare={handleShare}
             handleAddToCart={handleAddToCart}
             router={router}
+            onSellerPress={onSellerPress}
           />
         );
       case 'horizontal':
-        return <HorizontalProductRow products={item.data} onProductPress={onProductPress} />;
+        return <HorizontalProductRow products={item.data} onProductPress={onProductPress} onSellerPress={onSellerPress} />;
       case 'grid':
-        return <TwoColumnGrid products={item.data} onProductPress={onProductPress} />;
+        return <TwoColumnGrid products={item.data} onProductPress={onProductPress} onSellerPress={onSellerPress} />;
       case 'internal':
         return <InternalPromotionCard item={item.data} onPress={onInternalPromoPress} />;
       default:
         return null;
     }
-  }, [handleLike, handleComment, handleShare, handleAddToCart, router, onProductPress, onInternalPromoPress]);
+  }, [handleLike, handleComment, handleShare, handleAddToCart, router, onProductPress, onSellerPress, onInternalPromoPress]);
 
   const renderFooter = useCallback(() => {
     if (!isLoadingMore) return null;
@@ -1156,6 +1298,9 @@ const styles = StyleSheet.create({
   miniImage: { width: 120, height: 120, position: 'absolute', top: 0, left: 0 },
   miniTitle: { fontSize: 13, fontWeight: '500', paddingHorizontal: 5, marginTop: 5 },
   miniPrice: { fontSize: 12, fontWeight: 'bold', color: '#4CAF50', paddingHorizontal: 5, paddingBottom: 5 },
+  miniSeller: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 5, paddingBottom: 5, marginTop: 4 },
+  miniSellerAvatar: { width: 16, height: 16, borderRadius: 8, marginRight: 4 },
+  miniSellerName: { fontSize: 10, color: '#666', flex: 1 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 12, backgroundColor: '#fff', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
   gridCard: { width: (width - 36) / 2, backgroundColor: '#fff', marginBottom: 12, borderRadius: 8, elevation: 1, overflow: 'hidden' },
   gridImageContainer: { width: '100%', height: (width - 36) / 2, backgroundColor: '#eee', position: 'relative' },
@@ -1175,6 +1320,14 @@ const styles = StyleSheet.create({
   internalPromoTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 },
   internalPromoDescription: { fontSize: 14, color: '#666', lineHeight: 20 },
   imagePlaceholder: { backgroundColor: '#f0f2f5', justifyContent: 'center', alignItems: 'center' },
+  rotatingText: { fontSize: 13, color: '#FF5722', fontWeight: '500', marginVertical: 4, marginHorizontal: 12 },
+  badgesContainer: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 6, zIndex: 10 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, overflow: 'hidden' },
+  badgePromo: { backgroundColor: '#FF4444' },
+  badgeTrending: { backgroundColor: '#FF9800' },
+  badgeBoost: { backgroundColor: '#2196F3' },
+  badgeForYou: { backgroundColor: '#4CAF50' },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   badge: { position: 'absolute', top: -5, right: -5, backgroundColor: '#FF3B30', borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#fff', minWidth: 18, height: 18, zIndex: 100 },
   smallBadge: { minWidth: 16, height: 16, top: -3, right: -3 },
   regularBadge: { minWidth: 20, height: 20, top: -8, right: -8 },

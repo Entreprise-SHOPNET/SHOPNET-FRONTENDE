@@ -1,6 +1,4 @@
 // app/_layout.tsx
-// app/_layout.tsx
-
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   DarkTheme,
@@ -19,7 +17,7 @@ import {
   registerForPushNotificationsAsync,
   listenNotifications,
 } from "../services/notifications";
-import SharePrompt from "../SharePrompt";
+
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export { ErrorBoundary } from "expo-router";
@@ -65,13 +63,12 @@ function RootLayoutNav() {
         return;
       }
 
-      // 🔥 Attendre que l'utilisateur soit disponible
       const checkUserInterval = setInterval(async () => {
         if (globalThis.currentUser?.id) {
           clearInterval(checkUserInterval);
 
           console.log(
-            "👤 Utilisateur détecté pour notifications:",
+            "👤 User détecté:",
             globalThis.currentUser.id
           );
 
@@ -83,20 +80,31 @@ function RootLayoutNav() {
             (notification) => {
               const message =
                 notification.request.content.body || "";
+
               setNotifMessage(message);
               setNotifVisible(true);
               setTimeout(() => setNotifVisible(false), 4000);
             },
+
             (response) => {
               const data =
                 response.notification.request.content.data || {};
+
               const productId = data.productId;
 
+              // 🔥 OUVERTURE PRODUIT
               if (productId) {
-                router.push(`/(tabs)/Auth/Panier/DetailId`);
-              } else {
-                router.push("/Auth/Produits/Fil");
+                router.push({
+                  pathname: "/(tabs)/Auth/Produits/DetailId",
+                  params: {
+                    id: productId,
+                  },
+                });
+                return;
               }
+
+              // fallback
+              router.push("/Auth/Produits/Fil");
             }
           );
         }
@@ -116,6 +124,8 @@ function RootLayoutNav() {
         <ThemeProvider
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
         >
+
+          {/* 🔔 NOTIFICATION UI */}
           {notifVisible && (
             <View
               style={{
@@ -133,35 +143,29 @@ function RootLayoutNav() {
             >
               <FontAwesome name="bell" size={20} color="#fff" />
               <Text
-                style={{ color: "#fff", marginLeft: 10, fontWeight: "600" }}
+                style={{
+                  color: "#fff",
+                  marginLeft: 10,
+                  fontWeight: "600",
+                }}
               >
                 {notifMessage}
               </Text>
             </View>
           )}
 
-          <SharePrompt />
-
-          <Stack
-            initialRouteName="index"
-            screenOptions={{ headerShown: false }}
-          >
+          {/* 📱 APP NAVIGATION */}
+          <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="splash" />
             <Stack.Screen name="Auth/Produits/Fil" />
             <Stack.Screen name="Auth/Produits/Detail" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-            <Stack.Screen
-              name="Auth/Questionnaire"
-              options={{
-                title: "Questionnaire",
-                presentation: "card",
-                headerBackTitle: "Retour",
-              }}
-            />
-            <Stack.Screen name="Auth" options={{ presentation: "modal" }} />
+            <Stack.Screen name="Auth/Questionnaire" />
+            <Stack.Screen name="Auth" />
           </Stack>
+
         </ThemeProvider>
       </SafeAreaView>
     </SafeAreaProvider>
