@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
@@ -838,9 +840,33 @@ export default function DetailId() {
       showNotification("Numéro WhatsApp non disponible");
       return;
     }
-    const message = `Bonjour, je suis intéressé par "${product?.title}" sur SHOPNET. Prix: $${product?.price}`;
+    
+const imageUrl = product?.images?.[0] || "";
+const message = encodeURIComponent(
+`Bonjour 👋,
+
+Je vous contacte via *SHOPNET*, une entreprise digitale spécialisée dans la mise en relation entre acheteurs et vendeurs.
+
+J’ai découvert votre produit et il m’intéresse particulièrement :
+
+🛍️ Produit : "${product?.title}"
+💰 Prix : $${product?.price}
+
+📸 Aperçu du produit :
+${imageUrl}
+
+Je souhaiterais savoir s’il est toujours disponible.
+
+Si oui, pourriez-vous me donner plus d’informations (état du produit, disponibilité, modalités de livraison ou de paiement) ?
+
+Je suis réellement intéressé(e) et prêt(e) à avancer rapidement si le produit correspond à mes attentes.
+
+Dans l’attente de votre retour.
+
+Merci d’avance 🙏`
+);
     Linking.openURL(
-      `https://wa.me/${formatPhoneNumber(phone)}?text=${encodeURIComponent(message)}`,
+      `https://wa.me/${formatPhoneNumber(phone)}?text=${message}`,
     ).catch(() => showNotification("Impossible d'ouvrir WhatsApp"));
   };
 
@@ -1163,7 +1189,6 @@ export default function DetailId() {
     </View>
   );
 
-  
   // Catégories horizontales (boutons) – version avec onPress
   const categories = [
     {

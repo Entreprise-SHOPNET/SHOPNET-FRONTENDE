@@ -776,10 +776,12 @@ const ProductMiniCard = memo(({ item, onPress, onSellerPress }: { item: Product;
       <Text numberOfLines={1} style={styles.miniTitle}>{item.title}</Text>
       <Text style={styles.miniPrice}>${item.price?.toFixed(2) ?? '0.00'}</Text>
       <RotatingText product={item} />
-      <TouchableOpacity onPress={onSellerPress} style={styles.miniSeller}>
-        <Image source={{ uri: item.seller.avatar || 'https://via.placeholder.com/20' }} style={styles.miniSellerAvatar} />
-        <Text numberOfLines={1} style={styles.miniSellerName}>{item.seller.name}</Text>
-      </TouchableOpacity>
+      {!item.isPromotion && (
+        <TouchableOpacity onPress={onSellerPress} style={styles.miniSeller}>
+          <Image source={{ uri: item.seller.avatar || 'https://via.placeholder.com/20' }} style={styles.miniSellerAvatar} />
+          <Text numberOfLines={1} style={styles.miniSellerName}>{item.seller.name}</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 });
@@ -840,19 +842,21 @@ const FullWidthProductCard = memo(({
 
   return (
     <View style={styles.fullWidthCard}>
-      <TouchableOpacity
-        style={styles.productHeader}
-        onPress={() => onSellerPress(seller.id)}
-      >
-        <Image source={{ uri: seller.avatar || 'https://via.placeholder.com/40' }} style={styles.avatar} />
-        <View style={styles.sellerInfo}>
-          <View style={styles.sellerNameRow}>
-            <Text style={styles.sellerName} numberOfLines={1}>{seller.name || 'Vendeur'}</Text>
-            {item.is_boosted && <SponsoredBadge />}
+      {!item.isPromotion && (
+        <TouchableOpacity
+          style={styles.productHeader}
+          onPress={() => onSellerPress(seller.id)}
+        >
+          <Image source={{ uri: seller.avatar || 'https://via.placeholder.com/40' }} style={styles.avatar} />
+          <View style={styles.sellerInfo}>
+            <View style={styles.sellerNameRow}>
+              <Text style={styles.sellerName} numberOfLines={1}>{seller.name || 'Vendeur'}</Text>
+              {item.is_boosted && <SponsoredBadge />}
+            </View>
+            <Text style={styles.productLocation} numberOfLines={1}>{item.location || 'Lubumbashi'}</Text>
           </View>
-          <Text style={styles.productLocation} numberOfLines={1}>{item.location || 'Lubumbashi'}</Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         onPress={() => {
@@ -986,10 +990,12 @@ const GridProductCard = memo(({ item, onPress, onSellerPress }: { item: Product;
         {discount > 0 && <Text style={styles.gridDiscount}>-{discount}%</Text>}
       </View>
       <RotatingText product={item} />
-      <TouchableOpacity onPress={onSellerPress} style={styles.gridSellerRow}>
-        <Image source={{ uri: seller.avatar || 'https://via.placeholder.com/20' }} style={styles.gridSellerAvatar} />
-        <Text numberOfLines={1} style={styles.gridSellerName}>{seller.name || 'Vendeur'}</Text>
-      </TouchableOpacity>
+      {!item.isPromotion && (
+        <TouchableOpacity onPress={onSellerPress} style={styles.gridSellerRow}>
+          <Image source={{ uri: seller.avatar || 'https://via.placeholder.com/20' }} style={styles.gridSellerAvatar} />
+          <Text numberOfLines={1} style={styles.gridSellerName}>{seller.name || 'Vendeur'}</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 });
@@ -1163,6 +1169,10 @@ const ShopApp = () => {
       <View style={styles.header}>
         <Text style={styles.logo}>SHOPNET</Text>
         <View style={styles.headerIcons}>
+          {/* Nouveau bouton Immobilier */}
+          <TouchableOpacity onPress={() => router.push('/(tabs)/Auth/Produits/Immobilier')}>
+            <FontAwesome name="home" size={22} color="#28a745" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/(tabs)/Auth/Produits/Recherche')}>
             <FontAwesome name="search" size={20} color="#333" />
           </TouchableOpacity>
