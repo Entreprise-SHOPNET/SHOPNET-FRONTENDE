@@ -206,7 +206,6 @@ export default function Immobilier() {
     saveFavorites(newFavs);
   };
 
-  // ✅ Navigation corrigée : chemin relatif
   const navigateToDetail = (bien: Bien) => {
     router.push({ pathname: './ImmobilierDetail', params: { id: bien.id.toString() } });
   };
@@ -240,7 +239,6 @@ export default function Immobilier() {
     );
   };
 
-  // Composant Modal générique pour les filtres
   const FilterModal = ({ visible, title, options, selectedValue, onSelect, onClose }: any) => (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
@@ -266,8 +264,41 @@ export default function Immobilier() {
     </Modal>
   );
 
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
+  // ========== EN-TÊTE PRINCIPAL FIXE ==========
+  const MainHeader = () => (
+    <View style={styles.mainHeader}>
+      <View style={styles.headerLeft}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#0f172a" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Immobilier</Text>
+      </View>
+      <View style={styles.headerRight}>
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={() => router.push('/(tabs)/Auth/Produits/PublierImmobilier')}
+        >
+          <Ionicons name="add" size={23} color="#104ccf" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={() => router.push('/(tabs)/Auth/Produits/MyBiensScreen')}
+        >
+          <Ionicons name="person-outline" size={23} color="#104ccf" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerIcon}
+          onPress={() => router.push('/(tabs)/Auth/Produits/parametre')}
+        >
+          <Ionicons name="settings-outline" size={23} color="#104ccf" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // ========== FILTRES FIXES (STICKY) ==========
+  const StickyFilters = () => (
+    <View style={styles.stickyFilters}>
       <View style={styles.filtersRow}>
         <TouchableOpacity style={styles.filterButton} onPress={() => setModalVilleVisible(true)}>
           <Ionicons name="location-outline" size={18} color="#104ccf" />
@@ -285,12 +316,18 @@ export default function Immobilier() {
           <Ionicons name="chevron-down" size={16} color="#104ccf" />
         </TouchableOpacity>
       </View>
+    </View>
+  );
+
+  // ========== CONTENU DU FLATLIST (PARTIE DÉFILANTE) ==========
+  const renderListHeader = () => (
+    <>
       <View style={styles.heroSection}>
         <Text style={styles.heroTitle}>Trouvez le bien qui vous correspond 💖</Text>
         <Text style={styles.heroSubtitle}>Appartements, villas et espaces professionnels sélectionnés pour vous.</Text>
       </View>
       <Text style={styles.sectionTitle}>✨ Coups de cœur</Text>
-    </View>
+    </>
   );
 
   const featuredProperties = filteredProperties.slice(0, 3);
@@ -317,6 +354,12 @@ export default function Immobilier() {
 
   return (
     <View style={styles.container}>
+      {/* EN-TÊTE PRINCIPAL FIXE */}
+      <MainHeader />
+      {/* FILTRES FIXES (STICKY) */}
+      <StickyFilters />
+
+      {/* FLATLIST POUR LE CONTENU DÉFILANT */}
       <FlatList
         data={restProperties}
         keyExtractor={(item) => item.id.toString()}
@@ -326,7 +369,7 @@ export default function Immobilier() {
         columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
         ListHeaderComponent={
           <>
-            {renderHeader()}
+            {renderListHeader()}
             {featuredProperties.length > 0 && (
               <FlatList
                 data={featuredProperties}
@@ -355,6 +398,7 @@ export default function Immobilier() {
         showsVerticalScrollIndicator={false}
       />
 
+      {/* MODAUX (inchangés) */}
       <FilterModal
         visible={modalVilleVisible}
         title="Sélectionnez une ville"
@@ -387,14 +431,53 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
   loadingText: { marginTop: 12, fontSize: 14, color: '#64748b' },
-  headerContainer: { paddingHorizontal: 16, paddingTop: 12, backgroundColor: '#ffffff' },
-  filtersRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 16 },
-  filterButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 8, gap: 6 },
+
+  // En-tête principal fixe
+  mainHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f6',
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  backButton: { padding: 4 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  headerIcon: { padding: 4 },
+
+  // Filtres fixes (sticky)
+  stickyFilters: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eef2f6',
+  },
+  filtersRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  filterButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 6,
+  },
   filterButtonText: { fontSize: 13, fontWeight: '500', color: '#1e293b' },
-  heroSection: { marginBottom: 20 },
+
+  // Contenu défilant (dans FlatList)
+  heroSection: { paddingHorizontal: 16, marginBottom: 20, marginTop: 8 },
   heroTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', marginBottom: 6 },
   heroSubtitle: { fontSize: 13, color: '#475569', lineHeight: 18 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 12, marginTop: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginHorizontal: 16, marginBottom: 12, marginTop: 8 },
   horizontalList: { paddingHorizontal: 12, gap: 12 },
   listContent: { paddingBottom: 20 },
   columnWrapper: { justifyContent: 'space-between', paddingHorizontal: 16, gap: 12 },
@@ -423,4 +506,5 @@ const styles = StyleSheet.create({
   modalOptionText: { fontSize: 16, color: '#1e293b' },
   modalOptionTextSelected: { color: '#104ccf', fontWeight: '500' },
 });
+
 
