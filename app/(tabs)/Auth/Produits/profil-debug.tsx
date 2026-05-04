@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
@@ -566,6 +568,19 @@ export default function ProfilVendeurPremium() {
     [router],
   );
 
+  // 🚀 Fonction pour naviguer vers la page Booste avec les données du produit
+  const handleBoost = (product: Product) => {
+    router.push({
+      pathname: "/(tabs)/Auth/Profiles/booste",
+      params: {
+        id: product.id.toString(),
+        title: product.title,
+        price: product.price.toString(),
+        imageUrl: product.images?.[0] || "",
+      },
+    });
+  };
+
   const renderProductItem = useCallback(
     ({ item }: { item: Product }) => (
       <View style={styles.productCard}>
@@ -594,23 +609,34 @@ export default function ProfilVendeurPremium() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/Auth/trois-points-profil/[id]",
-              params: {
-                id: item.id,
-                title: item.title,
-                price: item.price,
-                imageUrl:
-                  item.images && item.images.length > 0 ? item.images[0] : "",
-              },
-            })
-          }
-        >
-          <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
-        </TouchableOpacity>
+        <View style={styles.productActionsRow}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/Auth/trois-points-profil/[id]",
+                params: {
+                  id: item.id,
+                  title: item.title,
+                  price: item.price,
+                  imageUrl:
+                    item.images && item.images.length > 0 ? item.images[0] : "",
+                },
+              })
+            }
+          >
+            <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
+          </TouchableOpacity>
+
+          {/* Bouton BOOSTER ajouté */}
+          <TouchableOpacity
+            style={styles.boostButton}
+            onPress={() => handleBoost(item)}
+          >
+            <Ionicons name="rocket-outline" size={18} color={PRO_BLUE} />
+            <Text style={styles.boostButtonText}>Booster</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     ),
     [router],
@@ -844,7 +870,6 @@ export default function ProfilVendeurPremium() {
                         size={24}
                         color={item.color}
                       />
-                      {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 au lieu de && avec un nombre */}
                       {item.badgeCount > 0 && (
                         <NotificationBadge count={item.badgeCount} small />
                       )}
@@ -910,7 +935,6 @@ export default function ProfilVendeurPremium() {
                     ]}
                   >
                     <MaterialIcons name="store" size={24} color={PRO_BLUE} />
-                    {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 */}
                     {badgeCounts.boutique > 0 && (
                       <NotificationBadge count={badgeCounts.boutique} small />
                     )}
@@ -959,7 +983,6 @@ export default function ProfilVendeurPremium() {
                       size={24}
                       color={PRO_BLUE}
                     />
-                    {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 */}
                     {badgeCounts.promotions > 0 && (
                       <NotificationBadge count={badgeCounts.promotions} small />
                     )}
@@ -985,7 +1008,6 @@ export default function ProfilVendeurPremium() {
                     ]}
                   >
                     <Ionicons name="settings" size={24} color={PRO_BLUE} />
-                    {/* CORRECTION ICI: Utiliser une comparaison explicite > 0 */}
                     {badgeCounts.settings > 0 && (
                       <NotificationBadge count={badgeCounts.settings} small />
                     )}
@@ -1465,14 +1487,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
   },
+  productActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+  },
   menuButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    zIndex: 10,
     padding: 4,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderRadius: 12,
+  },
+  boostButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(66, 165, 245, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  boostButtonText: {
+    color: PRO_BLUE,
+    fontSize: 11,
+    fontWeight: "600",
+    marginLeft: 4,
   },
   loadingContainer: {
     alignItems: "center",
@@ -1624,3 +1663,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+

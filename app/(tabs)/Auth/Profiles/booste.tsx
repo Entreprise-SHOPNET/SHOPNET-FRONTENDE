@@ -24,7 +24,7 @@ import * as Location from 'expo-location';
 const { width, height } = Dimensions.get('window');
 
 // Taux de change
-const EXCHANGE_RATE = 2500; // 1 USD = 2500 CDF
+const EXCHANGE_RATE = 2300; // 1 USD = 2300 CDF
 
 // Villes par pays avec devises
 const citiesByCountry: Record<string, {cities: Array<{name: string, address: string, latitude: number, longitude: number}>, currency: string}> = {

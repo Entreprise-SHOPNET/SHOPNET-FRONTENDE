@@ -166,14 +166,14 @@ export default function MyBiensScreen() {
 
   const handleEdit = (bien: Bien) => {
     router.push({
-      pathname: './PublierImmobilier',
+      pathname: './EditBienScreen',
       params: { mode: 'edit', id: bien.id.toString() },
     });
   };
 
   const handleBoost = (bien: Bien) => {
     router.push({
-      pathname: './BoosterBien',
+      pathname: '../../../MisAjour',
       params: { id: bien.id.toString(), titre: bien.titre },
     });
   };
