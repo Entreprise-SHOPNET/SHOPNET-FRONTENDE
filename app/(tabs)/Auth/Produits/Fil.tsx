@@ -1229,7 +1229,7 @@ const ShopApp = () => {
           <TouchableOpacity key={screen} style={styles.navButton} onPress={() => handleTabPress(screen, index)}>
             <View style={styles.navIconContainer}>
               <FontAwesome
-                name={screen === 'Home' ? 'home' : screen === 'Discover' ? 'compass' : screen === 'Sell' ? 'plus' : screen === 'Messages' ? 'comments' : 'user'}
+                name={screen === 'Home' ? 'home' : screen === 'Discover' ? 'compass' : screen === 'Sell' ? 'plus' : screen === 'Messages' ? 'shopping-cart' : 'user'}
                 size={24}
                 color={activeTab === index ? '#4CAF50' : '#666'}
               />
