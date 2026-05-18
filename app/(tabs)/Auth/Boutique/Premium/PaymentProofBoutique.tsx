@@ -2,6 +2,7 @@
 
 // app/Boutique/PaymentProofBoutique.tsx
 // app/Boutique/PaymentProofBoutique.tsx
+// app/Boutique/PaymentProofBoutique.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -628,6 +629,50 @@ export default function PaymentProofBoutique() {
 
           {isAuthenticated ? (
             <>
+              {/* 🔥 NOUVEAU BLOC : INFORMATIONS DE PAIEMENT SHOPNET 🔥 */}
+              <Animated.View 
+                style={[
+                  styles.section,
+                  { 
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }]
+                  }
+                ]}
+              >
+                <View style={styles.paymentInfoCard}>
+                  <View style={styles.paymentInfoHeader}>
+                    <FontAwesome5 name="money-bill-wave" size={24} color={PREMIUM_GOLD} />
+                    <Text style={styles.paymentInfoTitle}>Coordonnées de paiement SHOPNET</Text>
+                  </View>
+                  <View style={styles.paymentInfoContent}>
+                    <View style={styles.paymentInfoRow}>
+                      <FontAwesome5 name="mobile-alt" size={16} color={PRO_BLUE} />
+                      <Text style={styles.paymentInfoLabel}>Airtel Money :</Text>
+                      <Text style={styles.paymentInfoValue}>+243 97 87 27 791</Text>
+                    </View>
+                    <View style={styles.paymentInfoRow}>
+                      <FontAwesome5 name="mobile-alt" size={16} color={PRO_BLUE} />
+                      <Text style={styles.paymentInfoLabel}>Orange Money :</Text>
+                      <Text style={styles.paymentInfoValue}>+243 89 60 37 137</Text>
+                    </View>
+                    <View style={styles.paymentInfoRow}>
+                      <FontAwesome5 name="mobile-alt" size={16} color={PRO_BLUE} />
+                      <Text style={styles.paymentInfoLabel}>M-pesa :</Text>
+                      <Text style={styles.paymentInfoValue}>+243 83 86 94 364</Text>
+                    </View>
+                    <View style={styles.paymentInfoDivider} />
+                    <View style={styles.paymentInfoRow}>
+                      <FontAwesome5 name="user-check" size={16} color={SUCCESS_GREEN} />
+                      <Text style={styles.paymentInfoLabel}>Nom du bénéficiaire :</Text>
+                      <Text style={styles.paymentInfoValueBold}>SHOPNET PAY</Text>
+                    </View>
+                    <Text style={styles.paymentInfoNote}>
+                      Effectuez le paiement du montant indiqué ci-dessous, puis remplissez le formulaire avec la preuve.
+                    </Text>
+                  </View>
+                </View>
+              </Animated.View>
+
               <Animated.View 
                 style={[
                   styles.section,
@@ -1128,6 +1173,60 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     marginBottom: 20,
+  },
+  paymentInfoCard: {
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.3)",
+    marginBottom: 24,
+  },
+  paymentInfoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  paymentInfoTitle: {
+    color: PREMIUM_GOLD,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  paymentInfoContent: {
+    gap: 12,
+  },
+  paymentInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  paymentInfoLabel: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  paymentInfoValue: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  paymentInfoValueBold: {
+    color: SUCCESS_GREEN,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  paymentInfoDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    marginVertical: 8,
+  },
+  paymentInfoNote: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 12,
+    fontStyle: "italic",
+    marginTop: 8,
   },
   summaryCard: {
     flexDirection: "row",

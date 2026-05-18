@@ -376,27 +376,47 @@ export default function CreerBoutique() {
       }
     };
 
-    const boutiques = [
-      {
-        type: "Premium",
-        iconComponent: (
-          <MaterialCommunityIcons name="crown" size={32} color={PREMIUM_ORANGE} />
-        ),
-        description: "Solution avancée pour développer votre business",
-        price: "$9.99/mois",
-        features: [
-          "Modifier photo de profil et couverture",
-          "Statistiques détaillées (ventes, vues, produits populaires)",
-          "Historique complet des commandes et retours",
-          "Gestion des avis clients et réponses",
-          "Navigation rapide avec boutons dédiés",
-          "Jusqu'à 200 produits",
-          "Analytics avancés",
-          "Produits en vedette",
-        ],
-        limitations: ["Pas de promotions avancées", "Pas de recommandations IA"],
-        color: PREMIUM_ORANGE,
-      },
+  const boutiques = [
+    {
+      type: "Premium",
+      iconComponent: (
+        <MaterialCommunityIcons name="crown" size={32} color={PREMIUM_ORANGE} />
+      ),
+
+      description:
+        "Développez votre business et vendez plus grâce à une boutique mise en avant automatiquement dans tout SHOPNET",
+
+      price: "$9.99/mois",
+
+      features: [
+        "🚀 Vos produits sont automatiquement mis en avant sur SHOPNET (homepage, suggestions, tendances)",
+
+        "🔍 Apparition prioritaire dans les résultats de recherche pour attirer plus de clients",
+
+        "📢 Vos produits sont recommandés dans plusieurs zones de l’application (fil, suggestions, découverte)",
+
+        "🏆 Badge de confiance affiché sur tous vos produits pour rassurer les acheteurs",
+
+        "💰 Augmentez vos ventes grâce à la mise en avant automatique des produits",
+
+        "📊 Analyse intelligente de vos ventes et compréhension des comportements d’achat",
+
+        "📈 Suivi des événements d’achat (produits consultés, produits achetés, tendances clients)",
+
+        "🛍️ Jusqu’à 200 produits dans votre boutique professionnelle",
+
+        "⚡ Navigation rapide et outils optimisés pour vendre plus facilement",
+
+        "📦 Gestion complète des commandes et activité de votre boutique",
+      ],
+
+      limitations: [
+        "❌ Pas encore de promotions automatiques avancées",
+        "❌ Pas encore de système IA de recommandation personnalisée (bientôt disponible)",
+      ],
+
+      color: PREMIUM_ORANGE,
+    },
       {
         type: "Pro VIP",
         iconComponent: <Ionicons name="rocket" size={32} color={PRO_BLUE} />,

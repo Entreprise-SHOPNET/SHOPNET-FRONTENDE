@@ -214,7 +214,7 @@ const BoutiqueScreen = () => {
     switch (boutiqueStatus) {
       case 'pending_payment':
         router.push({
-          pathname: '/(tabs)/Auth/Boutique/Premium/PaiementBoutique',
+          pathname: '/(tabs)/Auth/Boutique/Premium/PaymentProofBoutique',
           params: { 
             boutiqueId: boutiqueId.toString(),
             boutiqueNom: boutiqueName
