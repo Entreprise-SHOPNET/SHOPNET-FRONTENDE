@@ -106,7 +106,7 @@ const ComingSoonPage = () => {
   // ✅ NOUVELLE FONCTION ROBUSTE POUR WHATSAPP
   const handleContactSupport = async () => {
     const phoneNumber = "+243896037137"; 
-    const message = "Bonjour l'équipe SHOPNET, je souhaite avoir plus d'informations sur SHOPNET V3.1.1 et les fonctionnalités VIP à venir.";
+    const message = "Bonjour l'équipe SHOPNET, je souhaite avoir plus d'informations sur SHOPNET V3.2.3 et les fonctionnalités VIP à venir.";
     
     // Formatage du numéro pour wa.me : uniquement les chiffres avec l'indicatif
     const formattedNumber = phoneNumber.replace(/\D/g, '');
@@ -156,7 +156,7 @@ const ComingSoonPage = () => {
       } catch (fallbackError) {
         Alert.alert(
           "Service Temporairement Indisponible",
-          "Nous préparons une solution de contact encore plus fluide pour SHOPNET V2.0. En attendant, vous pouvez nous joindre directement au +243 896 037 137."
+          "Nous préparons une solution de contact encore plus fluide pour SHOPNET V3.2.3 En attendant, vous pouvez nous joindre directement au +243 896 037 137."
         );
       }
     }
@@ -240,7 +240,7 @@ const ComingSoonPage = () => {
             </View>
           </Animated.View>
 
-          <Text style={styles.title}>SHOPNET V3.1.1</Text>
+          <Text style={styles.title}>SHOPNET V3.2.3</Text>
           <Text style={styles.subtitle}>La Révolution Pro Arrive</Text>
 
           <View style={styles.exclusiveBadge}>
@@ -262,7 +262,7 @@ const ComingSoonPage = () => {
           <Text style={styles.messageTitle}>Une Expérience Réinventée</Text>
           <Text style={styles.message}>
             Nous préparons une révolution complète de votre expérience boutique.
-            La V3.1.1 apporte des technologies de pointe et des fonctionnalités
+            La V3.2.3 apporte des technologies de pointe et des fonctionnalités
             exclusives réservées aux professionnels les plus exigeants.
           </Text>
         </Animated.View>
@@ -302,7 +302,7 @@ const ComingSoonPage = () => {
           <View style={styles.launchedSection}>
             <Text style={styles.launchedTitle}>🎉 C'EST MAINTENANT !</Text>
             <Text style={styles.launchedText}>
-              La révolution SHOPNET V3.1.1 est lancée
+              La révolution SHOPNET V3.2.3 est lancée
             </Text>
           </View>
         )}
@@ -403,7 +403,7 @@ const ComingSoonPage = () => {
             <Text style={styles.ctaTitle}>Prêt pour la Révolution ?</Text>
             <Text style={styles.ctaDescription}>
               Rejoignez l'élite des boutiques professionnelles et soyez parmi
-              les premiers à découvrir SHOPNET V3.1.1 Notre équipe est à votre écoute pour répondre à toutes vos questions.
+              les premiers à découvrir SHOPNET V3.2.3 Notre équipe est à votre écoute pour répondre à toutes vos questions.
             </Text>
 
             <TouchableOpacity
@@ -448,7 +448,7 @@ const ComingSoonPage = () => {
         <View style={styles.footerContent}>
           <Ionicons name="diamond" size={16} color={PRO_BLUE} />
           <Text style={styles.footerText}>
-            SHOPNET V3.1.1 • EXPÉRIENCE PRO ULTIME • SUPPORT VIP
+            SHOPNET V3.2.3 • EXPÉRIENCE PRO ULTIME • SUPPORT VIP
           </Text>
           <Ionicons name="diamond" size={16} color={PRO_BLUE} />
         </View>

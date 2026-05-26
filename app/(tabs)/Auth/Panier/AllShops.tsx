@@ -14,7 +14,7 @@ import {
   TextInput,
   ActivityIndicator,
   Dimensions,
-  RefreshControl, // 👈 IMPORT MANQUANT AJOUTÉ
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -25,13 +25,13 @@ const { width } = Dimensions.get('window');
 const LOCAL_API = 'https://shopnet-backend.onrender.com/api';
 const CACHE_KEY = '@all_shops_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 8;
 
 const COLORS = {
   background: '#FFFFFF',
   card: '#FFFFFF',
-  text: '#1A2C3E',
-  textSecondary: '#6B7A8C',
+  text: '#1C1C1E',
+  textSecondary: '#8E8E93',
   accent: '#0A68B4',
   accentLight: '#E6F0FA',
   border: '#E8E8E8',
@@ -50,7 +50,7 @@ type Shop = {
   longitude: string;
   type_boutique: string;
   date_activation: string | null;
-  distance: number;
+  distance?: number;
   verified?: boolean;
 };
 
@@ -62,8 +62,8 @@ const VerificationBadge = ({ size = 14 }: { size?: number }) => (
 
 export default function AllShopsScreen() {
   const router = useRouter();
-  const [allShops, setAllShops] = useState<Shop[]>([]); // Toutes les boutiques chargées
-  const [displayedShops, setDisplayedShops] = useState<Shop[]>([]); // Boutiques affichées (paginees)
+  const [allShops, setAllShops] = useState<Shop[]>([]);
+  const [displayedShops, setDisplayedShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,45 +71,16 @@ export default function AllShopsScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [networkMode, setNetworkMode] = useState<'gps' | 'no_gps'>('no_gps');
 
-  // Chargement initial : cache puis réseau
-  useEffect(() => {
-    const loadData = async () => {
-      // 1. Charger depuis le cache
-      const cached = await loadCache();
-      if (cached) {
-        setAllShops(cached);
-        applyPagination(cached, 1);
-        setLoading(false);
-      }
-
-      // 2. Obtenir la localisation et charger depuis le réseau
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      let location = null;
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        location = {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        };
-        setUserLocation(location);
-      } else {
-        location = { latitude: -11.664, longitude: 27.479 }; // Lubumbashi par défaut
-        setUserLocation(location);
-      }
-
-      await fetchShops(location.latitude, location.longitude, !cached); // Si pas de cache, on met loading à true
-    };
-    loadData();
-  }, []);
-
+  // Charger le cache
   const loadCache = async (): Promise<Shop[] | null> => {
     try {
       const cacheStr = await AsyncStorage.getItem(CACHE_KEY);
       if (cacheStr) {
-        const cache = JSON.parse(cacheStr);
-        if (Date.now() - cache.timestamp < CACHE_EXPIRY) {
-          return cache.data;
+        const { data, timestamp } = JSON.parse(cacheStr);
+        if (Date.now() - timestamp < CACHE_EXPIRY) {
+          return data;
         }
       }
     } catch (error) {
@@ -118,12 +89,9 @@ export default function AllShopsScreen() {
     return null;
   };
 
-  const saveCache = async (data: Shop[]) => {
+  const saveCache = async (shops: Shop[]) => {
     try {
-      const cacheData = {
-        timestamp: Date.now(),
-        data,
-      };
+      const cacheData = { timestamp: Date.now(), data: shops };
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
     } catch (error) {
       console.error('Erreur sauvegarde cache:', error);
@@ -131,102 +99,168 @@ export default function AllShopsScreen() {
   };
 
   const applyPagination = (shops: Shop[], pageNum: number) => {
-    const start = 0;
     const end = pageNum * ITEMS_PER_PAGE;
-    setDisplayedShops(shops.slice(start, end));
+    const paginated = shops.slice(0, end);
+    setDisplayedShops(paginated);
     setHasMore(end < shops.length);
+    setPage(pageNum);
   };
 
-  const fetchShops = async (lat: number, lng: number, showLoading = true) => {
+  const fetchShops = async (pageNum: number, lat?: number, lng?: number, isLoadMore = false) => {
     try {
-      if (showLoading) setLoading(true);
-      const url = `${LOCAL_API}/boutique/premium/discover/nearby?latitude=${lat}&longitude=${lng}&radius=50`;
+      let url = `${LOCAL_API}/boutique/premium/discover/nearby?page=${pageNum}&limit=${ITEMS_PER_PAGE}`;
+      if (lat !== undefined && lng !== undefined) {
+        url += `&latitude=${lat}&longitude=${lng}&radius=500`;
+      }
+      console.log('Fetching shops:', url);
       const response = await fetch(url);
       const data = await response.json();
-      if (data.success) {
-        const shopsWithVerified = (data.shops || []).map((shop: any) => ({
+      console.log('API response:', data);
+
+      if (data.success && data.shops) {
+        const shops: Shop[] = data.shops.map((shop: any) => ({
           ...shop,
-          verified: true, // À ajuster selon les données réelles
+          verified: true,
         }));
-        setAllShops(shopsWithVerified);
-        applyPagination(shopsWithVerified, 1);
-        saveCache(shopsWithVerified);
+
+        if (pageNum === 1) {
+          setAllShops(shops);
+          setNetworkMode(data.mode);
+          saveCache(shops);
+          applyPagination(shops, 1);
+        } else {
+          setAllShops(prev => {
+            const newShops = [...prev, ...shops];
+            saveCache(newShops);
+            return newShops;
+          });
+          setDisplayedShops(prev => [...prev, ...shops]);
+          setHasMore(shops.length === ITEMS_PER_PAGE);
+          setPage(pageNum);
+        }
+        return true;
       } else {
-        setAllShops([]);
-        setDisplayedShops([]);
-        setHasMore(false);
+        console.warn('API returned success false or no shops', data);
+        if (pageNum === 1) {
+          setAllShops([]);
+          setDisplayedShops([]);
+          setHasMore(false);
+        }
+        return false;
       }
     } catch (error) {
       console.error('Erreur fetchShops:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      return false;
     }
   };
+
+  const loadInitialData = async () => {
+    // 1. Cache
+    const cached = await loadCache();
+    if (cached && cached.length > 0) {
+      setAllShops(cached);
+      applyPagination(cached, 1);
+      setLoading(false);
+    }
+
+    // 2. Demander la localisation
+    let location = null;
+    let hasGps = false;
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      try {
+        const loc = await Location.getCurrentPositionAsync({});
+        location = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        };
+        setUserLocation(location);
+        hasGps = true;
+      } catch (err) {
+        console.warn('Erreur position:', err);
+      }
+    }
+
+    // 3. Appel réseau
+    if (hasGps && location) {
+      await fetchShops(1, location.latitude, location.longitude);
+    } else {
+      await fetchShops(1);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
   const loadMore = () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     const nextPage = page + 1;
-    applyPagination(allShops, nextPage);
-    setPage(nextPage);
-    setLoadingMore(false);
+    if (userLocation) {
+      fetchShops(nextPage, userLocation.latitude, userLocation.longitude, true).finally(() => setLoadingMore(false));
+    } else {
+      fetchShops(nextPage, undefined, undefined, true).finally(() => setLoadingMore(false));
+    }
   };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     if (userLocation) {
-      fetchShops(userLocation.latitude, userLocation.longitude, false);
+      fetchShops(1, userLocation.latitude, userLocation.longitude).finally(() => setRefreshing(false));
     } else {
-      const defaultLoc = { latitude: -11.664, longitude: 27.479 };
-      fetchShops(defaultLoc.latitude, defaultLoc.longitude, false);
+      fetchShops(1).finally(() => setRefreshing(false));
     }
   }, [userLocation]);
 
-  // Filtrage par recherche
+  // Filtrage local (recherche)
   useEffect(() => {
     if (searchQuery.trim() === '') {
       applyPagination(allShops, 1);
-      setPage(1);
     } else {
       const query = searchQuery.toLowerCase();
       const filtered = allShops.filter(
-        (shop) =>
+        shop =>
           shop.nom.toLowerCase().includes(query) ||
           shop.ville.toLowerCase().includes(query)
       );
       setDisplayedShops(filtered);
-      setHasMore(false); // Désactive la pagination pendant la recherche
+      setHasMore(false);
     }
   }, [searchQuery, allShops]);
 
-  const renderShopItem = ({ item }: { item: Shop }) => (
-    <TouchableOpacity
-      style={[styles.shopCard, { borderColor: COLORS.border }]}
-      onPress={() => router.push(`/Auth/Panier/ShopDetail?id=${item.id}`)}
-      
-    >
-      <Image source={{ uri: item.logo }} style={styles.shopLogo} />
-      <View style={styles.shopInfo}>
-        <View style={styles.shopNameRow}>
-          <Text style={[styles.shopName, { color: COLORS.text }]} numberOfLines={1}>
-            {item.nom}
+  const renderShopItem = ({ item }: { item: Shop }) => {
+    const distanceText = item.distance !== undefined && item.distance !== null
+      ? `${item.distance.toFixed(1)} km`
+      : 'Distance inconnue';
+    return (
+      <TouchableOpacity
+        style={[styles.shopCard, { borderColor: COLORS.border }]}
+        onPress={() => router.push(`/ShopDetail?id=${item.id}`)}
+      >
+        <Image source={{ uri: item.logo }} style={styles.shopLogo} />
+        <View style={styles.shopInfo}>
+          <View style={styles.shopNameRow}>
+            <Text style={[styles.shopName, { color: COLORS.text }]} numberOfLines={1}>
+              {item.nom}
+            </Text>
+            {item.verified && <VerificationBadge size={14} />}
+          </View>
+          <Text style={[styles.shopCity, { color: COLORS.textSecondary }]} numberOfLines={1}>
+            {item.ville}, {item.pays}
           </Text>
-          {item.verified && <VerificationBadge size={14} />}
+          <View style={styles.shopDistanceRow}>
+            <Ionicons name="location-outline" size={12} color={COLORS.textSecondary} />
+            <Text style={[styles.shopDistance, { color: COLORS.textSecondary }]}>
+              {distanceText}
+            </Text>
+          </View>
         </View>
-        <Text style={[styles.shopCity, { color: COLORS.textSecondary }]} numberOfLines={1}>
-          {item.ville}, {item.pays}
-        </Text>
-        <View style={styles.shopDistanceRow}>
-          <Ionicons name="location-outline" size={12} color={COLORS.textSecondary} />
-          <Text style={[styles.shopDistance, { color: COLORS.textSecondary }]}>
-            {item.distance.toFixed(1)} km
-          </Text>
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-    </TouchableOpacity>
-  );
+        <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+      </TouchableOpacity>
+    );
+  };
 
   const renderFooter = () => {
     if (!loadingMore) return null;
@@ -238,7 +272,7 @@ export default function AllShopsScreen() {
     );
   };
 
-  if (loading) {
+  if (loading && allShops.length === 0) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.background }]}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -252,16 +286,19 @@ export default function AllShopsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      {/* Header avec retour et titre */}
       <View style={[styles.header, { borderBottomColor: COLORS.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={28} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: COLORS.text }]}>Toutes les boutiques</Text>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.headerTitle}>Boutiques</Text>
+          <Text style={styles.headerSubtitle}>
+            {networkMode === 'gps' ? 'À proximité' : 'Toutes les boutiques'}
+          </Text>
+        </View>
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Barre de recherche */}
       <View style={[styles.searchContainer, { borderColor: COLORS.border }]}>
         <Ionicons name="search-outline" size={20} color={COLORS.textSecondary} />
         <TextInput
@@ -278,7 +315,6 @@ export default function AllShopsScreen() {
         )}
       </View>
 
-      {/* Liste des boutiques */}
       <FlatList
         data={displayedShops}
         keyExtractor={(item) => item.id.toString()}
@@ -299,7 +335,9 @@ export default function AllShopsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="storefront-outline" size={64} color={COLORS.textSecondary} />
-            <Text style={[styles.emptyText, { color: COLORS.text }]}>Aucune boutique trouvée</Text>
+            <Text style={[styles.emptyText, { color: COLORS.text }]}>
+              Aucune boutique trouvée
+            </Text>
           </View>
         }
       />
@@ -308,18 +346,9 @@ export default function AllShopsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -328,97 +357,44 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  headerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  backButton: { padding: 4 },
+  headerTextContainer: { flex: 1, marginLeft: 8 },
+  headerTitle: { fontSize: 24, fontWeight: '700', color: COLORS.text },
+  headerSubtitle: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: COLORS.card,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    paddingVertical: 4,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 16, paddingVertical: 4 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 20 },
   shopCard: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 16,
     marginBottom: 12,
     backgroundColor: COLORS.card,
   },
-  shopLogo: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  shopInfo: {
-    flex: 1,
-  },
-  shopNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  shopName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  verificationBadge: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shopCity: {
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  shopDistanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  shopDistance: {
-    fontSize: 12,
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 14,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    marginTop: 12,
-  },
+  shopLogo: { width: 56, height: 56, borderRadius: 28, marginRight: 14 },
+  shopInfo: { flex: 1 },
+  shopNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  shopName: { fontSize: 16, fontWeight: '600' },
+  shopCity: { fontSize: 13, marginBottom: 4 },
+  shopDistanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  shopDistance: { fontSize: 12 },
+  verificationBadge: { justifyContent: 'center', alignItems: 'center' },
+  footerLoader: { paddingVertical: 20, alignItems: 'center', justifyContent: 'center' },
+  footerText: { fontSize: 14, marginTop: 8 },
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyText: { fontSize: 16, marginTop: 12 },
 });

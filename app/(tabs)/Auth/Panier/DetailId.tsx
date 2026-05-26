@@ -1531,7 +1531,7 @@ Merci d’avance 🙏`
         <View style={styles.navButtonsContainer}>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/MisAjour")}
+            onPress={() => router.push("/(tabs)/Auth/Categorie/PromotionScreen")}
           >
             <Ionicons name="flame-outline" size={32} color={COLORS.accent} />
             <Text style={styles.navButtonTitle}>
@@ -1543,7 +1543,7 @@ Merci d’avance 🙏`
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => router.push("/(tabs)/Auth/Panier/AllShops")}
+            onPress={() => router.push("/MisAjour")} 
           >
             <Ionicons name="business-outline" size={32} color={COLORS.accent} />
             <Text style={styles.navButtonTitle}>
