@@ -1,6 +1,6 @@
 
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   TextInput,
   Switch,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -37,7 +38,7 @@ const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
 
 const BASE_URL = 'https://shopnet-backend.onrender.com';
 
-// Types
+// Types (ajout du champ url optionnel)
 type SettingsItem = {
   id: string;
   name: string;
@@ -45,6 +46,7 @@ type SettingsItem = {
   icon: string;
   badge?: number;
   iconFamily?: 'ionicons' | 'material' | 'fontawesome' | 'feather';
+  url?: string; // si présent, ouvre un lien web externe
 };
 
 type SettingsSection = {
@@ -115,6 +117,19 @@ const settingsData: SettingsSection[] = [
       { id: '6-4', name: "Autorisations", route: "/MisAjour", icon: "key", badge: 0, iconFamily: 'fontawesome' },
     ],
   },
+  // ═════════════════ SECTION LÉGALE (liens web externes) ═════════════════
+  {
+    id: '7',
+    title: "Légal & Informations",
+    items: [
+      { id: '7-1', name: "Politique de Confidentialité", route: "", url: "https://shopnet-condition.vercel.app/", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
+      { id: '7-2', name: "Conditions d’Utilisation", route: "", url: "https://shopnet-condition.vercel.app/ConditionD-utilisation.html", icon: "document-text", badge: 0, iconFamily: 'ionicons' },
+      { id: '7-3', name: "Conditions de Vente", route: "", url: "https://shopnet-condition.vercel.app/ConditionDeVente.html", icon: "cart", badge: 0, iconFamily: 'ionicons' },
+      { id: '7-4', name: "Politique de Remboursement", route: "", url: "https://shopnet-condition.vercel.app/PolitiqueDeRembourssement.html", icon: "refresh-circle", badge: 0, iconFamily: 'ionicons' },
+      { id: '7-5', name: "Règles de la Communauté", route: "", url: "https://shopnet-condition.vercel.app/RegleDelaCommun.html", icon: "people", badge: 0, iconFamily: 'ionicons' },
+      { id: '7-6', name: "À propos de SHOPNET", route: "", url: "https://shopnet-condition.vercel.app/AproposShopnet.html", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
+    ],
+  },
 ];
 
 // Composants réutilisables
@@ -147,7 +162,12 @@ const SettingRow = ({ item, onPress }: { item: SettingsItem; onPress: () => void
           <Text style={styles.badgeText}>{item.badge}</Text>
         </View>
       ) : null}
-      <Feather name="chevron-right" size={20} color={PRO_BLUE} />
+      {/* Icône de lien externe pour les URLs */}
+      {item.url ? (
+        <Ionicons name="open-outline" size={18} color={PRO_BLUE} />
+      ) : (
+        <Feather name="chevron-right" size={20} color={PRO_BLUE} />
+      )}
     </View>
   </TouchableOpacity>
 );
@@ -321,6 +341,26 @@ const SettingsScreen = () => {
     }
   };
 
+  const handleUpdateApp = () => {
+    const playStoreUrl = "https://play.google.com/store/apps/details?id=com.shopai.app&pcampaignid=web_share";
+    Linking.openURL(playStoreUrl).catch(() => {
+      Alert.alert("Erreur", "Impossible d'ouvrir le Play Store. Vérifiez votre connexion.");
+    });
+  };
+
+  // ═════════════ GESTION UNIFIÉE DU CLIC ═════════════
+  const handleItemPress = (item: SettingsItem) => {
+    if (item.url) {
+      // Ouvre le lien web externe
+      Linking.openURL(item.url).catch(() => {
+        Alert.alert("Erreur", "Impossible d'ouvrir ce lien.");
+      });
+    } else {
+      // Navigation interne via router
+      router.push(item.route);
+    }
+  };
+
   if (loading && !userData.name) {
     return (
       <View style={styles.loadingContainer}>
@@ -360,15 +400,6 @@ const SettingsScreen = () => {
           
           <View style={styles.profileInfo}>
             <Text style={styles.userName}>{userData.name}</Text>
-            <Text style={styles.userEmail}>{userData.email}</Text>
-            
-            <View style={styles.roleContainer}>
-              <Text style={styles.userRole}>{userData.role}</Text>
-              <View style={styles.verifiedIcon}>
-                <Ionicons name="checkmark-circle" size={12} color={PRO_BLUE} />
-              </View>
-            </View>
-            
             <View style={styles.memberSinceContainer}>
               <Ionicons name="calendar" size={12} color={PRO_BLUE} />
               <Text style={styles.memberSinceText}>
@@ -443,7 +474,7 @@ const SettingsScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Paramètres */}
+        {/* Paramètres (toutes les sections) */}
         {settingsData.map((section) => (
           <View key={section.id} style={styles.settingsSection}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -452,20 +483,25 @@ const SettingsScreen = () => {
                 <SettingRow
                   key={item.id}
                   item={item}
-                  onPress={() => router.push(item.route)}
+                  onPress={() => handleItemPress(item)}
                 />
               ))}
             </View>
           </View>
         ))}
 
-        {/* Informations */}
+        {/* Informations (version + bouton de mise à jour) */}
         <View style={styles.infoSection}>
           <InfoRow
             iconName="information-circle"
             label="Version de l'application"
-            value="Shopnet Pro 2.5.1"
+            value="Shopnet Pro 3.2.3"
           />
+          
+          <TouchableOpacity style={styles.updateButton} onPress={handleUpdateApp}>
+            <Ionicons name="download-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.updateButtonText}>Mettre l'application à jour</Text>
+          </TouchableOpacity>
           
           <InfoRow
             iconName="phone-portrait"
@@ -490,8 +526,8 @@ const SettingsScreen = () => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>© 2026 Shopnet Pro. Tous droits réservés.</Text>
-          <Text style={styles.footerSubText}>Version 2.5.1 • Build 2412</Text>
+          <Text style={styles.footerText}>© 2026 Shopnet Markeplace. Tous droits réservés.</Text>
+          <Text style={styles.footerSubText}>Version 3.2.3 • Build 2412</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -654,6 +690,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginBottom: 16,
     letterSpacing: 0.5,
+    marginLeft: 0,
   },
   quickSettingsGrid: {
     flexDirection: "row",
@@ -707,16 +744,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: BORDER_COLOR,
+    padding: 20,
   },
   settingsList: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
   },
   settingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 18,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(66, 165, 245, 0.05)",
   },
@@ -787,6 +825,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  updateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PRO_BLUE,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginVertical: 16,
+    marginHorizontal: 0,
+  },
+  updateButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
   logoutButton: {
     backgroundColor: CARD_BG,
     borderRadius: 16,
@@ -828,3 +881,5 @@ const styles = StyleSheet.create({
 });
 
 export default SettingsScreen;
+
+
