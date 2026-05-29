@@ -1,86 +1,48 @@
 // services/notifications.jsimport messaging from "@react-native-firebase/messaging";
 // services/notifications.js
+// services/notifications.js (EXPO GO VERSION)
 
-import messaging from "@react-native-firebase/messaging";
-import { Platform, PermissionsAndroid } from "react-native";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 
 /**
- * 🔥 INITIALISATION + PERMISSION + TOKEN FCM
+ * 🔔 INITIALISATION + TOKEN (EXPO GO)
  */
 export async function registerForPushNotificationsAsync(userId) {
   try {
-    console.log("🔥 SHOPNET FCM INIT...");
+    console.log("🔥 EXPO NOTIFICATIONS INIT...");
 
     if (!userId) {
       console.log("❌ userId manquant");
       return null;
     }
 
-    let permissionGranted = false;
+    // 📱 Permission notifications
+    const { status } = await Notifications.requestPermissionsAsync();
 
-    // ✅ ANDROID 13+
-    if (Platform.OS === "android" && Platform.Version >= 33) {
-      const alreadyGranted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-      );
-
-      if (alreadyGranted) {
-        permissionGranted = true;
-      } else {
-        const result = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-        );
-
-        permissionGranted =
-          result === PermissionsAndroid.RESULTS.GRANTED;
-      }
-    }
-
-    // ✅ iOS + Android < 13
-    else {
-      const authStatus = await messaging().requestPermission();
-
-      permissionGranted =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-    }
-
-    if (!permissionGranted) {
+    if (status !== "granted") {
       console.log("❌ Permission notifications refusée");
       return null;
     }
 
-    console.log("✅ Permission notifications accordée");
+    // 🔔 Expo Push Token
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
 
-    // 🔥 TOKEN FCM
-    const fcmToken = await messaging().getToken();
+    console.log("🔔 EXPO PUSH TOKEN :", token);
 
-    if (!fcmToken) {
-      console.log("❌ Token FCM introuvable");
-      return null;
-    }
+    // 📡 Envoyer au backend (tu gardes TON backend identique)
+    await sendTokenToBackend(token, userId);
 
-    console.log("🔥 FCM TOKEN SHOPNET :", fcmToken);
-
-    // 📡 Backend
-    await sendTokenToBackend(fcmToken, userId);
-
-    // 🔄 Refresh token
-    messaging().onTokenRefresh(async (newToken) => {
-      console.log("🔄 Nouveau token FCM :", newToken);
-      await sendTokenToBackend(newToken, userId);
-    });
-
-    return fcmToken;
+    return token;
 
   } catch (error) {
-    console.error("❌ Erreur FCM register:", error);
+    console.error("❌ Error notifications:", error);
     return null;
   }
 }
 
 /**
- * 📡 ENVOI TOKEN BACKEND
+ * 📡 ENVOI BACKEND (IDENTIQUE À TON SYSTÈME)
  */
 async function sendTokenToBackend(token, userId) {
   try {
@@ -108,42 +70,35 @@ async function sendTokenToBackend(token, userId) {
 }
 
 /**
- * 🔔 LISTENER NOTIFICATIONS
+ * 🔔 LISTENER NOTIFICATIONS (EXPO GO)
  */
 export function listenNotifications(onMessage, onOpen) {
   try {
     // 📩 FOREGROUND
-    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-      console.log("🔔 FOREGROUND:", remoteMessage);
+    const subscription = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log("🔔 FOREGROUND:", notification);
 
-      if (onMessage) {
-        onMessage(remoteMessage);
+        if (onMessage) {
+          onMessage(notification);
+        }
       }
-    });
+    );
 
-    // 📲 BACKGROUND CLICK
-    messaging().onNotificationOpenedApp((remoteMessage) => {
-      console.log("📲 BACKGROUND OPEN:", remoteMessage);
+    // 📲 CLICK NOTIFICATION
+    const responseSub =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log("📲 OPEN:", response);
 
-      if (onOpen) {
-        onOpen(remoteMessage);
-      }
-    });
-
-    // 🚀 APP KILLED
-    messaging()
-      .getInitialNotification()
-      .then((remoteMessage) => {
-        if (remoteMessage) {
-          console.log("🚀 OPEN FROM KILLED:", remoteMessage);
-
-          if (onOpen) {
-            onOpen(remoteMessage);
-          }
+        if (onOpen) {
+          onOpen(response);
         }
       });
 
-    return unsubscribe;
+    return () => {
+      subscription.remove();
+      responseSub.remove();
+    };
 
   } catch (error) {
     console.error("❌ listen error:", error);
