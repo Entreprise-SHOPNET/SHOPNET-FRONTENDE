@@ -1,18 +1,15 @@
 // app/_layout.tsx
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { View, Text } from "react-native";
 import "react-native-reanimated";
-import { useColorScheme } from "../components/useColorScheme";
 import * as Device from "expo-device";
+
+import { ThemeProvider } from "./theme/ThemeContext";
+
 import {
   registerForPushNotificationsAsync,
   listenNotifications,
@@ -48,7 +45,6 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
   const router = useRouter();
 
   const [notifVisible, setNotifVisible] = useState(false);
@@ -67,14 +63,9 @@ function RootLayoutNav() {
         if (globalThis.currentUser?.id) {
           clearInterval(checkUserInterval);
 
-          console.log(
-            "👤 User détecté:",
-            globalThis.currentUser.id
-          );
+          console.log("👤 User détecté:", globalThis.currentUser.id);
 
-          await registerForPushNotificationsAsync(
-            globalThis.currentUser.id
-          );
+          await registerForPushNotificationsAsync(globalThis.currentUser.id);
 
           cleanup = listenNotifications(
             (notification) => {
@@ -96,14 +87,11 @@ function RootLayoutNav() {
               if (productId) {
                 router.push({
                   pathname: "/(tabs)/Auth/Produits/DetailId",
-                  params: {
-                    id: productId,
-                  },
+                  params: { id: productId },
                 });
                 return;
               }
 
-              // fallback
               router.push("/Auth/Produits/Fil");
             }
           );
@@ -121,9 +109,9 @@ function RootLayoutNav() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-        <ThemeProvider
-          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-        >
+
+        {/* 🌙 THEME GLOBAL SHOPNET (TON SYSTEME) */}
+        <ThemeProvider>
 
           {/* 🔔 NOTIFICATION UI */}
           {notifVisible && (
@@ -154,7 +142,7 @@ function RootLayoutNav() {
             </View>
           )}
 
-          {/* 📱 APP NAVIGATION */}
+          {/* 📱 NAVIGATION */}
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="splash" />
