@@ -1,6 +1,5 @@
 
 
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
@@ -23,27 +22,44 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from "../../../../app/theme/ThemeContext";
 
 const { width } = Dimensions.get('window');
 const LOCAL_API = 'https://shopnet-backend.onrender.com/api';
 
-// Palette de couleurs moderne (style marketplace)
-const COLORS = {
-  background: '#F5F7FA',
-  surface: '#FFFFFF',
-  primary: '#42A5F5',
-  primaryDark: '#1976D2',
-  secondary: '#6C757D',
-  success: '#4CAF50',
-  danger: '#FF6B6B',
-  warning: '#FFC107',
-  premium: '#FFD700',
-  text: '#2C3E50',
-  textSecondary: '#7F8C8D',
-  textLight: '#95A5A6',
-  border: '#E9ECEF',
-  divider: '#EDF2F7',
-  new: '#9C27B0', // Violet pour le badge nouveau
+// Hook pour les couleurs dynamiques
+const useDynamicColors = () => {
+  const { isDark } = useTheme();
+
+  return {
+    background: isDark ? '#0D0D0D' : '#F5F7FA',
+    surface: isDark ? '#1A1A1A' : '#FFFFFF',
+    primary: '#42A5F5',
+    primaryDark: '#1976D2',
+    secondary: isDark ? '#B0B0B0' : '#6C757D',
+    success: '#4CAF50',
+    danger: '#FF6B6B',
+    warning: '#FFC107',
+    premium: '#FFD700',
+    text: isDark ? '#F5F5F5' : '#2C3E50',
+    textSecondary: isDark ? '#B0B0B0' : '#7F8C8D',
+    textLight: isDark ? '#666666' : '#95A5A6',
+    border: isDark ? '#2E2E2E' : '#E9ECEF',
+    divider: isDark ? '#2E2E2E' : '#EDF2F7',
+    new: '#9C27B0',
+    statusBar: isDark ? '#0D0D0D' : '#FFFFFF',
+    barStyle: isDark ? 'light-content' as const : 'dark-content' as const,
+    headerBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    headerBorder: isDark ? '#2E2E2E' : '#E9ECEF',
+    cardBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    placeholderBg: isDark ? '#222222' : '#F5F7FA',
+    iconButtonBg: isDark ? '#222222' : '#F5F7FA',
+    modalBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    modalOverlay: 'rgba(0,0,0,0.5)',
+    floatingBg: '#42A5F5',
+    threeDotsBg: isDark ? '#222222' : '#F5F7FA',
+    threeDotsBorder: isDark ? '#2E2E2E' : '#E9ECEF',
+  };
 };
 
 type Product = {
@@ -61,7 +77,7 @@ type Product = {
   duration_days?: number;
   created_at?: string;
   time_remaining?: string;
-  is_new?: boolean; // Pour badge nouveau
+  is_new?: boolean;
 };
 
 type Promotion = {
@@ -75,22 +91,21 @@ type Promotion = {
   created_at: string;
   images: string[];
   time_remaining?: string;
-  is_new?: boolean; // Pour badge nouveau
+  is_new?: boolean;
 };
 
 type CacheData = {
   products: (Product | Promotion)[];
   page: number;
   hasMore: boolean;
-  viewedProducts: number[]; // Historique des produits vus
+  viewedProducts: number[];
   timestamp: number;
 };
 
 const CACHE_KEY = 'discover_cache';
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+const CACHE_DURATION = 10 * 60 * 1000;
 const VIEWED_PRODUCTS_KEY = 'viewed_products';
 
-// Fonctions de cache
 const saveToCache = async (products: (Product | Promotion)[], page: number, hasMore: boolean, viewedProducts: number[]) => {
   try {
     const cacheData: CacheData = {
@@ -101,7 +116,6 @@ const saveToCache = async (products: (Product | Promotion)[], page: number, hasM
       timestamp: Date.now(),
     };
     await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-    console.log('✅ Données mises en cache');
   } catch (error) {
     console.error('❌ Erreur sauvegarde cache:', error);
   }
@@ -111,16 +125,12 @@ const loadFromCache = async (): Promise<CacheData | null> => {
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
     if (!cached) return null;
-    
     const data: CacheData = JSON.parse(cached);
     const now = Date.now();
-    
     if (now - data.timestamp > CACHE_DURATION) {
       console.log('📦 Cache expiré (10 minutes)');
       return null;
     }
-    
-    console.log('📦 Données chargées depuis le cache');
     return data;
   } catch (error) {
     console.error('❌ Erreur chargement cache:', error);
@@ -128,7 +138,6 @@ const loadFromCache = async (): Promise<CacheData | null> => {
   }
 };
 
-// Charger l'historique des produits vus
 const loadViewedProducts = async (): Promise<number[]> => {
   try {
     const viewed = await AsyncStorage.getItem(VIEWED_PRODUCTS_KEY);
@@ -139,12 +148,11 @@ const loadViewedProducts = async (): Promise<number[]> => {
   }
 };
 
-// Sauvegarder un produit vu
 const saveViewedProduct = async (productId: number) => {
   try {
     const viewed = await loadViewedProducts();
     if (!viewed.includes(productId)) {
-      const updated = [productId, ...viewed].slice(0, 50); // Garder les 50 derniers
+      const updated = [productId, ...viewed].slice(0, 50);
       await AsyncStorage.setItem(VIEWED_PRODUCTS_KEY, JSON.stringify(updated));
     }
   } catch (error) {
@@ -164,47 +172,38 @@ const sendPresence = async () => {
 
 const DiscoverScreen = () => {
   const router = useRouter();
-  
-  // États principaux
+  const COLORS = useDynamicColors();
+  const { isDark } = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [products, setProducts] = useState<(Product | Promotion)[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<(Product | Promotion)[]>([]);
   const [promoProducts, setPromoProducts] = useState<(Product | Promotion)[]>([]);
   const [doubleProducts, setDoubleProducts] = useState<(Product | Promotion)[]>([]);
-  const [recommendedProducts, setRecommendedProducts] = useState<(Product | Promotion)[]>([]); // Produits personnalisés
+  const [recommendedProducts, setRecommendedProducts] = useState<(Product | Promotion)[]>([]);
   const [viewedProducts, setViewedProducts] = useState<number[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [actionModalVisible, setActionModalVisible] = useState(false);
-  
-  // Pagination
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
-  
-  // UI États
   const [isShuffled, setIsShuffled] = useState(false);
   const [columns, setColumns] = useState(2);
   const [flatListKey, setFlatListKey] = useState('2-columns');
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
-
-  // Référence pour la FlatList
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
     initializeScreen();
-    
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
-    
     return () => {
       isMountedRef.current = false;
       cleanupPresenceSystem();
@@ -220,14 +219,13 @@ const DiscoverScreen = () => {
     setupPresenceSystem();
   };
 
-  // Vérifier si un produit est nouveau (moins de 7 jours)
   const isProductNew = (createdAt?: string): boolean => {
     if (!createdAt) return false;
     try {
       const createdDate = new Date(createdAt);
       const now = new Date();
       const diffDays = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-      return diffDays <= 7; // Nouveau si moins de 7 jours
+      return diffDays <= 7;
     } catch (error) {
       return false;
     }
@@ -235,18 +233,15 @@ const DiscoverScreen = () => {
 
   const organizeProductsBySections = (allProducts: (Product | Promotion)[]) => {
     if (!allProducts || !Array.isArray(allProducts) || allProducts.length === 0) return;
-    
-    // Ajouter le badge "nouveau" aux produits récents
+
     const productsWithNew = allProducts.map(product => ({
       ...product,
       is_new: isProductNew(product.created_at)
     }));
 
-    // Section 1: 15 produits pour les tendances
     const trending = [...productsWithNew].sort(() => Math.random() - 0.5).slice(0, 15);
     setTrendingProducts(trending || []);
 
-    // Section 2: 10 produits pour les promotions (prix promo > 0)
     const promos = (productsWithNew || [])
       .filter(p => {
         if ('promotionId' in p) {
@@ -258,20 +253,16 @@ const DiscoverScreen = () => {
       .slice(0, 10);
     setPromoProducts(promos.length > 0 ? promos : (productsWithNew || []).slice(0, 10));
 
-    // Section 3: 8 produits pour les doubles offres
     const doubles = (productsWithNew || []).slice(0, 8);
     setDoubleProducts(doubles || []);
 
-    // Section 4: Produits personnalisés basés sur l'historique
     if (viewedProducts && viewedProducts.length > 0) {
-      // Recommander des produits similaires à ceux déjà vus
       const recommended = (productsWithNew || [])
-        .filter(p => !viewedProducts.includes(getProductId(p))) // Exclure ceux déjà vus
+        .filter(p => !viewedProducts.includes(getProductId(p)))
         .sort(() => Math.random() - 0.5)
         .slice(0, 10);
       setRecommendedProducts(recommended || []);
     } else {
-      // Si pas d'historique, prendre des produits au hasard
       const random = (productsWithNew || []).sort(() => Math.random() - 0.5).slice(0, 10);
       setRecommendedProducts(random || []);
     }
@@ -314,8 +305,6 @@ const DiscoverScreen = () => {
   const loadToken = async () => {
     try {
       const storedToken = await AsyncStorage.getItem('userToken');
-      
-      // 1. Charger d'abord depuis le cache
       const cachedData = await loadFromCache();
       if (cachedData && cachedData.products) {
         setProducts(cachedData.products || []);
@@ -325,13 +314,10 @@ const DiscoverScreen = () => {
         organizeProductsBySections(cachedData.products || []);
         setLoading(false);
       }
-      
-      // 2. Rafraîchir avec le token
       if (storedToken) {
         setToken(storedToken);
         await fetchMixedProducts(storedToken, 1, true);
       } else {
-        console.error('Aucun token trouvé');
         setLoading(false);
       }
     } catch (err) {
@@ -342,23 +328,14 @@ const DiscoverScreen = () => {
 
   const fetchMixedProducts = async (jwtToken: string, pageNum = 1, reset = false) => {
     try {
-      if (reset) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      if (reset) setLoading(true);
+      else setLoadingMore(true);
 
-      const limit = 8; // 8 produits par page
-
+      const limit = 8;
       const regularResponse = await axios.get(`${LOCAL_API}/all-products`, {
         headers: { Authorization: `Bearer ${jwtToken}` },
-        params: { 
-          page: pageNum, 
-          limit,
-          sort: 'newest'
-        },
+        params: { page: pageNum, limit, sort: 'newest' },
       });
-
       const promotionResponse = await axios.get(`${LOCAL_API}/promotions`, {
         headers: { Authorization: `Bearer ${jwtToken}` },
       });
@@ -370,7 +347,6 @@ const DiscoverScreen = () => {
         regularProducts = regularResponse.data.products || [];
         setTotalPages(regularResponse.data.totalPages || 1);
       }
-      
       if (promotionResponse.data && promotionResponse.data.success) {
         promotionProducts = (promotionResponse.data.promotions || []).map((promo: Promotion) => ({
           ...promo,
@@ -381,14 +357,12 @@ const DiscoverScreen = () => {
       const allProducts = [...(regularProducts || []), ...(promotionProducts || [])].sort(() => Math.random() - 0.5);
 
       if (reset) {
-        // Réinitialiser avec les nouveaux produits
         setProducts(allProducts || []);
         organizeProductsBySections(allProducts || []);
         setPage(pageNum);
         setHasMore((regularProducts || []).length === limit);
         await saveToCache(allProducts || [], pageNum, (regularProducts || []).length === limit, viewedProducts || []);
       } else {
-        // Ajouter les nouveaux produits à la liste existante
         const updatedProducts = [...(products || []), ...(allProducts || [])];
         setProducts(updatedProducts);
         organizeProductsBySections(updatedProducts);
@@ -396,9 +370,6 @@ const DiscoverScreen = () => {
         setHasMore((regularProducts || []).length === limit);
         await saveToCache(updatedProducts, pageNum, (regularProducts || []).length === limit, viewedProducts || []);
       }
-
-      console.log(`📦 Page ${pageNum} chargée, ${(allProducts || []).length} produits`);
-
     } catch (err: any) {
       console.error('❌ Erreur API produits:', err.message);
     } finally {
@@ -417,20 +388,17 @@ const DiscoverScreen = () => {
 
   const loadMoreProducts = () => {
     if (!loadingMore && hasMore && token) {
-      console.log(`📥 Chargement page ${page + 1}...`);
       fetchMixedProducts(token, page + 1, false);
     }
   };
 
   const calculateTimeRemaining = (createdAt: string, durationDays: number): string => {
     if (!createdAt || !durationDays) return '';
-    
     try {
       const createdDate = new Date(createdAt);
       const endDate = new Date(createdDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
       const now = new Date();
       const diffMs = endDate.getTime() - now.getTime();
-
       if (diffMs <= 0) return 'Expirée';
       const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -489,7 +457,6 @@ const DiscoverScreen = () => {
   const getProductPrice = (item: Product | Promotion): number => {
     if (!item) return 0;
     const price = 'promo_price' in item ? item.promo_price : item.price;
-    // S'assurer que le prix est > 0
     return typeof price === 'number' && !isNaN(price) && price > 0 ? price : 0;
   };
 
@@ -526,7 +493,8 @@ const DiscoverScreen = () => {
 
   const toggleShuffle = () => {
     if (isShuffled) {
-      setProducts(originalProducts || []);
+      // Retour à l'ordre original
+      onRefresh();
     } else {
       setProducts(shuffleArray([...(products || [])]));
     }
@@ -539,16 +507,13 @@ const DiscoverScreen = () => {
     setFlatListKey(`${newColumns}-columns-${Date.now()}`);
   };
 
-  // Scroll to top
   const scrollToTop = () => {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
-  // Render pour les produits horizontaux (format compact)
+  // Render pour les produits horizontaux
   const renderHorizontalProduct = ({ item }: { item: Product | Promotion }) => {
     if (!item) return null;
-    
-    const productId = getProductId(item);
     const productTitle = getProductTitle(item);
     const productPrice = getProductPrice(item);
     const images = getProductImages(item);
@@ -560,19 +525,18 @@ const DiscoverScreen = () => {
 
     return (
       <TouchableOpacity
-        style={styles.horizontalProductCard}
+        style={[styles.horizontalProductCard, { backgroundColor: COLORS.cardBg, borderColor: COLORS.border }]}
         onPress={() => handleProductPress(item)}
         activeOpacity={0.9}
       >
-        <View style={styles.horizontalImageContainer}>
+        <View style={[styles.horizontalImageContainer, { backgroundColor: COLORS.placeholderBg }]}>
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={styles.horizontalProductImage} resizeMode="cover" />
           ) : (
-            <View style={styles.horizontalImagePlaceholder}>
+            <View style={[styles.horizontalImagePlaceholder, { backgroundColor: COLORS.placeholderBg }]}>
               <Ionicons name="cube-outline" size={24} color={COLORS.textLight} />
             </View>
           )}
-          
           <View style={styles.horizontalBadgeContainer}>
             {isNew && (
               <View style={styles.newBadge}>
@@ -586,12 +550,11 @@ const DiscoverScreen = () => {
             )}
           </View>
         </View>
-
         <View style={styles.horizontalProductContent}>
-          <Text style={styles.horizontalProductTitle} numberOfLines={2}>
+          <Text style={[styles.horizontalProductTitle, { color: COLORS.text }]} numberOfLines={2}>
             {productTitle}
           </Text>
-          <Text style={styles.horizontalProductPrice}>
+          <Text style={[styles.horizontalProductPrice, { color: COLORS.primary }]}>
             ${typeof productPrice === 'number' && productPrice > 0 ? productPrice.toFixed(2) : '0.00'}
           </Text>
         </View>
@@ -599,11 +562,9 @@ const DiscoverScreen = () => {
     );
   };
 
-  // Render pour les produits doubles (format moyen)
+  // Render pour les produits doubles
   const renderDoubleProduct = ({ item }: { item: Product | Promotion }) => {
     if (!item) return null;
-    
-    const productId = getProductId(item);
     const productTitle = getProductTitle(item);
     const productPrice = getProductPrice(item);
     const images = getProductImages(item);
@@ -615,19 +576,18 @@ const DiscoverScreen = () => {
 
     return (
       <TouchableOpacity
-        style={styles.doubleProductCard}
+        style={[styles.doubleProductCard, { backgroundColor: COLORS.cardBg, borderColor: COLORS.border }]}
         onPress={() => handleProductPress(item)}
         activeOpacity={0.9}
       >
-        <View style={styles.doubleImageContainer}>
+        <View style={[styles.doubleImageContainer, { backgroundColor: COLORS.placeholderBg }]}>
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={styles.doubleProductImage} resizeMode="cover" />
           ) : (
-            <View style={styles.doubleImagePlaceholder}>
+            <View style={[styles.doubleImagePlaceholder, { backgroundColor: COLORS.placeholderBg }]}>
               <Ionicons name="cube-outline" size={30} color={COLORS.textLight} />
             </View>
           )}
-          
           <View style={styles.doubleBadgeContainer}>
             {isNew && (
               <View style={styles.newBadge}>
@@ -641,12 +601,11 @@ const DiscoverScreen = () => {
             )}
           </View>
         </View>
-
         <View style={styles.doubleProductContent}>
-          <Text style={styles.doubleProductTitle} numberOfLines={2}>
+          <Text style={[styles.doubleProductTitle, { color: COLORS.text }]} numberOfLines={2}>
             {productTitle}
           </Text>
-          <Text style={styles.doubleProductPrice}>
+          <Text style={[styles.doubleProductPrice, { color: COLORS.primary }]}>
             ${typeof productPrice === 'number' && productPrice > 0 ? productPrice.toFixed(2) : '0.00'}
           </Text>
         </View>
@@ -656,8 +615,6 @@ const DiscoverScreen = () => {
 
   const renderProductItem = ({ item, index }: { item: Product | Promotion; index: number }) => {
     if (!item) return null;
-    
-    const productId = getProductId(item);
     const productTitle = getProductTitle(item);
     const productPrice = getProductPrice(item);
     const images = getProductImages(item);
@@ -668,75 +625,75 @@ const DiscoverScreen = () => {
     const imageUrl = images && images.length > 0 ? images[0] : null;
     const isNew = item.is_new;
 
-    const cardWidth = columns === 2 
-      ? (width - 36) / 2
-      : (width - 48) / 3;
+    const cardWidth = columns === 2 ? (width - 36) / 2 : (width - 48) / 3;
 
     return (
       <Animated.View
         style={[
-          styles.productCard, 
-          { 
-            opacity: fadeAnim, 
+          styles.productCard,
+          {
+            opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
-            width: cardWidth
+            width: cardWidth,
+            backgroundColor: COLORS.cardBg,
+            borderColor: COLORS.border,
           }
         ]}
       >
-        <TouchableOpacity
-          onPress={() => handleProductPress(item)}
-          activeOpacity={0.9}
-        >
+        <TouchableOpacity onPress={() => handleProductPress(item)} activeOpacity={0.9}>
           <View style={styles.imageContainer}>
             {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="cover" />
+              <Image source={{ uri: imageUrl }} style={[styles.productImage, { backgroundColor: COLORS.placeholderBg }]} resizeMode="cover" />
             ) : (
-              <View style={styles.imagePlaceholder}>
+              <View style={[styles.imagePlaceholder, { backgroundColor: COLORS.placeholderBg }]}>
                 <Ionicons name="cube-outline" size={40} color={COLORS.textLight} />
               </View>
             )}
-            
             <View style={styles.imageHeader}>
               <View style={styles.leftBadges}>
                 {isNew && (
                   <View style={styles.newBadge}>
-                    <Ionicons name="new" size={12} color={COLORS.surface} />
+                    <Ionicons name="new" size={12} color="#FFFFFF" />
                     <Text style={styles.newBadgeText}>NOUVEAU</Text>
                   </View>
                 )}
                 {isPromo && (
                   <View style={styles.promotionBadge}>
-                    <Ionicons name="flash" size={12} color={COLORS.surface} />
+                    <Ionicons name="flash" size={12} color="#FFFFFF" />
                     <Text style={styles.promotionBadgeText}>PROMO</Text>
                   </View>
                 )}
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryBadgeText}>{'category' in item ? item.category || 'Catégorie' : 'Promotion'}</Text>
+                <View style={[styles.categoryBadge, { backgroundColor: COLORS.primary + '20' }]}>
+                  <Text style={[styles.categoryBadgeText, { color: COLORS.primary }]}>
+                    {'category' in item ? item.category || 'Catégorie' : 'Promotion'}
+                  </Text>
                 </View>
               </View>
-              
               <View style={styles.rightActions}>
                 {isPromo && promotionItem.time_remaining && (
                   <View style={[styles.timeBadge, isExpired ? styles.timeBadgeExpired : styles.timeBadgeActive]}>
-                    <Ionicons name={isExpired ? "time-outline" : "timer-outline"} size={10} color={COLORS.surface} />
+                    <Ionicons name={isExpired ? "time-outline" : "timer-outline"} size={10} color="#FFFFFF" />
                     <Text style={styles.timeBadgeText}>{promotionItem.time_remaining}</Text>
                   </View>
                 )}
-                <TouchableOpacity style={styles.threeDotsButton} onPress={(e) => { e.stopPropagation(); showActionModal(item); }}>
+                <TouchableOpacity
+                  style={[styles.threeDotsButton, { backgroundColor: COLORS.threeDotsBg, borderColor: COLORS.threeDotsBorder }]}
+                  onPress={(e) => { e.stopPropagation(); showActionModal(item); }}
+                >
                   <Ionicons name="ellipsis-horizontal" size={16} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
             </View>
           </View>
-
           <View style={styles.cardContent}>
-            <Text style={styles.productTitle} numberOfLines={2}>{productTitle}</Text>
-            
+            <Text style={[styles.productTitle, { color: COLORS.text }]} numberOfLines={2}>{productTitle}</Text>
             <View style={styles.priceRow}>
               {isPromo ? (
                 <View style={styles.promotionPriceContainer}>
-                  <Text style={styles.originalPrice}>${Number(promotionItem.original_price || 0).toFixed(2)}</Text>
-                  <Text style={styles.promoPrice}>
+                  <Text style={[styles.originalPrice, { color: COLORS.textLight }]}>
+                    ${Number(promotionItem.original_price || 0).toFixed(2)}
+                  </Text>
+                  <Text style={[styles.promoPrice, { color: COLORS.danger }]}>
                     ${typeof productPrice === 'number' && productPrice > 0 ? productPrice.toFixed(2) : '0.00'}
                   </Text>
                   {discount > 0 && (
@@ -746,14 +703,13 @@ const DiscoverScreen = () => {
                   )}
                 </View>
               ) : (
-                <Text style={styles.regularPrice}>
+                <Text style={[styles.regularPrice, { color: COLORS.primary }]}>
                   ${typeof productPrice === 'number' && productPrice > 0 ? productPrice.toFixed(2) : '0.00'}
                 </Text>
               )}
             </View>
-            
             {isPromo && promotionItem.description && (
-              <Text style={styles.promotionDescription} numberOfLines={2}>
+              <Text style={[styles.promotionDescription, { color: COLORS.textSecondary }]} numberOfLines={2}>
                 {promotionItem.description}
               </Text>
             )}
@@ -765,40 +721,35 @@ const DiscoverScreen = () => {
 
   const renderActionModal = () => (
     <Modal visible={actionModalVisible} transparent animationType="fade" onRequestClose={hideActionModal}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={hideActionModal}>
-        <View style={styles.actionModal}>
+      <TouchableOpacity style={[styles.modalOverlay, { backgroundColor: COLORS.modalOverlay }]} activeOpacity={1} onPress={hideActionModal}>
+        <View style={[styles.actionModal, { backgroundColor: COLORS.modalBg }]}>
           {selectedProduct && (
             <>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Options Produit</Text>
-                <Text style={styles.modalSubtitle} numberOfLines={1}>{getProductTitle(selectedProduct)}</Text>
+              <View style={[styles.modalHeader, { borderBottomColor: COLORS.border }]}>
+                <Text style={[styles.modalTitle, { color: COLORS.text }]}>Options Produit</Text>
+                <Text style={[styles.modalSubtitle, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {getProductTitle(selectedProduct)}
+                </Text>
               </View>
-              
               <View style={styles.modalActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalAction}
-                  onPress={() => {
-                    hideActionModal();
-                    handleProductPress(selectedProduct);
-                  }}
+                  onPress={() => { hideActionModal(); handleProductPress(selectedProduct); }}
                 >
                   <Ionicons name="eye-outline" size={24} color={COLORS.primary} />
-                  <Text style={styles.modalActionText}>Voir les détails</Text>
+                  <Text style={[styles.modalActionText, { color: COLORS.text }]}>Voir les détails</Text>
                 </TouchableOpacity>
-                
                 <TouchableOpacity style={styles.modalAction}>
                   <Ionicons name="chatbubble-ellipses-outline" size={24} color={COLORS.primary} />
-                  <Text style={styles.modalActionText}>Contacter le vendeur</Text>
+                  <Text style={[styles.modalActionText, { color: COLORS.text }]}>Contacter le vendeur</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity style={[styles.modalAction, styles.reportAction]} onPress={hideActionModal}>
+                <TouchableOpacity style={[styles.modalAction, { borderTopColor: COLORS.border }, styles.reportAction]} onPress={hideActionModal}>
                   <Ionicons name="share-outline" size={24} color={COLORS.primary} />
-                  <Text style={styles.modalActionText}>Partager</Text>
+                  <Text style={[styles.modalActionText, { color: COLORS.text }]}>Partager</Text>
                 </TouchableOpacity>
               </View>
-              
-              <TouchableOpacity style={styles.modalCancel} onPress={hideActionModal}>
-                <Text style={styles.modalCancelText}>Annuler</Text>
+              <TouchableOpacity style={[styles.modalCancel, { borderTopColor: COLORS.border }]} onPress={hideActionModal}>
+                <Text style={[styles.modalCancelText, { color: COLORS.primary }]}>Annuler</Text>
               </TouchableOpacity>
             </>
           )}
@@ -812,44 +763,43 @@ const DiscoverScreen = () => {
       return (
         <View style={styles.footerLoader}>
           <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.footerText}>Chargement des produits...</Text>
+          <Text style={[styles.footerText, { color: COLORS.primary }]}>Chargement des produits...</Text>
         </View>
       );
     }
     return null;
   };
 
-  // Header fixe séparé
   const renderFixedHeader = () => (
-    <View style={styles.fixedHeader}>
-      <View style={styles.header}>
+    <View style={[styles.fixedHeader, { backgroundColor: COLORS.headerBg, borderBottomColor: COLORS.headerBorder }]}>
+      <View style={[styles.header, { backgroundColor: COLORS.headerBg }]}>
         <View style={styles.headerLeft}>
           <Ionicons name="cube-outline" size={28} color={COLORS.primary} />
-          <Text style={styles.headerTitle}>Découvrir</Text>
+          <Text style={[styles.headerTitle, { color: COLORS.text }]}>Découvrir</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={[styles.iconButton, isShuffled && styles.iconButtonActive]}
+          <TouchableOpacity
+            style={[styles.iconButton, { backgroundColor: COLORS.iconButtonBg }, isShuffled && styles.iconButtonActive]}
             onPress={toggleShuffle}
           >
-            <Ionicons 
-              name={isShuffled ? "shuffle" : "shuffle-outline"} 
-              size={22} 
-              color={isShuffled ? COLORS.warning : COLORS.primary} 
+            <Ionicons
+              name={isShuffled ? "shuffle" : "shuffle-outline"}
+              size={22}
+              color={isShuffled ? COLORS.warning : COLORS.primary}
             />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.iconButton, columns === 3 && styles.iconButtonActive]}
+          <TouchableOpacity
+            style={[styles.iconButton, { backgroundColor: COLORS.iconButtonBg }, columns === 3 && styles.iconButtonActive]}
             onPress={toggleColumns}
           >
-            <Ionicons 
-              name={columns === 2 ? "grid" : "grid-outline"} 
-              size={22} 
-              color={columns === 3 ? COLORS.warning : COLORS.primary} 
+            <Ionicons
+              name={columns === 2 ? "grid" : "grid-outline"}
+              size={22}
+              color={columns === 3 ? COLORS.warning : COLORS.primary}
             />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton}
+          <TouchableOpacity
+            style={[styles.iconButton, { backgroundColor: COLORS.iconButtonBg }]}
             onPress={() => router.push('/(tabs)/Auth/Produits/Recherche')}
           >
             <Ionicons name="search-outline" size={22} color={COLORS.primary} />
@@ -859,14 +809,13 @@ const DiscoverScreen = () => {
     </View>
   );
 
-  // Sections (à l'intérieur de la FlatList)
   const renderSections = () => (
     <View>
       {trendingProducts && trendingProducts.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: COLORS.surface }]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="trending-up" size={18} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Tendances du moment</Text>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>Tendances du moment</Text>
           </View>
           <FlatList
             data={trendingProducts.slice(0, 15)}
@@ -880,10 +829,10 @@ const DiscoverScreen = () => {
       )}
 
       {promoProducts && promoProducts.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: COLORS.surface }]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="flash" size={18} color={COLORS.danger} />
-            <Text style={styles.sectionTitle}>Promotions exclusives</Text>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>Promotions exclusives</Text>
           </View>
           <FlatList
             data={promoProducts.slice(0, 10)}
@@ -897,10 +846,10 @@ const DiscoverScreen = () => {
       )}
 
       {recommendedProducts && recommendedProducts.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: COLORS.surface }]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person" size={18} color={COLORS.success} />
-            <Text style={styles.sectionTitle}>Recommandés pour vous</Text>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>Recommandés pour vous</Text>
           </View>
           <FlatList
             data={recommendedProducts.slice(0, 10)}
@@ -914,10 +863,10 @@ const DiscoverScreen = () => {
       )}
 
       {doubleProducts && doubleProducts.length > 0 && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: COLORS.surface }]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="cube" size={18} color={COLORS.primary} />
-            <Text style={styles.sectionTitle}>Meilleures offres</Text>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>Meilleures offres</Text>
           </View>
           <FlatList
             data={doubleProducts.slice(0, 8)}
@@ -930,34 +879,30 @@ const DiscoverScreen = () => {
         </View>
       )}
 
-      {/* Titre de la grille */}
-      <View style={styles.gridHeader}>
+      <View style={[styles.gridHeader, { backgroundColor: COLORS.surface, borderTopColor: COLORS.border }]}>
         <Ionicons name="apps" size={18} color={COLORS.primary} />
-        <Text style={styles.gridTitle}>Tous les produits ({(products || []).length})</Text>
+        <Text style={[styles.gridTitle, { color: COLORS.text }]}>Tous les produits ({(products || []).length})</Text>
       </View>
     </View>
   );
 
   if (loading && !refreshing && (!products || products.length === 0)) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar backgroundColor={COLORS.surface} barStyle="dark-content" />
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.surface }]}>
+        <StatusBar backgroundColor={COLORS.statusBar} barStyle={COLORS.barStyle} />
         <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement des produits...</Text>
+          <Text style={[styles.loadingText, { color: COLORS.primary }]}>Chargement des produits...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor={COLORS.surface} barStyle="dark-content" />
-      
-      {/* Header fixe en haut */}
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
+      <StatusBar backgroundColor={COLORS.statusBar} barStyle={COLORS.barStyle} />
       {renderFixedHeader()}
 
-      {/* FlatList avec les produits */}
       <FlatList
         ref={flatListRef}
         key={flatListKey}
@@ -983,514 +928,109 @@ const DiscoverScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="cube-outline" size={64} color={COLORS.textLight} />
-            <Text style={styles.emptyStateTitle}>Aucun produit disponible</Text>
-            <Text style={styles.emptyStateText}>Les produits apparaîtront ici lorsqu'ils seront ajoutés</Text>
+            <Text style={[styles.emptyStateTitle, { color: COLORS.text }]}>Aucun produit disponible</Text>
+            <Text style={[styles.emptyStateText, { color: COLORS.textSecondary }]}>Les produits apparaîtront ici lorsqu'ils seront ajoutés</Text>
           </View>
         }
       />
-      
-      {/* Bouton pour remonter en haut */}
+
       {products && products.length > 0 && (
-        <TouchableOpacity style={styles.floatingButton} onPress={scrollToTop}>
-          <Ionicons name="arrow-up" size={24} color={COLORS.surface} />
+        <TouchableOpacity style={[styles.floatingButton, { backgroundColor: COLORS.floatingBg }]} onPress={scrollToTop}>
+          <Ionicons name="arrow-up" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       )}
-      
+
       {renderActionModal()}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingContent: {
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: "600",
-    marginTop: 12,
-  },
-  fixedHeader: {
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    zIndex: 1000,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: COLORS.surface,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginLeft: 12,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconButtonActive: {
-    backgroundColor: COLORS.primary + '20',
-  },
-  section: {
-    backgroundColor: COLORS.surface,
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
-    gap: 6,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  horizontalListContent: {
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  horizontalProductCard: {
-    width: 120,
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  horizontalImageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 100,
-    backgroundColor: COLORS.background,
-  },
-  horizontalProductImage: {
-    width: '100%',
-    height: '100%',
-  },
-  horizontalImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  horizontalBadgeContainer: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  horizontalPromoBadge: {
-    backgroundColor: COLORS.danger,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  horizontalPromoText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: COLORS.surface,
-  },
-  horizontalProductContent: {
-    padding: 8,
-  },
-  horizontalProductTitle: {
-    fontSize: 11,
-    color: COLORS.text,
-    marginBottom: 4,
-    lineHeight: 14,
-  },
-  horizontalProductPrice: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  doubleListContent: {
-    paddingHorizontal: 12,
-    gap: 12,
-  },
-  doubleProductCard: {
-    width: width * 0.45,
-    backgroundColor: COLORS.surface,
-    borderRadius: 10,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  doubleImageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 150,
-    backgroundColor: COLORS.background,
-  },
-  doubleProductImage: {
-    width: '100%',
-    height: '100%',
-  },
-  doubleImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  doubleBadgeContainer: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  doublePromoBadge: {
-    backgroundColor: COLORS.danger,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  doublePromoText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.surface,
-  },
-  doubleProductContent: {
-    padding: 10,
-  },
-  doubleProductTitle: {
-    fontSize: 13,
-    color: COLORS.text,
-    marginBottom: 6,
-    lineHeight: 16,
-  },
-  doubleProductPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  gridHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.surface,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: 6,
-  },
-  gridTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingBottom: 20,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  productCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  imageContainer: {
-    position: 'relative',
-  },
-  productImage: {
-    width: '100%',
-    height: 150,
-    backgroundColor: COLORS.background,
-  },
-  imagePlaceholder: {
-    height: 150,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageHeader: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    right: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    zIndex: 2,
-  },
-  leftBadges: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4,
-  },
-  rightActions: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  newBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.new,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-    gap: 2,
-  },
-  newBadgeText: {
-    color: COLORS.surface,
-    fontSize: 8,
-    fontWeight: '800',
-  },
-  promotionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.danger,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-    gap: 2,
-  },
-  promotionBadgeText: {
-    color: COLORS.surface,
-    fontSize: 9,
-    fontWeight: '800',
-    marginLeft: 2,
-  },
-  timeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  timeBadgeActive: {
-    backgroundColor: COLORS.danger,
-  },
-  timeBadgeExpired: {
-    backgroundColor: COLORS.textLight,
-  },
-  timeBadgeText: {
-    color: COLORS.surface,
-    fontSize: 9,
-    fontWeight: '700',
-    marginLeft: 2,
-  },
-  categoryBadge: {
-    backgroundColor: COLORS.primary + '20',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  categoryBadgeText: {
-    color: COLORS.primary,
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  threeDotsButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  cardContent: {
-    padding: 12,
-  },
-  productTitle: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  priceRow: {
-    marginBottom: 8,
-  },
-  regularPrice: {
-    color: COLORS.primary,
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  promotionPriceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  originalPrice: {
-    color: COLORS.textLight,
-    fontSize: 12,
-    fontWeight: '600',
-    textDecorationLine: 'line-through',
-  },
-  promoPrice: {
-    color: COLORS.danger,
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  discountBadge: {
-    backgroundColor: COLORS.success,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  discountText: {
-    color: COLORS.surface,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  promotionDescription: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyStateTitle: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 14,
-    color: COLORS.primary,
-  },
-  floatingButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  actionModal: {
-    backgroundColor: COLORS.surface,
-    margin: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  modalActions: {
-    paddingVertical: 8,
-  },
-  modalAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  modalActionText: {
-    fontSize: 16,
-    color: COLORS.text,
-    marginLeft: 12,
-  },
-  reportAction: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  modalCancel: {
-    padding: 16,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  modalCancelText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingContent: { alignItems: 'center' },
+  loadingText: { fontSize: 16, fontWeight: "600", marginTop: 12 },
+  fixedHeader: { borderBottomWidth: 1, zIndex: 1000 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTitle: { fontSize: 24, fontWeight: '700', marginLeft: 12 },
+  iconButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  iconButtonActive: {},
+  section: { paddingVertical: 12, marginTop: 8 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8, gap: 6 },
+  sectionTitle: { fontSize: 16, fontWeight: '600' },
+  horizontalListContent: { paddingHorizontal: 12, gap: 8 },
+  horizontalProductCard: { width: 120, borderRadius: 8, marginRight: 8, borderWidth: 1, overflow: 'hidden' },
+  horizontalImageContainer: { position: 'relative', width: '100%', height: 100 },
+  horizontalProductImage: { width: '100%', height: '100%' },
+  horizontalImagePlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
+  horizontalBadgeContainer: { position: 'absolute', top: 4, left: 4, flexDirection: 'row', gap: 4 },
+  horizontalPromoBadge: { backgroundColor: '#FF6B6B', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
+  horizontalPromoText: { fontSize: 9, fontWeight: '700', color: '#FFFFFF' },
+  horizontalProductContent: { padding: 8 },
+  horizontalProductTitle: { fontSize: 11, marginBottom: 4, lineHeight: 14 },
+  horizontalProductPrice: { fontSize: 12, fontWeight: '700' },
+  doubleListContent: { paddingHorizontal: 12, gap: 12 },
+  doubleProductCard: { width: width * 0.45, borderRadius: 10, marginRight: 12, borderWidth: 1, overflow: 'hidden' },
+  doubleImageContainer: { position: 'relative', width: '100%', height: 150 },
+  doubleProductImage: { width: '100%', height: '100%' },
+  doubleImagePlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
+  doubleBadgeContainer: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 4 },
+  doublePromoBadge: { backgroundColor: '#FF6B6B', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4 },
+  doublePromoText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  doubleProductContent: { padding: 10 },
+  doubleProductTitle: { fontSize: 13, marginBottom: 6, lineHeight: 16 },
+  doubleProductPrice: { fontSize: 14, fontWeight: '700' },
+  gridHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, marginTop: 8, borderTopWidth: 1, gap: 6 },
+  gridTitle: { fontSize: 16, fontWeight: '600' },
+  listContent: { paddingHorizontal: 12, paddingBottom: 20 },
+  columnWrapper: { justifyContent: 'space-between', gap: 12 },
+  productCard: { borderRadius: 12, overflow: 'hidden', marginBottom: 12, borderWidth: 1 },
+  imageContainer: { position: 'relative' },
+  productImage: { width: '100%', height: 150 },
+  imagePlaceholder: { height: 150, justifyContent: 'center', alignItems: 'center' },
+  imageHeader: { position: 'absolute', top: 8, left: 8, right: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 2 },
+  leftBadges: { flexDirection: 'column', alignItems: 'flex-start', gap: 4 },
+  rightActions: { flexDirection: 'column', alignItems: 'flex-end', gap: 4 },
+  newBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#9C27B0', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, gap: 2 },
+  newBadgeText: { color: '#FFFFFF', fontSize: 8, fontWeight: '800' },
+  promotionBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF6B6B', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, gap: 2 },
+  promotionBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800', marginLeft: 2 },
+  timeBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4 },
+  timeBadgeActive: { backgroundColor: '#FF6B6B' },
+  timeBadgeExpired: { backgroundColor: '#95A5A6' },
+  timeBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '700', marginLeft: 2 },
+  categoryBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4 },
+  categoryBadgeText: { fontSize: 10, fontWeight: '600' },
+  threeDotsButton: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  cardContent: { padding: 12 },
+  productTitle: { fontSize: 14, fontWeight: '600', lineHeight: 18, marginBottom: 8 },
+  priceRow: { marginBottom: 8 },
+  regularPrice: { fontWeight: '800', fontSize: 16 },
+  promotionPriceContainer: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  originalPrice: { fontSize: 12, fontWeight: '600', textDecorationLine: 'line-through' },
+  promoPrice: { fontWeight: '800', fontSize: 16 },
+  discountBadge: { backgroundColor: '#4CAF50', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
+  discountText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  promotionDescription: { fontSize: 11, lineHeight: 14 },
+  emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
+  emptyStateTitle: { fontSize: 18, fontWeight: '700', marginTop: 16, textAlign: 'center' },
+  emptyStateText: { fontSize: 14, marginTop: 8, textAlign: 'center', lineHeight: 20 },
+  footerLoader: { paddingVertical: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  footerText: { fontSize: 14 },
+  floatingButton: { position: 'absolute', bottom: 20, right: 20, width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  actionModal: { margin: 16, borderRadius: 16, overflow: 'hidden' },
+  modalHeader: { padding: 20, borderBottomWidth: 1, alignItems: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, textAlign: 'center' },
+  modalActions: { paddingVertical: 8 },
+  modalAction: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
+  modalActionText: { fontSize: 16, marginLeft: 12 },
+  reportAction: { borderTopWidth: 1 },
+  modalCancel: { padding: 16, alignItems: 'center', borderTopWidth: 1 },
+  modalCancelText: { fontSize: 17, fontWeight: '600' },
 });
 
 export default DiscoverScreen;

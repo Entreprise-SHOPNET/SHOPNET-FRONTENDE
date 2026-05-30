@@ -959,7 +959,7 @@ export default function ProfilVendeurPremium() {
                     <Ionicons name="add-circle" size={24} color={PRO_BLUE} />
                   </View>
                 </View>
-                <Text style={styles.quickActionText}>Ajouter</Text>
+                <Text style={styles.quickActionText}>Vendre</Text>
               </View>
             </TouchableOpacity>
 
@@ -979,7 +979,7 @@ export default function ProfilVendeurPremium() {
                     ]}
                   >
                     <MaterialIcons
-                      name="local-offer"
+                      name="insights"
                       size={24}
                       color={PRO_BLUE}
                     />
@@ -988,7 +988,7 @@ export default function ProfilVendeurPremium() {
                     )}
                   </View>
                 </View>
-                <Text style={styles.quickActionText}>Promotions</Text>
+                <Text style={styles.quickActionText}>Assistant Vendeur</Text>
               </View>
             </TouchableOpacity>
 

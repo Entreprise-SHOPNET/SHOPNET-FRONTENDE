@@ -16,6 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from "../../../../app/theme/ThemeContext";
 
 const { width } = Dimensions.get('window');
 const API_URL = 'https://shopnet-immo-backend.onrender.com/api/biens/public';
@@ -39,8 +40,56 @@ type Bien = {
   telephone?: string;
 };
 
+// Hook pour les couleurs dynamiques
+const useDynamicColors = () => {
+  const { isDark } = useTheme();
+
+  return {
+    background: isDark ? '#0D0D0D' : '#FFFFFF',
+    surface: isDark ? '#1A1A1A' : '#FFFFFF',
+    text: isDark ? '#F5F5F5' : '#0F172A',
+    textSecondary: isDark ? '#B0B0B0' : '#64748B',
+    textTertiary: isDark ? '#A0AEC0' : '#475569',
+    primary: '#b1c5f1',
+    primaryLight: '#b1c5f1',
+    border: isDark ? '#2E2E2E' : '#EEF2F6',
+    borderLight: isDark ? '#2E2E2E' : '#E2E8F0',
+    cardBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    inputBg: isDark ? '#222222' : '#F8FAFC',
+    heroBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    metaBg: isDark ? '#222222' : '#F8FAFC',
+    metaText: isDark ? '#B0B0B0' : '#334155',
+    offerTag: '#b1c5f1',
+    statusBar: isDark ? '#0D0D0D' : '#FFFFFF',
+    barStyle: isDark ? 'light-content' as const : 'dark-content' as const,
+    headerBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    headerBorder: isDark ? '#2E2E2E' : '#EEF2F6',
+    headerIcon: '#b1c5f1',
+    headerText: isDark ? '#F5F5F5' : '#0F172A',
+    filterBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    filterButtonBg: isDark ? '#222222' : '#F8FAFC',
+    filterButtonBorder: isDark ? '#2E2E2E' : '#E2E8F0',
+    filterButtonText: isDark ? '#B0B0B0' : '#1E293B',
+    modalBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    modalOverlay: 'rgba(0,0,0,0.5)',
+    modalBorder: isDark ? '#2E2E2E' : '#EEF2F6',
+    modalOptionBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    modalOptionSelectedBg: isDark ? '#1A2A3A' : '#F0F7FF',
+    emptyText: isDark ? '#B0B0B0' : '#94A3B8',
+    footerText: '#104CCF',
+    loadingText: isDark ? '#B0B0B0' : '#64748B',
+    favoriteBg: 'rgba(255,255,255,0.9)',
+    favActive: '#EF4444',
+    favInactive: '#CBD5E1',
+    locationIcon: '#64748B',
+  };
+};
+
 export default function Immobilier() {
   const router = useRouter();
+  const COLORS = useDynamicColors();
+  const { isDark } = useTheme();
+
   const [allProperties, setAllProperties] = useState<Bien[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Bien[]>([]);
   const [loading, setLoading] = useState(true);
@@ -216,23 +265,36 @@ export default function Immobilier() {
     const lieu = [item.ville, item.quartier].filter(Boolean).join(', ') || 'RDC';
     const imageUrl = item.images[0];
     return (
-      <TouchableOpacity style={styles.card} onPress={() => navigateToDetail(item)} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: COLORS.cardBg, borderColor: COLORS.border }]}
+        onPress={() => navigateToDetail(item)}
+        activeOpacity={0.8}
+      >
         <View style={styles.imageContainer}>
           <Image source={{ uri: imageUrl }} style={styles.cardImage} />
-          <TouchableOpacity style={styles.favoriteButton} onPress={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}>
-            <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={20} color={isFavorite ? '#ef4444' : '#cbd5e1'} />
+          <TouchableOpacity
+            style={[styles.favoriteButton, { backgroundColor: COLORS.favoriteBg }]}
+            onPress={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
+          >
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={20}
+              color={isFavorite ? COLORS.favActive : COLORS.favInactive}
+            />
           </TouchableOpacity>
         </View>
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.titre}</Text>
-          <Text style={styles.cardPrice}>{priceFormatted} {item.devise}</Text>
+          <Text style={[styles.cardTitle, { color: COLORS.text }]} numberOfLines={1}>{item.titre}</Text>
+          <Text style={[styles.cardPrice, { color: COLORS.primary }]}>{priceFormatted} {item.devise}</Text>
           <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={12} color="#64748b" />
-            <Text style={styles.locationText}>{lieu}</Text>
+            <Ionicons name="location-outline" size={12} color={COLORS.locationIcon} />
+            <Text style={[styles.locationText, { color: COLORS.textSecondary }]}>{lieu}</Text>
           </View>
-          <View style={styles.cardMeta}>
-            <Text style={styles.metaText}>{item.type_bien || 'Bien'}</Text>
-            <Text style={[styles.metaText, styles.offerTag]}>{item.type_offre === 'Vente' ? 'Vente' : 'Location'}</Text>
+          <View style={[styles.cardMeta, { backgroundColor: COLORS.metaBg }]}>
+            <Text style={[styles.metaText, { color: COLORS.metaText }]}>{item.type_bien || 'Bien'}</Text>
+            <Text style={[styles.metaText, styles.offerTag, { color: COLORS.offerTag }]}>
+              {item.type_offre === 'Vente' ? 'Vente' : 'Location'}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -241,21 +303,33 @@ export default function Immobilier() {
 
   const FilterModal = ({ visible, title, options, selectedValue, onSelect, onClose }: any) => (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color="#104ccf" /></TouchableOpacity>
+      <TouchableOpacity style={[styles.modalOverlay, { backgroundColor: COLORS.modalOverlay }]} activeOpacity={1} onPress={onClose}>
+        <View style={[styles.modalContainer, { backgroundColor: COLORS.modalBg }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: COLORS.modalBorder }]}>
+            <Text style={[styles.modalTitle, { color: COLORS.text }]}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
           </View>
           <ScrollView>
             {options.map((opt: string) => (
               <TouchableOpacity
                 key={opt}
-                style={[styles.modalOption, selectedValue === opt && styles.modalOptionSelected]}
+                style={[
+                  styles.modalOption,
+                  { backgroundColor: COLORS.modalOptionBg, borderBottomColor: COLORS.modalBorder },
+                  selectedValue === opt && { backgroundColor: COLORS.modalOptionSelectedBg }
+                ]}
                 onPress={() => { onSelect(opt); onClose(); }}
               >
-                <Text style={[styles.modalOptionText, selectedValue === opt && styles.modalOptionTextSelected]}>{opt}</Text>
-                {selectedValue === opt && <Ionicons name="checkmark" size={20} color="#104ccf" />}
+                <Text style={[
+                  styles.modalOptionText,
+                  { color: COLORS.filterButtonText },
+                  selectedValue === opt && styles.modalOptionTextSelected
+                ]}>
+                  {opt}
+                </Text>
+                {selectedValue === opt && <Ionicons name="checkmark" size={20} color={COLORS.primary} />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -266,31 +340,31 @@ export default function Immobilier() {
 
   // ========== EN-TÊTE PRINCIPAL FIXE ==========
   const MainHeader = () => (
-    <View style={styles.mainHeader}>
+    <View style={[styles.mainHeader, { backgroundColor: COLORS.headerBg, borderBottomColor: COLORS.headerBorder }]}>
       <View style={styles.headerLeft}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#0f172a" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.headerText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Immobilier</Text>
+        <Text style={[styles.headerTitle, { color: COLORS.headerText }]}>Immobilier</Text>
       </View>
       <View style={styles.headerRight}>
         <TouchableOpacity
           style={styles.headerIcon}
           onPress={() => router.push('/(tabs)/Auth/Produits/PublierImmobilier')}
         >
-          <Ionicons name="add" size={23} color="#104ccf" />
+          <Ionicons name="add" size={23} color={COLORS.headerIcon} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerIcon}
           onPress={() => router.push('/(tabs)/Auth/Produits/MyBiensScreen')}
         >
-          <Ionicons name="person-outline" size={23} color="#104ccf" />
+          <Ionicons name="person-outline" size={23} color={COLORS.headerIcon} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerIcon}
           onPress={() => router.push('/(tabs)/Auth/Produits/parametre')}
         >
-          <Ionicons name="settings-outline" size={23} color="#104ccf" />
+          <Ionicons name="settings-outline" size={23} color={COLORS.headerIcon} />
         </TouchableOpacity>
       </View>
     </View>
@@ -298,22 +372,37 @@ export default function Immobilier() {
 
   // ========== FILTRES FIXES (STICKY) ==========
   const StickyFilters = () => (
-    <View style={styles.stickyFilters}>
+    <View style={[styles.stickyFilters, { backgroundColor: COLORS.filterBg, borderBottomColor: COLORS.headerBorder }]}>
       <View style={styles.filtersRow}>
-        <TouchableOpacity style={styles.filterButton} onPress={() => setModalVilleVisible(true)}>
-          <Ionicons name="location-outline" size={18} color="#104ccf" />
-          <Text style={styles.filterButtonText}>{selectedVille || 'Ville'}</Text>
-          <Ionicons name="chevron-down" size={16} color="#104ccf" />
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: COLORS.filterButtonBg, borderColor: COLORS.filterButtonBorder }]}
+          onPress={() => setModalVilleVisible(true)}
+        >
+          <Ionicons name="location-outline" size={18} color={COLORS.primary} />
+          <Text style={[styles.filterButtonText, { color: COLORS.filterButtonText }]}>
+            {selectedVille || 'Ville'}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={COLORS.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton} onPress={() => setModalOffreVisible(true)}>
-          <Ionicons name="swap-horizontal-outline" size={18} color="#104ccf" />
-          <Text style={styles.filterButtonText}>{selectedOffre || 'Offre'}</Text>
-          <Ionicons name="chevron-down" size={16} color="#104ccf" />
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: COLORS.filterButtonBg, borderColor: COLORS.filterButtonBorder }]}
+          onPress={() => setModalOffreVisible(true)}
+        >
+          <Ionicons name="swap-horizontal-outline" size={18} color={COLORS.primary} />
+          <Text style={[styles.filterButtonText, { color: COLORS.filterButtonText }]}>
+            {selectedOffre || 'Offre'}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={COLORS.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton} onPress={() => setModalTypeVisible(true)}>
-          <Ionicons name="pricetag-outline" size={18} color="#104ccf" />
-          <Text style={styles.filterButtonText}>{selectedType || 'Type'}</Text>
-          <Ionicons name="chevron-down" size={16} color="#104ccf" />
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: COLORS.filterButtonBg, borderColor: COLORS.filterButtonBorder }]}
+          onPress={() => setModalTypeVisible(true)}
+        >
+          <Ionicons name="pricetag-outline" size={18} color={COLORS.primary} />
+          <Text style={[styles.filterButtonText, { color: COLORS.filterButtonText }]}>
+            {selectedType || 'Type'}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -322,11 +411,13 @@ export default function Immobilier() {
   // ========== CONTENU DU FLATLIST (PARTIE DÉFILANTE) ==========
   const renderListHeader = () => (
     <>
-      <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>Trouvez le bien qui vous correspond 💖</Text>
-        <Text style={styles.heroSubtitle}>Appartements, villas et espaces professionnels sélectionnés pour vous.</Text>
+      <View style={[styles.heroSection, { backgroundColor: COLORS.heroBg }]}>
+        <Text style={[styles.heroTitle, { color: COLORS.text }]}>Trouvez le bien qui vous correspond 💖</Text>
+        <Text style={[styles.heroSubtitle, { color: COLORS.textTertiary }]}>
+          Appartements, villas et espaces professionnels sélectionnés pour vous.
+        </Text>
       </View>
-      <Text style={styles.sectionTitle}>✨ Coups de cœur</Text>
+      <Text style={[styles.sectionTitle, { color: COLORS.text }]}>✨ Coups de cœur</Text>
     </>
   );
 
@@ -337,23 +428,23 @@ export default function Immobilier() {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#104ccf" />
-        <Text style={styles.footerText}>Chargement...</Text>
+        <ActivityIndicator size="small" color={COLORS.primary} />
+        <Text style={[styles.footerText, { color: COLORS.footerText }]}>Chargement...</Text>
       </View>
     );
   };
 
   if (loading && allProperties.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#104ccf" />
-        <Text style={styles.loadingText}>Chargement des biens...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: COLORS.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={[styles.loadingText, { color: COLORS.loadingText }]}>Chargement des biens...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* EN-TÊTE PRINCIPAL FIXE */}
       <MainHeader />
       {/* FILTRES FIXES (STICKY) */}
@@ -380,25 +471,34 @@ export default function Immobilier() {
                 contentContainerStyle={styles.horizontalList}
               />
             )}
-            {restProperties.length > 0 && <Text style={styles.sectionTitle}>🏠 Toutes nos annonces</Text>}
+            {restProperties.length > 0 && (
+              <Text style={[styles.sectionTitle, { color: COLORS.text }]}>🏠 Toutes nos annonces</Text>
+            )}
           </>
         }
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
           !loading && (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Aucun bien trouvé</Text>
+              <Text style={[styles.emptyText, { color: COLORS.emptyText }]}>Aucun bien trouvé</Text>
             </View>
           )
         }
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#104ccf']} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
 
-      {/* MODAUX (inchangés) */}
+      {/* MODAUX */}
       <FilterModal
         visible={modalVilleVisible}
         title="Sélectionnez une ville"
@@ -428,9 +528,9 @@ export default function Immobilier() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#64748b' },
+  container: { flex: 1 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14 },
 
   // En-tête principal fixe
   mainHeader: {
@@ -439,23 +539,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eef2f6',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backButton: { padding: 4 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a' },
+  headerTitle: { fontSize: 20, fontWeight: '700' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   headerIcon: { padding: 4 },
 
   // Filtres fixes (sticky)
   stickyFilters: {
-    backgroundColor: '#ffffff',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eef2f6',
   },
   filtersRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   filterButton: {
@@ -463,48 +559,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 8,
     gap: 6,
   },
-  filterButtonText: { fontSize: 13, fontWeight: '500', color: '#1e293b' },
+  filterButtonText: { fontSize: 13, fontWeight: '500' },
 
   // Contenu défilant (dans FlatList)
   heroSection: { paddingHorizontal: 16, marginBottom: 20, marginTop: 8 },
-  heroTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', marginBottom: 6 },
-  heroSubtitle: { fontSize: 13, color: '#475569', lineHeight: 18 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginHorizontal: 16, marginBottom: 12, marginTop: 8 },
+  heroTitle: { fontSize: 20, fontWeight: '700', marginBottom: 6 },
+  heroSubtitle: { fontSize: 13, lineHeight: 18 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', marginHorizontal: 16, marginBottom: 12, marginTop: 8 },
   horizontalList: { paddingHorizontal: 12, gap: 12 },
   listContent: { paddingBottom: 20 },
   columnWrapper: { justifyContent: 'space-between', paddingHorizontal: 16, gap: 12 },
-  card: { flex: 1, backgroundColor: '#ffffff', borderRadius: 18, borderWidth: 1, borderColor: '#eef2f6', overflow: 'hidden', marginBottom: 12 },
+  card: { flex: 1, borderRadius: 18, borderWidth: 1, overflow: 'hidden', marginBottom: 12 },
   imageContainer: { position: 'relative' },
-  cardImage: { width: '100%', height: 150, resizeMode: 'cover', backgroundColor: '#f1f5f9' },
-  favoriteButton: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
+  cardImage: { width: '100%', height: 150, resizeMode: 'cover', backgroundColor: '#F1F5F9' },
+  favoriteButton: { position: 'absolute', top: 8, right: 8, borderRadius: 20, width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
   cardContent: { padding: 10 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#0f172a', marginBottom: 4 },
-  cardPrice: { fontSize: 16, fontWeight: '700', color: '#104ccf', marginBottom: 4 },
+  cardTitle: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
+  cardPrice: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
-  locationText: { fontSize: 11, color: '#64748b', flex: 1 },
-  cardMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
-  metaText: { fontSize: 11, fontWeight: '500', color: '#334155' },
-  offerTag: { color: '#104ccf', fontWeight: '600' },
+  locationText: { fontSize: 11, flex: 1 },
+  cardMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+  metaText: { fontSize: 11, fontWeight: '500' },
+  offerTag: { fontWeight: '600' },
   emptyContainer: { padding: 40, alignItems: 'center' },
-  emptyText: { fontSize: 14, color: '#94a3b8' },
+  emptyText: { fontSize: 14 },
   footerLoader: { paddingVertical: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-  footerText: { fontSize: 14, color: '#104ccf' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContainer: { width: width * 0.8, backgroundColor: '#ffffff', borderRadius: 16, overflow: 'hidden', maxHeight: 400 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#eef2f6' },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#0f172a' },
-  modalOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#eef2f6' },
-  modalOptionSelected: { backgroundColor: '#f0f7ff' },
-  modalOptionText: { fontSize: 16, color: '#1e293b' },
-  modalOptionTextSelected: { color: '#104ccf', fontWeight: '500' },
+  footerText: { fontSize: 14 },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalContainer: { width: width * 0.8, borderRadius: 16, overflow: 'hidden', maxHeight: 400 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
+  modalTitle: { fontSize: 18, fontWeight: '600' },
+  modalOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1 },
+  modalOptionSelected: {},
+  modalOptionText: { fontSize: 16 },
+  modalOptionTextSelected: { fontWeight: '500' },
 });
 
 

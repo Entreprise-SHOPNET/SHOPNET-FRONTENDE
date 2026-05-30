@@ -27,6 +27,7 @@ import {
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { useTheme } from "../../../../app/theme/ThemeContext";
 
 const { width, height } = Dimensions.get("window");
 const SHOPNET_BLUE = "#00182A";
@@ -123,7 +124,7 @@ const settingsData: SettingsSection[] = [
     title: "Légal & Informations",
     items: [
       { id: '7-1', name: "Politique de Confidentialité", route: "", url: "https://shopnet-condition.vercel.app/", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
-      { id: '7-2', name: "Conditions d’Utilisation", route: "", url: "https://shopnet-condition.vercel.app/ConditionD-utilisation.html", icon: "document-text", badge: 0, iconFamily: 'ionicons' },
+      { id: '7-2', name: "Conditions d'Utilisation", route: "", url: "https://shopnet-condition.vercel.app/ConditionD-utilisation.html", icon: "document-text", badge: 0, iconFamily: 'ionicons' },
       { id: '7-3', name: "Conditions de Vente", route: "", url: "https://shopnet-condition.vercel.app/ConditionDeVente.html", icon: "cart", badge: 0, iconFamily: 'ionicons' },
       { id: '7-4', name: "Politique de Remboursement", route: "", url: "https://shopnet-condition.vercel.app/PolitiqueDeRembourssement.html", icon: "refresh-circle", badge: 0, iconFamily: 'ionicons' },
       { id: '7-5', name: "Règles de la Communauté", route: "", url: "https://shopnet-condition.vercel.app/RegleDelaCommun.html", icon: "people", badge: 0, iconFamily: 'ionicons' },
@@ -213,6 +214,7 @@ const InfoRow = ({ iconName, label, value }: { iconName: string; label: string; 
 // Composant principal
 const SettingsScreen = () => {
   const router = useRouter();
+  const { isDark, toggleTheme } = useTheme();
   
   const [userData, setUserData] = useState({
     name: "SHOPNET Pro",
@@ -226,7 +228,6 @@ const SettingsScreen = () => {
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [advancedSecurityEnabled, setAdvancedSecurityEnabled] = useState(false);
 
@@ -294,7 +295,7 @@ const SettingsScreen = () => {
       
       const settingsData = {
         notifications_enabled: notificationsEnabled,
-        dark_mode: darkModeEnabled,
+        dark_mode: isDark,
         location_enabled: locationEnabled,
         advanced_security: advancedSecurityEnabled,
         updated_at: new Date().toISOString(),
@@ -441,12 +442,13 @@ const SettingsScreen = () => {
               onValueChange={setNotificationsEnabled}
             />
             
+            {/* 🔥 MODE SOMBRE CONNECTÉ AU THEME CONTEXT */}
             <QuickSetting
               iconName="moon"
               title="Mode sombre"
               description="Thème Shopnet"
-              value={darkModeEnabled}
-              onValueChange={setDarkModeEnabled}
+              value={isDark}
+              onValueChange={toggleTheme}
             />
             
             <QuickSetting
@@ -881,5 +883,4 @@ const styles = StyleSheet.create({
 });
 
 export default SettingsScreen;
-
 
