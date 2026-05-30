@@ -26,6 +26,7 @@ import {
   Feather,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
+import { useLanguage } from "../../../../context/LanguageContext";
 
 // Configuration API
 const BASE_URL = "https://shopnet-backend.onrender.com";
@@ -217,6 +218,7 @@ const PhotoModalComponent = ({
   onView,
   onChoose,
   onClose,
+  fr,
 }: {
   visible: boolean;
   type: "profile" | "cover" | null;
@@ -225,6 +227,7 @@ const PhotoModalComponent = ({
   onView: () => void;
   onChoose: () => void;
   onClose: () => void;
+  fr: boolean;
 }) => (
   <Modal
     visible={visible}
@@ -235,7 +238,9 @@ const PhotoModalComponent = ({
     <View style={styles.modalOverlay}>
       <View style={styles.modalContent}>
         <Text style={styles.modalTitle}>
-          {type === "profile" ? "Photo de profil" : "Photo de couverture"}
+          {type === "profile"
+            ? fr ? "Photo de profil" : "Profile Photo"
+            : fr ? "Photo de couverture" : "Cover Photo"}
         </Text>
         <TouchableOpacity
           style={[styles.modalBtn, !hasPhoto && styles.disabledBtn]}
@@ -244,7 +249,9 @@ const PhotoModalComponent = ({
         >
           <View style={styles.modalBtnContent}>
             <Ionicons name="eye" size={20} color="#FFFFFF" />
-            <Text style={styles.modalBtnText}>Voir la photo</Text>
+            <Text style={styles.modalBtnText}>
+              {fr ? "Voir la photo" : "View Photo"}
+            </Text>
           </View>
         </TouchableOpacity>
         <TouchableOpacity
@@ -257,7 +264,9 @@ const PhotoModalComponent = ({
           ) : (
             <View style={styles.modalBtnContent}>
               <Ionicons name="image" size={20} color="#FFFFFF" />
-              <Text style={styles.modalBtnText}>Choisir une photo</Text>
+              <Text style={styles.modalBtnText}>
+                {fr ? "Choisir une photo" : "Choose Photo"}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
@@ -266,7 +275,9 @@ const PhotoModalComponent = ({
           onPress={onClose}
           disabled={uploading}
         >
-          <Text style={styles.modalBtnText}>Annuler</Text>
+          <Text style={styles.modalBtnText}>
+            {fr ? "Annuler" : "Cancel"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -277,10 +288,12 @@ const FullscreenPhotoModalComponent = ({
   visible,
   photoUri,
   onClose,
+  fr,
 }: {
   visible: boolean;
   photoUri: string | null | undefined;
   onClose: () => void;
+  fr: boolean;
 }) => (
   <Modal
     visible={visible}
@@ -306,7 +319,7 @@ const FullscreenPhotoModalComponent = ({
         <View style={styles.fullscreenPlaceholder}>
           <Ionicons name="image" size={60} color="#FFFFFF" />
           <Text style={styles.fullscreenPlaceholderText}>
-            Image non disponible
+            {fr ? "Image non disponible" : "Image not available"}
           </Text>
         </View>
       )}
@@ -317,6 +330,9 @@ const FullscreenPhotoModalComponent = ({
 // Composant principal
 export default function ProfilVendeurPremium() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const fr = language === 'fr';
+  
   const [user, setUser] = useState<UserProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -354,9 +370,12 @@ export default function ProfilVendeurPremium() {
       await fetchProducts(savedToken);
     } catch (error) {
       console.error("Erreur chargement token/profil:", error);
-      Alert.alert("Erreur", "Impossible de récupérer l'utilisateur.");
+      Alert.alert(
+        fr ? "Erreur" : "Error",
+        fr ? "Impossible de récupérer l'utilisateur." : "Unable to retrieve user."
+      );
     }
-  }, [router]);
+  }, [router, fr]);
 
   useEffect(() => {
     loadTokenAndUser();
@@ -412,7 +431,10 @@ export default function ProfilVendeurPremium() {
       if (res.data.success) setUser(res.data.user);
     } catch (error) {
       console.error("Erreur fetchUserProfile:", error);
-      Alert.alert("Erreur", "Erreur lors de la récupération du profil");
+      Alert.alert(
+        fr ? "Erreur" : "Error",
+        fr ? "Erreur lors de la récupération du profil" : "Error retrieving profile"
+      );
     } finally {
       setLoading(false);
     }
@@ -437,11 +459,17 @@ export default function ProfilVendeurPremium() {
     } catch (error: any) {
       console.error("Erreur fetchProducts:", error);
       if (error.response?.status === 401) {
-        Alert.alert("Session expirée", "Veuillez vous reconnecter");
+        Alert.alert(
+          fr ? "Session expirée" : "Session Expired",
+          fr ? "Veuillez vous reconnecter" : "Please log in again"
+        );
         await AsyncStorage.removeItem("userToken");
         router.push("/splash");
       } else {
-        Alert.alert("Erreur", "Erreur lors du chargement de vos produits");
+        Alert.alert(
+          fr ? "Erreur" : "Error",
+          fr ? "Erreur lors du chargement de vos produits" : "Error loading your products"
+        );
       }
     } finally {
       setLoading(false);
@@ -475,20 +503,22 @@ export default function ProfilVendeurPremium() {
     if (!photoModalType || !user) return;
     if (!user[photoModalType === "profile" ? "profile_photo" : "cover_photo"]) {
       Alert.alert(
-        "Aucune photo",
-        `Aucune photo de ${photoModalType === "profile" ? "profil" : "couverture"} disponible`,
+        fr ? "Aucune photo" : "No Photo",
+        fr
+          ? `Aucune photo de ${photoModalType === "profile" ? "profil" : "couverture"} disponible`
+          : `No ${photoModalType === "profile" ? "profile" : "cover"} photo available`
       );
       return;
     }
     setViewingPhoto(true);
-  }, [photoModalType, user]);
+  }, [photoModalType, user, fr]);
 
   const handleChoosePhoto = useCallback(async () => {
     if (!token || !photoModalType) return;
     try {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") throw new Error("Permission refusée");
+      if (status !== "granted") throw new Error(fr ? "Permission refusée" : "Permission denied");
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -499,7 +529,7 @@ export default function ProfilVendeurPremium() {
 
       if (result.canceled) return;
       const asset = result.assets[0];
-      if (!asset?.uri) throw new Error("Aucune image sélectionnée");
+      if (!asset?.uri) throw new Error(fr ? "Aucune image sélectionnée" : "No image selected");
 
       setUploading(true);
       const formData = new FormData();
@@ -527,27 +557,29 @@ export default function ProfilVendeurPremium() {
       if (response.data.success) {
         await fetchUserProfile(token);
         Alert.alert(
-          "Succès",
-          `Photo ${photoModalType === "profile" ? "de profil" : "de couverture"} mise à jour`,
+          fr ? "Succès" : "Success",
+          fr
+            ? `Photo ${photoModalType === "profile" ? "de profil" : "de couverture"} mise à jour`
+            : `${photoModalType === "profile" ? "Profile" : "Cover"} photo updated`
         );
       }
     } catch (error: any) {
       console.error("Erreur upload photo:", error);
       Alert.alert(
-        "Erreur",
+        fr ? "Erreur" : "Error",
         error.response?.data?.message ||
           error.message ||
-          "Échec du téléchargement de l'image",
+          (fr ? "Échec du téléchargement de l'image" : "Image upload failed")
       );
     } finally {
       setUploading(false);
       closePhotoModal();
     }
-  }, [token, photoModalType, closePhotoModal]);
+  }, [token, photoModalType, closePhotoModal, fr]);
 
   const formatDateFR = useCallback((dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString("fr-FR", {
+      return new Date(dateStr).toLocaleDateString(fr ? "fr-FR" : "en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -555,7 +587,7 @@ export default function ProfilVendeurPremium() {
     } catch {
       return dateStr;
     }
-  }, []);
+  }, [fr]);
 
   // Gestion de la navigation avec réinitialisation des badges
   const handleNavigation = useCallback(
@@ -628,25 +660,28 @@ export default function ProfilVendeurPremium() {
             <Ionicons name="ellipsis-vertical" size={20} color="#A0AEC0" />
           </TouchableOpacity>
 
-          {/* Bouton BOOSTER ajouté */}
           <TouchableOpacity
             style={styles.boostButton}
             onPress={() => handleBoost(item)}
           >
             <Ionicons name="rocket-outline" size={18} color={PRO_BLUE} />
-            <Text style={styles.boostButtonText}>Booster</Text>
+            <Text style={styles.boostButtonText}>
+              {fr ? "Booster" : "Boost"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
     ),
-    [router],
+    [router, fr],
   );
 
   if (!user && loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={PRO_BLUE} />
-        <Text style={styles.loadingText}>Chargement du profil Pro...</Text>
+        <Text style={styles.loadingText}>
+          {fr ? "Chargement du profil Pro..." : "Loading Pro Profile..."}
+        </Text>
       </View>
     );
   }
@@ -654,9 +689,13 @@ export default function ProfilVendeurPremium() {
   if (!user) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Impossible de charger le profil</Text>
+        <Text style={styles.errorText}>
+          {fr ? "Impossible de charger le profil" : "Unable to load profile"}
+        </Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadTokenAndUser}>
-          <Text style={styles.retryButtonText}>Réessayer</Text>
+          <Text style={styles.retryButtonText}>
+            {fr ? "Réessayer" : "Retry"}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -701,7 +740,7 @@ export default function ProfilVendeurPremium() {
                   color={PRO_BLUE}
                 />
                 <Text style={styles.coverPlaceholderText}>
-                  Photo de couverture
+                  {fr ? "Photo de couverture" : "Cover Photo"}
                 </Text>
               </View>
             )}
@@ -745,14 +784,16 @@ export default function ProfilVendeurPremium() {
               <Text style={styles.userName}>{user.fullName}</Text>
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={16} color={PRO_BLUE} />
-                <Text style={styles.verifiedText}>Vérifié</Text>
+                <Text style={styles.verifiedText}>
+                  {fr ? "Vérifié" : "Verified"}
+                </Text>
               </View>
             </View>
 
             <View style={styles.memberSinceContainer}>
               <Ionicons name="time" size={14} color={PRO_BLUE} />
               <Text style={styles.memberSince}>
-                Membre depuis {formatDateFR(user.date_inscription)}
+                {fr ? "Membre depuis" : "Member since"} {formatDateFR(user.date_inscription)}
               </Text>
             </View>
 
@@ -764,30 +805,32 @@ export default function ProfilVendeurPremium() {
 
         {/* Statistiques */}
         <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Performance Business</Text>
+          <Text style={styles.sectionTitle}>
+            {fr ? "Performance Business" : "Business Performance"}
+          </Text>
           <View style={styles.statsGrid}>
             {[
               {
                 value: user.productsCount,
-                label: "Produits",
+                label: fr ? "Produits" : "Products",
                 icon: "cube-outline",
                 color: PRO_BLUE,
               },
               {
                 value: user.salesCount,
-                label: "Ventes",
+                label: fr ? "Ventes" : "Sales",
                 icon: "trending-up",
                 color: "#4CAF50",
               },
               {
                 value: (Number(user.rating) || 0).toFixed(1),
-                label: "Note",
+                label: fr ? "Note" : "Rating",
                 icon: "star",
                 color: "#FFA726",
               },
               {
                 value: user.ordersCount,
-                label: "Commandes",
+                label: fr ? "Commandes" : "Orders",
                 icon: "cart",
                 color: PRO_BLUE,
               },
@@ -814,12 +857,14 @@ export default function ProfilVendeurPremium() {
 
         {/* Tableau de Bord Pro */}
         <View style={styles.dashboardSection}>
-          <Text style={styles.sectionTitle}>Centre de Commande Pro</Text>
+          <Text style={styles.sectionTitle}>
+            {fr ? "Centre de Commande Pro" : "Pro Command Center"}
+          </Text>
           <View style={styles.dashboardGrid}>
             {[
               {
-                title: "Statistiques",
-                subtitle: "Analyses détaillées",
+                title: fr ? "Statistiques" : "Statistics",
+                subtitle: fr ? "Analyses détaillées" : "Detailed analytics",
                 icon: "bar-chart",
                 color: PRO_BLUE,
                 badgeCount: badgeCounts.statistics,
@@ -827,8 +872,8 @@ export default function ProfilVendeurPremium() {
                 route: "/(tabs)/Auth/Profiles/Statistiques",
               },
               {
-                title: "Commandes",
-                subtitle: "Gestion des ventes",
+                title: fr ? "Commandes" : "Orders",
+                subtitle: fr ? "Gestion des ventes" : "Sales management",
                 icon: "shopping-cart",
                 color: "#4CAF50",
                 badgeCount: badgeCounts.orders,
@@ -836,8 +881,8 @@ export default function ProfilVendeurPremium() {
                 route: "/(tabs)/Auth/Panier/VendeurNotifications",
               },
               {
-                title: "Aide & Support",
-                subtitle: "Besoin d'assistance ?",
+                title: fr ? "Aide & Support" : "Help & Support",
+                subtitle: fr ? "Besoin d'assistance ?" : "Need assistance?",
                 icon: "headphones",
                 color: "#FFA726",
                 badgeCount: badgeCounts.messages,
@@ -845,8 +890,8 @@ export default function ProfilVendeurPremium() {
                 route: "/(tabs)/Auth/Produits/Support",
               },
               {
-                title: "Boost Pro",
-                subtitle: "Produits premium",
+                title: fr ? "Boost Pro" : "Pro Boost",
+                subtitle: fr ? "Produits premium" : "Premium products",
                 icon: "award",
                 color: PRO_BLUE,
                 route: "/(tabs)/Auth/Profiles/PaymentStatus",
@@ -885,20 +930,20 @@ export default function ProfilVendeurPremium() {
 
         {/* Menu Actions Rapides */}
         <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Actions Rapides</Text>
+          <Text style={styles.sectionTitle}>
+            {fr ? "Actions Rapides" : "Quick Actions"}
+          </Text>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionButton}
               onPress={async () => {
                 resetBadge("boutique");
-
                 try {
                   const token = await AsyncStorage.getItem("userToken");
                   if (!token) {
                     router.push("/splash");
                     return;
                   }
-
                   const response = await fetch(
                     "https://shopnet-backend.onrender.com/api/boutiques/check",
                     {
@@ -909,9 +954,7 @@ export default function ProfilVendeurPremium() {
                       },
                     },
                   );
-
                   const data = await response.json();
-
                   if (response.ok && data.success) {
                     router.push("/(tabs)/Auth/Boutique/Boutique");
                   } else {
@@ -920,8 +963,8 @@ export default function ProfilVendeurPremium() {
                 } catch (error) {
                   console.error("Erreur vérification boutique:", error);
                   Alert.alert(
-                    "Erreur",
-                    "Impossible de vérifier votre boutique. Réessayez plus tard.",
+                    fr ? "Erreur" : "Error",
+                    fr ? "Impossible de vérifier votre boutique." : "Unable to verify your shop."
                   );
                 }
               }}
@@ -940,7 +983,9 @@ export default function ProfilVendeurPremium() {
                     )}
                   </View>
                 </View>
-                <Text style={styles.quickActionText}>Boutique</Text>
+                <Text style={styles.quickActionText}>
+                  {fr ? "Boutique" : "Shop"}
+                </Text>
               </View>
             </TouchableOpacity>
 
@@ -959,7 +1004,9 @@ export default function ProfilVendeurPremium() {
                     <Ionicons name="add-circle" size={24} color={PRO_BLUE} />
                   </View>
                 </View>
-                <Text style={styles.quickActionText}>Vendre</Text>
+                <Text style={styles.quickActionText}>
+                  {fr ? "Vendre" : "Sell"}
+                </Text>
               </View>
             </TouchableOpacity>
 
@@ -988,7 +1035,9 @@ export default function ProfilVendeurPremium() {
                     )}
                   </View>
                 </View>
-                <Text style={styles.quickActionText}>Assistant Vendeur</Text>
+                <Text style={styles.quickActionText}>
+                  {fr ? "Assistant Vendeur" : "Seller Assistant"}
+                </Text>
               </View>
             </TouchableOpacity>
 
@@ -1013,7 +1062,9 @@ export default function ProfilVendeurPremium() {
                     )}
                   </View>
                 </View>
-                <Text style={styles.quickActionText}>Paramètres</Text>
+                <Text style={styles.quickActionText}>
+                  {fr ? "Paramètres" : "Settings"}
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -1023,16 +1074,20 @@ export default function ProfilVendeurPremium() {
         <View style={styles.productsSection}>
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Mes Produits Pro</Text>
+              <Text style={styles.sectionTitle}>
+                {fr ? "Mes Produits Pro" : "My Pro Products"}
+              </Text>
               <Text style={styles.sectionSubtitle}>
-                {products.length} produits en ligne
+                {products.length} {fr ? "produits en ligne" : "products online"}
               </Text>
             </View>
             <TouchableOpacity
               style={styles.seeAllButton}
               onPress={() => router.push("/MisAjour")}
             >
-              <Text style={styles.seeAllText}>Voir tout</Text>
+              <Text style={styles.seeAllText}>
+                {fr ? "Voir tout" : "See All"}
+              </Text>
               <Ionicons name="arrow-forward" size={16} color={PRO_BLUE} />
             </TouchableOpacity>
           </View>
@@ -1040,7 +1095,9 @@ export default function ProfilVendeurPremium() {
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={PRO_BLUE} />
-              <Text style={styles.loadingText}>Chargement des produits...</Text>
+              <Text style={styles.loadingText}>
+                {fr ? "Chargement des produits..." : "Loading products..."}
+              </Text>
             </View>
           ) : products.length > 0 ? (
             <FlatList
@@ -1057,9 +1114,11 @@ export default function ProfilVendeurPremium() {
               <View style={styles.emptyIcon}>
                 <Ionicons name="cube-outline" size={64} color={PRO_BLUE} />
               </View>
-              <Text style={styles.emptyTitle}>Aucun produit en vente</Text>
+              <Text style={styles.emptyTitle}>
+                {fr ? "Aucun produit en vente" : "No products for sale"}
+              </Text>
               <Text style={styles.emptySubtitle}>
-                Commencez à vendre dès maintenant
+                {fr ? "Commencez à vendre dès maintenant" : "Start selling now"}
               </Text>
               <TouchableOpacity
                 style={styles.addProductButton}
@@ -1067,7 +1126,7 @@ export default function ProfilVendeurPremium() {
               >
                 <Ionicons name="add" size={20} color="#FFFFFF" />
                 <Text style={styles.addProductButtonText}>
-                  Créer un produit
+                  {fr ? "Créer un produit" : "Create Product"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1087,6 +1146,7 @@ export default function ProfilVendeurPremium() {
         onView={handleViewPhoto}
         onChoose={handleChoosePhoto}
         onClose={closePhotoModal}
+        fr={fr}
       />
 
       <FullscreenPhotoModalComponent
@@ -1099,6 +1159,7 @@ export default function ProfilVendeurPremium() {
               : null
         }
         onClose={closePhotoModal}
+        fr={fr}
       />
     </View>
   );

@@ -9,6 +9,7 @@ import "react-native-reanimated";
 import * as Device from "expo-device";
 
 import { ThemeProvider } from "./theme/ThemeContext";
+import { LanguageProvider } from "../context/LanguageContext";
 
 import {
   registerForPushNotificationsAsync,
@@ -110,49 +111,54 @@ function RootLayoutNav() {
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
 
-        {/* 🌙 THEME GLOBAL SHOPNET (TON SYSTEME) */}
+        {/* 🌙 THEME GLOBAL SHOPNET */}
         <ThemeProvider>
 
-          {/* 🔔 NOTIFICATION UI */}
-          {notifVisible && (
-            <View
-              style={{
-                position: "absolute",
-                top: 50,
-                left: 20,
-                right: 20,
-                backgroundColor: "#4CB050",
-                padding: 15,
-                borderRadius: 8,
-                zIndex: 999,
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              <FontAwesome name="bell" size={20} color="#fff" />
-              <Text
+          {/* 🌐 LANGUE GLOBAL SHOPNET */}
+          <LanguageProvider>
+
+            {/* 🔔 NOTIFICATION UI */}
+            {notifVisible && (
+              <View
                 style={{
-                  color: "#fff",
-                  marginLeft: 10,
-                  fontWeight: "600",
+                  position: "absolute",
+                  top: 50,
+                  left: 20,
+                  right: 20,
+                  backgroundColor: "#4CB050",
+                  padding: 15,
+                  borderRadius: 8,
+                  zIndex: 999,
+                  flexDirection: "row",
+                  alignItems: "center",
                 }}
               >
-                {notifMessage}
-              </Text>
-            </View>
-          )}
+                <FontAwesome name="bell" size={20} color="#fff" />
+                <Text
+                  style={{
+                    color: "#fff",
+                    marginLeft: 10,
+                    fontWeight: "600",
+                  }}
+                >
+                  {notifMessage}
+                </Text>
+              </View>
+            )}
 
-          {/* 📱 NAVIGATION */}
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="splash" />
-            <Stack.Screen name="Auth/Produits/Fil" />
-            <Stack.Screen name="Auth/Produits/Detail" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-            <Stack.Screen name="Auth/Questionnaire" />
-            <Stack.Screen name="Auth" />
-          </Stack>
+            {/* 📱 NAVIGATION */}
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="splash" />
+              <Stack.Screen name="Auth/Produits/Fil" />
+              <Stack.Screen name="Auth/Produits/Detail" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+              <Stack.Screen name="Auth/Questionnaire" />
+              <Stack.Screen name="Auth" />
+            </Stack>
+
+          </LanguageProvider>
 
         </ThemeProvider>
       </SafeAreaView>

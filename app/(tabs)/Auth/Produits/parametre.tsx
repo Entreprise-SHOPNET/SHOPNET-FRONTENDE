@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -28,18 +29,15 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useTheme } from "../../../../app/theme/ThemeContext";
+import { useLanguage } from "../../../../context/LanguageContext";
 
 const { width, height } = Dimensions.get("window");
-const SHOPNET_BLUE = "#00182A";
 const PRO_BLUE = "#42A5F5";
-const PRO_GREEN = "#4CAF50";
 const NOTIFICATION_RED = "#FF3B30";
-const CARD_BG = "rgba(30, 42, 59, 0.9)";
-const BORDER_COLOR = "rgba(66, 165, 245, 0.1)";
 
 const BASE_URL = 'https://shopnet-backend.onrender.com';
 
-// Types (ajout du champ url optionnel)
+// Types
 type SettingsItem = {
   id: string;
   name: string;
@@ -47,7 +45,7 @@ type SettingsItem = {
   icon: string;
   badge?: number;
   iconFamily?: 'ionicons' | 'material' | 'fontawesome' | 'feather';
-  url?: string; // si présent, ouvre un lien web externe
+  url?: string;
 };
 
 type SettingsSection = {
@@ -56,118 +54,33 @@ type SettingsSection = {
   items: SettingsItem[];
 };
 
-// Données de configuration
-const settingsData: SettingsSection[] = [
-  {
-    id: '1',
-    title: "Compte & Profil",
-    items: [
-      { id: '1-1', name: "Mon profil", route: "/Auth/Produits/profil-edit", icon: "person-circle", badge: 0, iconFamily: 'ionicons' },
-      { id: '1-2', name: "Sécurité", route: "/MisAjour", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
-      { id: '1-3', name: "Paiements", route: "/MisAjour", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
-      { id: '1-4', name: "Badge Pro", route: "/MisAjour", icon: "verified", badge: 0, iconFamily: 'material' },
-    ],
-  },
-  {
-    id: '2',
-    title: "Notifications & Communications",
-    items: [
-      { id: '2-1', name: "Notifications", route: "/MisAjour", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
-      { id: '2-2', name: "Messages", route: "/MisAjour", icon: "chatbubble", badge: 0, iconFamily: 'ionicons' },
-      { id: '2-3', name: "Alertes", route: "/MisAjour", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
-      { id: '2-4', name: "Son & Vibration", route: "/MisAjour", icon: "volume-high", badge: 0, iconFamily: 'ionicons' },
-    ],
-  },
-  {
-    id: '3',
-    title: "Apparence & Préférences",
-    items: [
-      { id: '3-1', name: "Thème", route: "/MisAjour", icon: "palette", badge: 0, iconFamily: 'ionicons' },
-      { id: '3-2', name: "Langue", route: "/MisAjour", icon: "language", badge: 0, iconFamily: 'ionicons' },
-      { id: '3-3', name: "Localisation", route: "/MisAjour", icon: "location", badge: 0, iconFamily: 'ionicons' },
-      { id: '3-4', name: "Affichage", route: "/MisAjour", icon: "desktop", badge: 0, iconFamily: 'fontawesome' },
-    ],
-  },
-  {
-    id: '4',
-    title: "Boutique & Produits",
-    items: [
-      { id: '4-1', name: "Paramètres boutique", route: "/MisAjour", icon: "store", badge: 0, iconFamily: 'material' },
-      { id: '4-2', name: "Gestion produits", route: "/MisAjour", icon: "cube", badge: 9, iconFamily: 'ionicons' },
-      { id: '4-3', name: "Livraison", route: "/MisAjour", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
-      { id: '4-4', name: "Promotions", route: "/MisAjour", icon: "pricetag", badge: 2, iconFamily: 'ionicons' },
-    ],
-  },
-  {
-    id: '5',
-    title: "Support & Aide",
-    items: [
-      { id: '5-1', name: "Centre d'aide", route: "/MisAjour", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
-      { id: '5-2', name: "Signaler un problème", route: "/MisAjour", icon: "warning", badge: 0, iconFamily: 'material' },
-      { id: '5-3', name: "Nous contacter", route: "/MisAjour", icon: "mail", badge: 0, iconFamily: 'ionicons' },
-      { id: '5-4', name: "À propos", route: "/MisAjour", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
-    ],
-  },
-  {
-    id: '6',
-    title: "Confidentialité & Sécurité",
-    items: [
-      { id: '6-1', name: "Vie privée", route: "/MisAjour", icon: "lock-closed", badge: 0, iconFamily: 'ionicons' },
-      { id: '6-2', name: "Sécurité avancée", route: "/MisAjour", icon: "shield", badge: 0, iconFamily: 'ionicons' },
-      { id: '6-3', name: "Historique", route: "/MisAjour", icon: "time", badge: 0, iconFamily: 'ionicons' },
-      { id: '6-4', name: "Autorisations", route: "/MisAjour", icon: "key", badge: 0, iconFamily: 'fontawesome' },
-    ],
-  },
-  // ═════════════════ SECTION LÉGALE (liens web externes) ═════════════════
-  {
-    id: '7',
-    title: "Légal & Informations",
-    items: [
-      { id: '7-1', name: "Politique de Confidentialité", route: "", url: "https://shopnet-condition.vercel.app/", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
-      { id: '7-2', name: "Conditions d'Utilisation", route: "", url: "https://shopnet-condition.vercel.app/ConditionD-utilisation.html", icon: "document-text", badge: 0, iconFamily: 'ionicons' },
-      { id: '7-3', name: "Conditions de Vente", route: "", url: "https://shopnet-condition.vercel.app/ConditionDeVente.html", icon: "cart", badge: 0, iconFamily: 'ionicons' },
-      { id: '7-4', name: "Politique de Remboursement", route: "", url: "https://shopnet-condition.vercel.app/PolitiqueDeRembourssement.html", icon: "refresh-circle", badge: 0, iconFamily: 'ionicons' },
-      { id: '7-5', name: "Règles de la Communauté", route: "", url: "https://shopnet-condition.vercel.app/RegleDelaCommun.html", icon: "people", badge: 0, iconFamily: 'ionicons' },
-      { id: '7-6', name: "À propos de SHOPNET", route: "", url: "https://shopnet-condition.vercel.app/AproposShopnet.html", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
-    ],
-  },
-];
-
 // Composants réutilisables
-const SettingIcon = ({ item }: { item: SettingsItem }) => {
-  const iconProps = { size: 22, color: PRO_BLUE };
-  
-  if (item.iconFamily === 'material') {
-    return <MaterialIcons name={item.icon as any} {...iconProps} />;
-  }
-  if (item.iconFamily === 'fontawesome') {
-    return <FontAwesome name={item.icon as any} {...iconProps} />;
-  }
-  if (item.iconFamily === 'feather') {
-    return <Feather name={item.icon as any} {...iconProps} />;
-  }
+const SettingIcon = ({ item, colors }: { item: SettingsItem; colors: any }) => {
+  const iconProps = { size: 22, color: colors.accent };
+  if (item.iconFamily === 'material') return <MaterialIcons name={item.icon as any} {...iconProps} />;
+  if (item.iconFamily === 'fontawesome') return <FontAwesome name={item.icon as any} {...iconProps} />;
+  if (item.iconFamily === 'feather') return <Feather name={item.icon as any} {...iconProps} />;
   return <Ionicons name={item.icon as any} {...iconProps} />;
 };
 
-const SettingRow = ({ item, onPress }: { item: SettingsItem; onPress: () => void }) => (
-  <TouchableOpacity style={styles.settingRow} onPress={onPress}>
+const SettingRow = ({ item, onPress, colors }: { item: SettingsItem; onPress: () => void; colors: any }) => (
+  <TouchableOpacity style={[styles.settingRow, { borderBottomColor: colors.borderLight }]} onPress={onPress}>
     <View style={styles.settingRowLeft}>
-      <View style={styles.iconContainer}>
-        <SettingIcon item={item} />
+      <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
+        <SettingIcon item={item} colors={colors} />
       </View>
-      <Text style={styles.settingName}>{item.name}</Text>
+      <Text style={[styles.settingName, { color: colors.text }]}>{item.name}</Text>
     </View>
     <View style={styles.settingRowRight}>
       {item.badge && item.badge > 0 ? (
-        <View style={styles.badge}>
+        <View style={[styles.badge, { backgroundColor: colors.danger }]}>
           <Text style={styles.badgeText}>{item.badge}</Text>
         </View>
       ) : null}
-      {/* Icône de lien externe pour les URLs */}
       {item.url ? (
-        <Ionicons name="open-outline" size={18} color={PRO_BLUE} />
+        <Ionicons name="open-outline" size={18} color={colors.accent} />
       ) : (
-        <Feather name="chevron-right" size={20} color={PRO_BLUE} />
+        <Feather name="chevron-right" size={20} color={colors.accent} />
       )}
     </View>
   </TouchableOpacity>
@@ -178,44 +91,80 @@ const QuickSetting = ({
   title,
   description,
   value,
-  onValueChange
+  onValueChange,
+  colors,
 }: {
   iconName: string;
   title: string;
   description: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
+  colors: any;
 }) => (
-  <View style={styles.quickSettingCard}>
+  <View style={[styles.quickSettingCard, { backgroundColor: colors.cardAlt }]}>
     <View style={styles.quickSettingHeader}>
-      <Ionicons name={iconName as any} size={24} color={PRO_BLUE} />
+      <Ionicons name={iconName as any} size={24} color={colors.accent} />
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#3A4A5A", true: PRO_BLUE }}
+        trackColor={{ false: colors.trackOff, true: colors.accent }}
         thumbColor="#FFFFFF"
       />
     </View>
-    <Text style={styles.quickSettingTitle}>{title}</Text>
-    <Text style={styles.quickSettingDescription}>{description}</Text>
+    <Text style={[styles.quickSettingTitle, { color: colors.text }]}>{title}</Text>
+    <Text style={[styles.quickSettingDescription, { color: colors.textSecondary }]}>{description}</Text>
   </View>
 );
 
-const InfoRow = ({ iconName, label, value }: { iconName: string; label: string; value: string }) => (
+const InfoRow = ({ iconName, label, value, colors }: { iconName: string; label: string; value: string; colors: any }) => (
   <View style={styles.infoRow}>
-    <Ionicons name={iconName as any} size={20} color={PRO_BLUE} />
+    <Ionicons name={iconName as any} size={20} color={colors.accent} />
     <View style={styles.infoContent}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.text }]}>{value}</Text>
     </View>
   </View>
 );
+
+// Hook couleurs dynamiques
+const useDynamicColors = () => {
+  const { isDark } = useTheme();
+  return {
+    background: isDark ? '#0D0D0D' : '#00182A',
+    surface: isDark ? '#1A1A1A' : '#00182A',
+    card: isDark ? '#1A1A1A' : 'rgba(30, 42, 59, 0.9)',
+    cardAlt: isDark ? '#222222' : 'rgba(26, 38, 51, 0.8)',
+    border: isDark ? '#2E2E2E' : 'rgba(66, 165, 245, 0.1)',
+    borderLight: isDark ? '#2E2E2E' : 'rgba(66, 165, 245, 0.05)',
+    text: isDark ? '#F5F5F5' : '#FFFFFF',
+    textSecondary: isDark ? '#B0B0B0' : '#A0AEC0',
+    textMuted: isDark ? '#888888' : '#718096',
+    accent: '#42A5F5',
+    success: '#4CAF50',
+    danger: '#FF3B30',
+    iconBg: isDark ? 'rgba(66, 165, 245, 0.15)' : 'rgba(66, 165, 245, 0.1)',
+    trackOff: isDark ? '#444444' : '#3A4A5A',
+    headerBg: isDark ? '#1A1A1A' : '#00182A',
+    headerBorder: isDark ? '#2E2E2E' : 'rgba(66, 165, 245, 0.1)',
+    statusBar: isDark ? '#0D0D0D' : '#00182A',
+    barStyle: 'light-content' as const,
+    inputBg: isDark ? '#1A1A1A' : 'rgba(30, 42, 59, 0.9)',
+    inputText: isDark ? '#F5F5F5' : '#FFFFFF',
+    placeholder: isDark ? '#666666' : '#A0AEC0',
+    footerBorder: isDark ? '#2E2E2E' : 'rgba(66, 165, 245, 0.1)',
+    logoutBorder: isDark ? 'rgba(255, 107, 107, 0.3)' : 'rgba(255, 107, 107, 0.2)',
+    profileBorder: '#42A5F5',
+  };
+};
 
 // Composant principal
 const SettingsScreen = () => {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
-  
+  const { language } = useLanguage();
+  const fr = language === 'fr';
+  const COLORS = useDynamicColors();
+
   const [userData, setUserData] = useState({
     name: "SHOPNET Pro",
     email: "entreprise@shopnet.com",
@@ -231,23 +180,97 @@ const SettingsScreen = () => {
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [advancedSecurityEnabled, setAdvancedSecurityEnabled] = useState(false);
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
+  // Données de configuration avec traductions
+  const settingsData: SettingsSection[] = [
+    {
+      id: '1',
+      title: fr ? "Compte & Profil" : "Account & Profile",
+      items: [
+        { id: '1-1', name: fr ? "Mon profil" : "My Profile", route: "/Auth/Produits/profil-edit", icon: "person-circle", badge: 0, iconFamily: 'ionicons' },
+        { id: '1-2', name: fr ? "Sécurité" : "Security", route: "/MisAjour", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
+        { id: '1-3', name: fr ? "Paiements" : "Payments", route: "/MisAjour", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
+        { id: '1-4', name: fr ? "Badge Pro" : "Pro Badge", route: "/MisAjour", icon: "verified", badge: 0, iconFamily: 'material' },
+      ],
+    },
+    {
+      id: '2',
+      title: fr ? "Notifications & Communications" : "Notifications & Communications",
+      items: [
+        { id: '2-1', name: fr ? "Notifications" : "Notifications", route: "/MisAjour", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
+        { id: '2-3', name: fr ? "Alertes" : "Alerts", route: "/MisAjour", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
+      ],
+    },
+    {
+      id: '3',
+      title: fr ? "Apparence & Préférences" : "Appearance & Preferences",
+      items: [
+        { id: '3-2', name: fr ? "Langue" : "Language", route: "/Auth/Parametre/Langue", icon: "language", badge: 0, iconFamily: 'ionicons' },
+        { id: '3-3', name: fr ? "Localisation" : "Location", route: "/MisAjour", icon: "location", badge: 0, iconFamily: 'ionicons' },
+      ],
+    },
+    {
+      id: '4',
+      title: fr ? "Boutique & Produits" : "Shop & Products",
+      items: [
+        { id: '4-1', name: fr ? "Paramètres boutique" : "Shop Settings", route: "/MisAjour", icon: "store", badge: 0, iconFamily: 'material' },
+        { id: '4-2', name: fr ? "Gestion produits" : "Product Management", route: "/MisAjour", icon: "cube", badge: 9, iconFamily: 'ionicons' },
+        { id: '4-3', name: fr ? "Livraison" : "Delivery", route: "/MisAjour", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
+        { id: '4-4', name: fr ? "Boutique Premium" : "Premium Shop", route: "/MisAjour", icon: "diamond", badge: 0, iconFamily: 'fontawesome' },
+        { id: '4-5', name: fr ? "Créer une publicité" : "Create Ad", route: "/MisAjour", icon: "bullhorn", badge: 0, iconFamily: 'fontawesome' },
+        { id: '4-6', name: fr ? "Historique des paiements" : "Payment History", route: "/MisAjour", icon: "history", badge: 0, iconFamily: 'fontawesome' },
+        { id: '4-7', name: fr ? "Assistant Vendeur" : "Seller Assistant", route: "/MisAjour", icon: "rocket", badge: 2, iconFamily: 'ionicons' },
+      ],
+    },
+    {
+      id: '5',
+      title: fr ? "🛒 Activité" : "🛒 Activity",
+      items: [
+        { id: '5-1', name: fr ? "Historique des commandes" : "Order History", route: "/MisAjour", icon: "receipt", badge: 0, iconFamily: 'ionicons' },
+        { id: '5-2', name: fr ? "Produits favoris" : "Favorite Products", route: "/MisAjour", icon: "heart", badge: 0, iconFamily: 'ionicons' },
+        { id: '5-3', name: fr ? "Produits publiés" : "Published Products", route: "/MisAjour", icon: "layers", badge: 0, iconFamily: 'ionicons' },
+      ],
+    },
+    {
+      id: '6',
+      title: fr ? "Support & Aide" : "Support & Help",
+      items: [
+        { id: '6-1', name: fr ? "Centre d'aide" : "Help Center", route: "/MisAjour", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
+        { id: '6-2', name: fr ? "Signaler un problème" : "Report a Problem", route: "/MisAjour", icon: "warning", badge: 0, iconFamily: 'material' },
+        { id: '6-3', name: fr ? "Nous contacter" : "Contact Us", route: "/MisAjour", icon: "mail", badge: 0, iconFamily: 'ionicons' },
+        { id: '6-4', name: fr ? "À propos" : "About", route: "/MisAjour", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
+      ],
+    },
+    {
+      id: '7',
+      title: fr ? "Confidentialité & Sécurité" : "Privacy & Security",
+      items: [
+        { id: '7-1', name: fr ? "Vie privée" : "Privacy", route: "/MisAjour", icon: "lock-closed", badge: 0, iconFamily: 'ionicons' },
+        { id: '7-2', name: fr ? "Sécurité avancée" : "Advanced Security", route: "/MisAjour", icon: "shield", badge: 0, iconFamily: 'ionicons' },
+        { id: '7-3', name: fr ? "Historique" : "History", route: "/MisAjour", icon: "time", badge: 0, iconFamily: 'ionicons' },
+      ],
+    },
+    {
+      id: '8',
+      title: fr ? "Légal & Informations" : "Legal & Information",
+      items: [
+        { id: '8-1', name: fr ? "Politique de Confidentialité" : "Privacy Policy", route: "", url: "https://shopnet-condition.vercel.app/", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
+        { id: '8-2', name: fr ? "Conditions d'Utilisation" : "Terms of Use", route: "", url: "https://shopnet-condition.vercel.app/ConditionD-utilisation.html", icon: "document-text", badge: 0, iconFamily: 'ionicons' },
+        { id: '8-3', name: fr ? "Conditions de Vente" : "Terms of Sale", route: "", url: "https://shopnet-condition.vercel.app/ConditionDeVente.html", icon: "cart", badge: 0, iconFamily: 'ionicons' },
+        { id: '8-4', name: fr ? "Politique de Remboursement" : "Refund Policy", route: "", url: "https://shopnet-condition.vercel.app/PolitiqueDeRembourssement.html", icon: "refresh-circle", badge: 0, iconFamily: 'ionicons' },
+        { id: '8-5', name: fr ? "Règles de la Communauté" : "Community Rules", route: "", url: "https://shopnet-condition.vercel.app/RegleDelaCommun.html", icon: "people", badge: 0, iconFamily: 'ionicons' },
+        { id: '8-6', name: fr ? "À propos de SHOPNET" : "About SHOPNET", route: "", url: "https://shopnet-condition.vercel.app/AproposShopnet.html", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
+      ],
+    },
+  ];
+
+  useEffect(() => { fetchUserData(); }, []);
 
   const fetchUserData = async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("userToken");
-      if (!token) {
-        router.push("/splash");
-        return;
-      }
-
-      const response = await axios.get(`${BASE_URL}/api/user/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      if (!token) { router.push("/splash"); return; }
+      const response = await axios.get(`${BASE_URL}/api/user/profile`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.data.success) {
         const user = response.data.user;
         setUserData({
@@ -261,29 +284,17 @@ const SettingsScreen = () => {
       }
     } catch (error) {
       console.error("Erreur de chargement des données utilisateur", error);
-      Alert.alert("Erreur", "Impossible de charger les données du profil");
-    } finally {
-      setLoading(false);
-    }
+      Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible de charger les données du profil" : "Unable to load profile data");
+    } finally { setLoading(false); }
   };
 
   const handleLogout = async () => {
     Alert.alert(
-      "Déconnexion",
-      "Êtes-vous sûr de vouloir vous déconnecter ?",
+      fr ? "Déconnexion" : "Logout",
+      fr ? "Êtes-vous sûr de vouloir vous déconnecter ?" : "Are you sure you want to logout?",
       [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Déconnexion",
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem("userToken");
-              router.push("/splash");
-            } catch (error) {
-              Alert.alert("Erreur", "Échec de la déconnexion");
-            }
-          },
-        },
+        { text: fr ? "Annuler" : "Cancel", style: "cancel" },
+        { text: fr ? "Déconnexion" : "Logout", onPress: async () => { try { await AsyncStorage.removeItem("userToken"); router.push("/splash"); } catch (error) { Alert.alert(fr ? "Erreur" : "Error", fr ? "Échec de la déconnexion" : "Logout failed"); } } },
       ]
     );
   };
@@ -292,119 +303,74 @@ const SettingsScreen = () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("userToken");
-      
-      const settingsData = {
-        notifications_enabled: notificationsEnabled,
-        dark_mode: isDark,
-        location_enabled: locationEnabled,
-        advanced_security: advancedSecurityEnabled,
-        updated_at: new Date().toISOString(),
-      };
-
-      await axios.post(
-        `${BASE_URL}/api/user/settings`,
-        settingsData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      Alert.alert("Succès", "Paramètres sauvegardés avec succès");
+      const settingsData = { notifications_enabled: notificationsEnabled, dark_mode: isDark, location_enabled: locationEnabled, advanced_security: advancedSecurityEnabled, updated_at: new Date().toISOString() };
+      await axios.post(`${BASE_URL}/api/user/settings`, settingsData, { headers: { Authorization: `Bearer ${token}` } });
+      Alert.alert(fr ? "Succès" : "Success", fr ? "Paramètres sauvegardés avec succès" : "Settings saved successfully");
     } catch (error) {
       console.error("Erreur sauvegarde paramètres:", error);
-      Alert.alert("Erreur", "Impossible de sauvegarder les paramètres");
-    } finally {
-      setLoading(false);
-    }
+      Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible de sauvegarder les paramètres" : "Unable to save settings");
+    } finally { setLoading(false); }
   };
 
   const handleSyncData = async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("userToken");
-      
-      await axios.post(
-        `${BASE_URL}/api/user/sync`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
+      await axios.post(`${BASE_URL}/api/user/sync`, {}, { headers: { Authorization: `Bearer ${token}` } });
       await fetchUserData();
-      
-      Alert.alert("Succès", "Données synchronisées avec succès");
+      Alert.alert(fr ? "Succès" : "Success", fr ? "Données synchronisées avec succès" : "Data synced successfully");
     } catch (error) {
       console.error("Erreur synchronisation:", error);
-      Alert.alert("Erreur", "Impossible de synchroniser les données");
-    } finally {
-      setLoading(false);
-    }
+      Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible de synchroniser les données" : "Unable to sync data");
+    } finally { setLoading(false); }
   };
 
   const handleUpdateApp = () => {
     const playStoreUrl = "https://play.google.com/store/apps/details?id=com.shopai.app&pcampaignid=web_share";
-    Linking.openURL(playStoreUrl).catch(() => {
-      Alert.alert("Erreur", "Impossible d'ouvrir le Play Store. Vérifiez votre connexion.");
-    });
+    Linking.openURL(playStoreUrl).catch(() => { Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible d'ouvrir le Play Store." : "Unable to open Play Store."); });
   };
 
-  // ═════════════ GESTION UNIFIÉE DU CLIC ═════════════
   const handleItemPress = (item: SettingsItem) => {
-    if (item.url) {
-      // Ouvre le lien web externe
-      Linking.openURL(item.url).catch(() => {
-        Alert.alert("Erreur", "Impossible d'ouvrir ce lien.");
-      });
-    } else {
-      // Navigation interne via router
-      router.push(item.route);
-    }
+    if (item.url) { Linking.openURL(item.url).catch(() => { Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible d'ouvrir ce lien." : "Unable to open this link."); }); }
+    else { router.push(item.route); }
   };
 
   if (loading && !userData.name) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={PRO_BLUE} />
-        <Text style={styles.loadingText}>Chargement des paramètres...</Text>
-      </View>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.background }]}>
+        <StatusBar backgroundColor={COLORS.statusBar} barStyle={COLORS.barStyle} />
+        <ActivityIndicator size="large" color={COLORS.accent} />
+        <Text style={[styles.loadingText, { color: COLORS.accent }]}>{fr ? "Chargement des paramètres..." : "Loading settings..."}</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: COLORS.background }]}>
+      <StatusBar backgroundColor={COLORS.statusBar} barStyle={COLORS.barStyle} />
+      <View style={[styles.header, { backgroundColor: COLORS.headerBg }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Paramètres Pro</Text>
-          <TouchableOpacity style={styles.syncButton} onPress={handleSyncData} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator size="small" color={PRO_BLUE} />
-            ) : (
-              <Ionicons name="sync" size={24} color={PRO_BLUE} />
-            )}
+          <Text style={[styles.headerTitle, { color: COLORS.text }]}>{fr ? "Paramètres Pro" : "Pro Settings"}</Text>
+          <TouchableOpacity style={[styles.syncButton, { backgroundColor: COLORS.card, borderColor: COLORS.border }]} onPress={handleSyncData} disabled={loading}>
+            {loading ? <ActivityIndicator size="small" color={COLORS.accent} /> : <Ionicons name="sync" size={24} color={COLORS.accent} />}
           </TouchableOpacity>
         </View>
-
         <View style={styles.profileCard}>
           <TouchableOpacity onPress={() => router.push("/Auth/Produits/profil-edit")}>
             <View style={styles.avatarContainer}>
-              <Image source={{ uri: userData.avatar }} style={styles.avatar} />
-              <View style={styles.avatarEditBadge}>
-                <Ionicons name="camera" size={12} color="#FFFFFF" />
-              </View>
+              <Image source={{ uri: userData.avatar }} style={[styles.avatar, { borderColor: COLORS.profileBorder }]} />
+              <View style={styles.avatarEditBadge}><Ionicons name="camera" size={12} color="#FFFFFF" /></View>
             </View>
           </TouchableOpacity>
-          
           <View style={styles.profileInfo}>
-            <Text style={styles.userName}>{userData.name}</Text>
+            <Text style={[styles.userName, { color: COLORS.text }]}>{userData.name}</Text>
             <View style={styles.memberSinceContainer}>
-              <Ionicons name="calendar" size={12} color={PRO_BLUE} />
-              <Text style={styles.memberSinceText}>
-                Membre depuis {userData.memberSince}
+              <Ionicons name="calendar" size={12} color={COLORS.accent} />
+              <Text style={[styles.memberSinceText, { color: COLORS.textSecondary }]}>
+                {fr ? "Membre depuis" : "Member since"} {userData.memberSince}
               </Text>
             </View>
           </View>
@@ -412,124 +378,51 @@ const SettingsScreen = () => {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Barre de recherche */}
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color={PRO_BLUE} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher un paramètre..."
-            placeholderTextColor="#A0AEC0"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText("")}>
-              <Ionicons name="close-circle" size={20} color={NOTIFICATION_RED} />
-            </TouchableOpacity>
-          )}
+        <View style={[styles.searchBar, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+          <Ionicons name="search" size={20} color={COLORS.accent} style={styles.searchIcon} />
+          <TextInput style={[styles.searchInput, { color: COLORS.inputText }]} placeholder={fr ? "Rechercher un paramètre..." : "Search settings..."} placeholderTextColor={COLORS.placeholder} value={searchText} onChangeText={setSearchText} />
+          {searchText.length > 0 && (<TouchableOpacity onPress={() => setSearchText("")}><Ionicons name="close-circle" size={20} color={COLORS.danger} /></TouchableOpacity>)}
         </View>
 
-        {/* Réglages rapides */}
-        <View style={styles.quickSettingsSection}>
-          <Text style={styles.sectionTitle}>Réglages rapides</Text>
-          
+        <View style={[styles.quickSettingsSection, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+          <Text style={[styles.sectionTitle, { color: COLORS.text }]}>{fr ? "Réglages rapides" : "Quick Settings"}</Text>
           <View style={styles.quickSettingsGrid}>
-            <QuickSetting
-              iconName="notifications"
-              title="Notifications"
-              description="Activer/Désactiver"
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-            />
-            
-            {/* 🔥 MODE SOMBRE CONNECTÉ AU THEME CONTEXT */}
-            <QuickSetting
-              iconName="moon"
-              title="Mode sombre"
-              description="Thème Shopnet"
-              value={isDark}
-              onValueChange={toggleTheme}
-            />
-            
-            <QuickSetting
-              iconName="location"
-              title="Localisation"
-              description="Partager ma position"
-              value={locationEnabled}
-              onValueChange={setLocationEnabled}
-            />
-            
-            <QuickSetting
-              iconName="shield-checkmark"
-              title="Sécurité avancée"
-              description="Protection renforcée"
-              value={advancedSecurityEnabled}
-              onValueChange={setAdvancedSecurityEnabled}
-            />
+            <QuickSetting iconName="notifications" title={fr ? "Notifications" : "Notifications"} description={fr ? "Activer/Désactiver" : "Enable/Disable"} value={notificationsEnabled} onValueChange={setNotificationsEnabled} colors={COLORS} />
+            <QuickSetting iconName="moon" title={fr ? "Mode sombre" : "Dark Mode"} description={fr ? "Thème Shopnet" : "Shopnet Theme"} value={isDark} onValueChange={toggleTheme} colors={COLORS} />
+            <QuickSetting iconName="location" title={fr ? "Localisation" : "Location"} description={fr ? "Partager ma position" : "Share my location"} value={locationEnabled} onValueChange={setLocationEnabled} colors={COLORS} />
+            <QuickSetting iconName="shield-checkmark" title={fr ? "Sécurité avancée" : "Advanced Security"} description={fr ? "Protection renforcée" : "Enhanced protection"} value={advancedSecurityEnabled} onValueChange={setAdvancedSecurityEnabled} colors={COLORS} />
           </View>
-          
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveSettings} disabled={loading}>
-            <View style={styles.saveButtonContent}>
-              <Ionicons name="save" size={20} color="#FFFFFF" />
-              <Text style={styles.saveButtonText}>Sauvegarder les réglages</Text>
-            </View>
+          <TouchableOpacity style={[styles.saveButton, { backgroundColor: COLORS.accent }]} onPress={handleSaveSettings} disabled={loading}>
+            <View style={styles.saveButtonContent}><Ionicons name="save" size={20} color="#FFFFFF" /><Text style={styles.saveButtonText}>{fr ? "Sauvegarder les réglages" : "Save Settings"}</Text></View>
           </TouchableOpacity>
         </View>
 
-        {/* Paramètres (toutes les sections) */}
         {settingsData.map((section) => (
-          <View key={section.id} style={styles.settingsSection}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+          <View key={section.id} style={[styles.settingsSection, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>{section.title}</Text>
             <View style={styles.settingsList}>
-              {section.items.map((item) => (
-                <SettingRow
-                  key={item.id}
-                  item={item}
-                  onPress={() => handleItemPress(item)}
-                />
-              ))}
+              {section.items.map((item) => (<SettingRow key={item.id} item={item} onPress={() => handleItemPress(item)} colors={COLORS} />))}
             </View>
           </View>
         ))}
 
-        {/* Informations (version + bouton de mise à jour) */}
-        <View style={styles.infoSection}>
-          <InfoRow
-            iconName="information-circle"
-            label="Version de l'application"
-            value="Shopnet Pro 3.2.3"
-          />
-          
-          <TouchableOpacity style={styles.updateButton} onPress={handleUpdateApp}>
+        <View style={[styles.infoSection, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+          <InfoRow iconName="information-circle" label={fr ? "Version de l'application" : "App Version"} value="Shopnet Pro 3.2.3" colors={COLORS} />
+          <TouchableOpacity style={[styles.updateButton, { backgroundColor: COLORS.accent }]} onPress={handleUpdateApp}>
             <Ionicons name="download-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.updateButtonText}>Mettre l'application à jour</Text>
+            <Text style={styles.updateButtonText}>{fr ? "Mettre l'application à jour" : "Update App"}</Text>
           </TouchableOpacity>
-          
-          <InfoRow
-            iconName="phone-portrait"
-            label="Appareil"
-            value="React Native / Expo"
-          />
-          
-          <InfoRow
-            iconName="cloud"
-            label="Dernière synchronisation"
-            value="À l'instant"
-          />
+          <InfoRow iconName="phone-portrait" label={fr ? "Appareil" : "Device"} value="React Native / Expo" colors={COLORS} />
+          <InfoRow iconName="cloud" label={fr ? "Dernière synchronisation" : "Last Sync"} value={fr ? "À l'instant" : "Just now"} colors={COLORS} />
         </View>
 
-        {/* Déconnexion */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} disabled={loading}>
-          <View style={styles.logoutButtonContent}>
-            <MaterialIcons name="logout" size={22} color={NOTIFICATION_RED} />
-            <Text style={styles.logoutButtonText}>Déconnexion</Text>
-          </View>
+        <TouchableOpacity style={[styles.logoutButton, { backgroundColor: COLORS.card, borderColor: COLORS.logoutBorder }]} onPress={handleLogout} disabled={loading}>
+          <View style={styles.logoutButtonContent}><MaterialIcons name="logout" size={22} color={COLORS.danger} /><Text style={[styles.logoutButtonText, { color: COLORS.danger }]}>{fr ? "Déconnexion" : "Logout"}</Text></View>
         </TouchableOpacity>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>© 2026 Shopnet Markeplace. Tous droits réservés.</Text>
-          <Text style={styles.footerSubText}>Version 3.2.3 • Build 2412</Text>
+        <View style={[styles.footer, { borderTopColor: COLORS.footerBorder }]}>
+          <Text style={[styles.footerText, { color: COLORS.textSecondary }]}>© 2026 Shopnet Markeplace. {fr ? "Tous droits réservés." : "All rights reserved."}</Text>
+          <Text style={[styles.footerSubText, { color: COLORS.textMuted }]}>Version 3.2.3 • Build 2412</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -537,350 +430,59 @@ const SettingsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: SHOPNET_BLUE,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: SHOPNET_BLUE,
-  },
-  loadingText: {
-    color: PRO_BLUE,
-    fontSize: 16,
-    marginTop: 12,
-    fontWeight: "600",
-  },
-  header: {
-    backgroundColor: SHOPNET_BLUE,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
-  },
-  syncButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: CARD_BG,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatarContainer: {
-    position: "relative",
-  },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: PRO_BLUE,
-  },
-  avatarEditBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: PRO_BLUE,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: SHOPNET_BLUE,
-  },
-  profileInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: PRO_BLUE,
-    marginBottom: 6,
-  },
-  roleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  userRole: {
-    fontSize: 13,
-    color: "#A0AEC0",
-    fontWeight: "600",
-  },
-  verifiedIcon: {
-    marginLeft: 4,
-  },
-  memberSinceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  memberSinceText: {
-    fontSize: 12,
-    color: "#A0AEC0",
-    marginLeft: 4,
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  searchBar: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: "#FFFFFF",
-    fontSize: 16,
-    padding: 0,
-  },
-  quickSettingsSection: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 16,
-    letterSpacing: 0.5,
-    marginLeft: 0,
-  },
-  quickSettingsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  quickSettingCard: {
-    width: "48%",
-    backgroundColor: "rgba(26, 38, 51, 0.8)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  quickSettingHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  quickSettingTitle: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  quickSettingDescription: {
-    color: "#A0AEC0",
-    fontSize: 12,
-  },
-  saveButton: {
-    backgroundColor: PRO_BLUE,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-  },
-  saveButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 8,
-  },
-  settingsSection: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-    padding: 20,
-  },
-  settingsList: {
-    paddingHorizontal: 0,
-  },
-  settingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(66, 165, 245, 0.05)",
-  },
-  settingRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(66, 165, 245, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  settingName: {
-    fontSize: 16,
-    color: "#E2E8F0",
-    fontWeight: "500",
-    flex: 1,
-  },
-  settingRowRight: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  badge: {
-    backgroundColor: NOTIFICATION_RED,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  badgeText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "bold",
-    paddingHorizontal: 4,
-  },
-  infoSection: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: BORDER_COLOR,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  infoContent: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  infoLabel: {
-    color: "#A0AEC0",
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  infoValue: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  updateButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: PRO_BLUE,
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginVertical: 16,
-    marginHorizontal: 0,
-  },
-  updateButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  logoutButton: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 107, 107, 0.2)",
-  },
-  logoutButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 20,
-  },
-  logoutButtonText: {
-    color: NOTIFICATION_RED,
-    fontSize: 17,
-    fontWeight: "700",
-    marginLeft: 12,
-  },
-  footer: {
-    alignItems: "center",
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: BORDER_COLOR,
-    marginHorizontal: 20,
-  },
-  footerText: {
-    color: "#A0AEC0",
-    fontSize: 12,
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  footerSubText: {
-    color: "#718096",
-    fontSize: 11,
-    textAlign: "center",
-  },
+  safeArea: { flex: 1, paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { fontSize: 16, marginTop: 12, fontWeight: "600" },
+  header: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 20, fontWeight: "800", letterSpacing: 0.5 },
+  syncButton: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", borderWidth: 1 },
+  profileCard: { flexDirection: "row", alignItems: "center" },
+  avatarContainer: { position: "relative" },
+  avatar: { width: 70, height: 70, borderRadius: 35, borderWidth: 3 },
+  avatarEditBadge: { position: "absolute", bottom: 0, right: 0, backgroundColor: '#42A5F5', width: 24, height: 24, borderRadius: 12, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: '#00182A' },
+  profileInfo: { flex: 1, marginLeft: 16 },
+  userName: { fontSize: 22, fontWeight: "800", marginBottom: 4 },
+  memberSinceContainer: { flexDirection: "row", alignItems: "center" },
+  memberSinceText: { fontSize: 12, marginLeft: 4 },
+  scrollView: { flex: 1, backgroundColor: "transparent" },
+  scrollContent: { paddingBottom: 40 },
+  searchBar: { borderRadius: 16, marginHorizontal: 20, marginBottom: 20, paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", borderWidth: 1 },
+  searchIcon: { marginRight: 12 },
+  searchInput: { flex: 1, fontSize: 16, padding: 0 },
+  quickSettingsSection: { borderRadius: 16, marginHorizontal: 20, marginBottom: 20, padding: 20, borderWidth: 1 },
+  sectionTitle: { fontSize: 18, fontWeight: "800", marginBottom: 16, letterSpacing: 0.5 },
+  quickSettingsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  quickSettingCard: { width: "48%", borderRadius: 12, padding: 16, marginBottom: 12 },
+  quickSettingHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  quickSettingTitle: { fontSize: 14, fontWeight: "600", marginBottom: 4 },
+  quickSettingDescription: { fontSize: 12 },
+  saveButton: { borderRadius: 12, padding: 16, marginTop: 12 },
+  saveButtonContent: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  saveButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", marginLeft: 8 },
+  settingsSection: { borderRadius: 16, marginHorizontal: 20, marginBottom: 16, borderWidth: 1, padding: 20 },
+  settingsList: { paddingHorizontal: 0 },
+  settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 18, paddingHorizontal: 20, borderBottomWidth: 1 },
+  settingRowLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
+  iconContainer: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginRight: 12 },
+  settingName: { fontSize: 16, fontWeight: "500", flex: 1 },
+  settingRowRight: { flexDirection: "row", alignItems: "center" },
+  badge: { minWidth: 22, height: 22, borderRadius: 11, justifyContent: "center", alignItems: "center", marginRight: 12 },
+  badgeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "bold", paddingHorizontal: 4 },
+  infoSection: { borderRadius: 16, marginHorizontal: 20, marginBottom: 20, padding: 20, borderWidth: 1 },
+  infoRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  infoContent: { flex: 1, marginLeft: 16 },
+  infoLabel: { fontSize: 14, marginBottom: 2 },
+  infoValue: { fontSize: 15, fontWeight: "600" },
+  updateButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: 12, paddingVertical: 14, marginVertical: 16 },
+  updateButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  logoutButton: { borderRadius: 16, marginHorizontal: 20, marginBottom: 20, borderWidth: 1 },
+  logoutButtonContent: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 20 },
+  logoutButtonText: { fontSize: 17, fontWeight: "700", marginLeft: 12 },
+  footer: { alignItems: "center", paddingTop: 20, borderTopWidth: 1, marginHorizontal: 20 },
+  footerText: { fontSize: 12, textAlign: "center", marginBottom: 4 },
+  footerSubText: { fontSize: 11, textAlign: "center" },
 });
 
 export default SettingsScreen;
-

@@ -1,6 +1,5 @@
 
 
-
 import React, { useState, useCallback, useRef, memo, useEffect } from 'react';
 import {
   View,
@@ -26,6 +25,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { getApiUrl } from './apiUtils';
 import { authApi } from '../authService';
 import { useTheme } from "../../../../app/theme/ThemeContext";
+import { useLanguage } from "../../../../context/LanguageContext";
 
 const { width } = Dimensions.get('window');
 
@@ -95,20 +95,14 @@ const INTERNAL_PROMO_POSITION = 5;
 // FONCTIONS UTILITAIRES
 // ============================================
 
-// Génère un nombre aléatoire entre min et max
 const randomInt = (min: number, max: number): number => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-// Génère des badges mockés aléatoires
 const generateMockBadges = () => ({
-  notification: randomInt(0, 9),
-  message: randomInt(0, 5),
-  cart: randomInt(0, 8),
-  profile: randomInt(0, 3),
-  home: randomInt(0, 6),
-  discover: randomInt(0, 4),
-  sell: randomInt(0, 2),
+  notification: randomInt(1, 9),
+  discover: randomInt(1, 5),
+  cart: randomInt(1, 8),
 });
 
 // ============================================
@@ -168,21 +162,25 @@ const formatNumber = (num: number): string => {
 };
 
 // ============================================
-// COMPOSANTS AVEC THÈME DYNAMIQUE
+// COMPOSANTS AVEC THÈME ET LANGUE DYNAMIQUE
 // ============================================
 
 const SponsoredBadge = () => {
   const { isDark } = useTheme();
+  const { language } = useLanguage();
   return (
     <View style={[styles.sponsoredBadge, { backgroundColor: isDark ? 'rgba(66, 165, 245, 0.2)' : '#E3F2FD' }]}>
       <MaterialIcons name="verified" size={14} color="#42A5F5" />
-      <Text style={[styles.sponsoredText, { color: '#1E88E5' }]}>Sponsorisé</Text>
+      <Text style={[styles.sponsoredText, { color: '#1E88E5' }]}>
+        {language === 'fr' ? 'Sponsorisé' : 'Sponsored'}
+      </Text>
     </View>
   );
 };
 
 const RotatingText = ({ product }: { product: Product }) => {
   const { isDark } = useTheme();
+  const { language } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateYAnim = useRef(new Animated.Value(0)).current;
@@ -198,28 +196,30 @@ const RotatingText = ({ product }: { product: Product }) => {
     const stockLimited = (p as any).stock && (p as any).stock < 10;
     const isNew = (Date.now() - new Date(p.created_at || 0).getTime()) < 24 * 60 * 60 * 1000;
 
+    const fr = language === 'fr';
+
     if (hasPromo) {
-      if (discount > 0) msgs.push(`🔥 -${discount}% aujourd'hui`);
-      else msgs.push(`🔥 Promo active`);
-      if (discount > 1) msgs.push(`🔥 Offre Flash -${discount}%`);
+      if (discount > 0) msgs.push(fr ? `🔥 -${discount}% aujourd'hui` : `🔥 -${discount}% today`);
+      else msgs.push(fr ? `🔥 Promo active` : `🔥 Active Promo`);
+      if (discount > 1) msgs.push(fr ? `🔥 Offre Flash -${discount}%` : `🔥 Flash Deal -${discount}%`);
     }
-    if (views > 1) msgs.push(`👁️ ${formatNumber(views)} personnes regardent`);
-    else if (views > 0) msgs.push(`👁️ ${formatNumber(views)} vues`);
-    if (views > 1) msgs.push(`👁️ Très populaire`);
-    if (likes > 1) msgs.push(`❤️ ${formatNumber(likes)} intéressés`);
-    if (likes > 10) msgs.push(`🔥 Très demandé aujourd'hui`);
-    if (orders > 1) msgs.push(`📦 ${formatNumber(orders)} vendus`);
-    if (orders > 1) msgs.push(`📦 Déjà ${formatNumber(orders)}+ commandes`);
-    if (stockLimited) msgs.push(`⚡ Stock limité`);
-    if (stockLimited) msgs.push(`⚡ Derniers stocks disponibles`);
-    if (p.location && p.location.toLowerCase().includes('lubumbashi')) msgs.push(`📍 Disponible près de vous`);
+    if (views > 1) msgs.push(fr ? `👁️ ${formatNumber(views)} personnes regardent` : `👁️ ${formatNumber(views)} people watching`);
+    else if (views > 0) msgs.push(fr ? `👁️ ${formatNumber(views)} vues` : `👁️ ${formatNumber(views)} views`);
+    if (views > 1) msgs.push(fr ? `👁️ Très populaire` : `👁️ Very popular`);
+    if (likes > 1) msgs.push(fr ? `❤️ ${formatNumber(likes)} intéressés` : `❤️ ${formatNumber(likes)} interested`);
+    if (likes > 10) msgs.push(fr ? `🔥 Très demandé aujourd'hui` : `🔥 High demand today`);
+    if (orders > 1) msgs.push(fr ? `📦 ${formatNumber(orders)} vendus` : `📦 ${formatNumber(orders)} sold`);
+    if (orders > 1) msgs.push(fr ? `📦 Déjà ${formatNumber(orders)}+ commandes` : `📦 Already ${formatNumber(orders)}+ orders`);
+    if (stockLimited) msgs.push(fr ? `⚡ Stock limité` : `⚡ Limited stock`);
+    if (stockLimited) msgs.push(fr ? `⚡ Derniers stocks disponibles` : `⚡ Last items available`);
+    if (p.location && p.location.toLowerCase().includes('lubumbashi')) msgs.push(fr ? `📍 Disponible près de vous` : `📍 Available near you`);
     if (p.rating > 4.5) msgs.push(`⭐ ${p.rating.toFixed(1)} / 5`);
-    if (isNew) msgs.push(`🆕 Nouveau produit`);
-    if (views > 1) msgs.push(`🛒 Ajouté récemment au panier`);
-    if (p.time_remaining) msgs.push(`⏳ Offre limitée dans le temps`);
+    if (isNew) msgs.push(fr ? `🆕 Nouveau produit` : `🆕 New product`);
+    if (views > 1) msgs.push(fr ? `🛒 Ajouté récemment au panier` : `🛒 Recently added to cart`);
+    if (p.time_remaining) msgs.push(fr ? `⏳ Offre limitée dans le temps` : `⏳ Limited time offer`);
     if (msgs.length === 0) {
-      msgs.push(`✨ Découvrez ce produit`);
-      msgs.push(`📱 Tendance du moment`);
+      msgs.push(fr ? `✨ Découvrez ce produit` : `✨ Discover this product`);
+      msgs.push(fr ? `📱 Tendance du moment` : `📱 Trending now`);
     }
     return msgs.slice(0, 5);
   };
@@ -282,10 +282,6 @@ const ProductBadges = ({ product }: { product: Product }) => {
   );
 };
 
-// ============================================
-// COMPOSANT BADGE DE NOTIFICATION
-// ============================================
-
 const NotificationBadge = memo(({ count, small = false, color = '#FF3B30' }: { count: number; small?: boolean; color?: string }) => {
   if (count <= 0) return null;
   const displayCount = count > 99 ? '99+' : count > 9 ? '9+' : count.toString();
@@ -304,7 +300,7 @@ const NotificationBadge = memo(({ count, small = false, color = '#FF3B30' }: { c
 });
 
 // ============================================
-// HOOK PERSONNALISÉ useFeed (INCHANGÉ - IDENTIQUE À LA VERSION PRÉCÉDENTE)
+// HOOK PERSONNALISÉ useFeed (INCHANGÉ)
 // ============================================
 
 interface UseFeedReturn {
@@ -854,6 +850,7 @@ const FullWidthProductCard = memo(({
   onSellerPress: (sellerId: string) => void;
 }) => {
   const { isDark } = useTheme();
+  const { language } = useLanguage();
   const [imageLoaded, setImageLoaded] = useState(false);
   const seller = item.seller ?? { id: '0', name: 'Inconnu', avatar: '' };
   const images = item.images?.length ? item.images : ['https://via.placeholder.com/400'];
@@ -864,6 +861,8 @@ const FullWidthProductCard = memo(({
   const comments = item.comments ?? 0;
   const likes = item.likes ?? 0;
   const shares = item.shares ?? 0;
+
+  const fr = language === 'fr';
 
   return (
     <View style={[styles.fullWidthCard, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', borderBottomColor: isDark ? '#2E2E2E' : '#E8E8EC' }]}>
@@ -898,7 +897,9 @@ const FullWidthProductCard = memo(({
           <ProductBadges product={item} />
           {item.is_boosted && (
             <View style={styles.imageSponsoredBadge}>
-              <Text style={styles.imageSponsoredText}>Offre spéciale</Text>
+              <Text style={styles.imageSponsoredText}>
+                {fr ? 'Offre spéciale' : 'Special Offer'}
+              </Text>
             </View>
           )}
         </View>
@@ -946,7 +947,9 @@ const FullWidthProductCard = memo(({
             <FontAwesome key={star} name={star <= Math.floor(rating) ? 'star' : 'star-o'} size={16} color="#FFD700" />
           ))}
         </View>
-        <Text style={[styles.socialCount, { color: isDark ? '#B0B0B0' : '#6C6C80' }]}>{comments} commentaires</Text>
+        <Text style={[styles.socialCount, { color: isDark ? '#B0B0B0' : '#6C6C80' }]}>
+          {comments} {fr ? 'commentaires' : 'comments'}
+        </Text>
       </TouchableOpacity>
 
       <View style={[styles.actionButtons, { borderTopColor: isDark ? '#2E2E2E' : '#E8E8EC' }]}>
@@ -971,7 +974,10 @@ const FullWidthProductCard = memo(({
           onPress={() => handleAddToCart(item)}
         >
           <Text style={styles.cartButtonText}>
-            {item.isPromotion ? '🔥 Ajouter Promo' : 'Ajouter au panier'}
+            {item.isPromotion 
+              ? (fr ? '🔥 Ajouter Promo' : '🔥 Add Promo')
+              : (fr ? 'Ajouter au panier' : 'Add to Cart')
+            }
           </Text>
         </TouchableOpacity>
       </View>
@@ -1066,12 +1072,11 @@ const InternalPromotionCard = memo(({ item, onPress }: { item: InternalPromotion
 const ShopApp = () => {
   const router = useRouter();
   const { isDark } = useTheme();
+  const { language } = useLanguage();
   const [activeTab, setActiveTab] = useState(0);
   
-  // 🎲 BADGES MOCKÉS DYNAMIQUES
   const [badgeCounts, setBadgeCounts] = useState(generateMockBadges());
 
-  // 🔄 Changer les badges à chaque rafraîchissement
   const updateBadges = useCallback(() => {
     setBadgeCounts(generateMockBadges());
   }, []);
@@ -1108,7 +1113,6 @@ const ShopApp = () => {
     handleCategoryChange,
   } = useFeed(0, categories.map(c => c.name), isDark);
 
-  // 🔄 Rafraîchir avec mise à jour des badges
   const onRefreshWithBadges = useCallback(async () => {
     updateBadges();
     await handleRefresh();
@@ -1163,12 +1167,16 @@ const ShopApp = () => {
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyContainer}>
       <FontAwesome name="shopping-bag" size={60} color={isDark ? '#B0B0B0' : '#6C6C80'} />
-      <Text style={[styles.emptyText, { color: isDark ? '#B0B0B0' : '#6C6C80' }]}>Aucun produit disponible</Text>
+      <Text style={[styles.emptyText, { color: isDark ? '#B0B0B0' : '#6C6C80' }]}>
+        {language === 'fr' ? 'Aucun produit disponible' : 'No products available'}
+      </Text>
       <TouchableOpacity style={styles.retryButton} onPress={onRefreshWithBadges}>
-        <Text style={styles.retryButtonText}>Réessayer</Text>
+        <Text style={styles.retryButtonText}>
+          {language === 'fr' ? 'Réessayer' : 'Retry'}
+        </Text>
       </TouchableOpacity>
     </View>
-  ), [onRefreshWithBadges, isDark]);
+  ), [onRefreshWithBadges, isDark, language]);
 
   const keyExtractor = useCallback((item: FeedItem, index: number) => {
     if (item.type === 'product') return `product-${item.data.id}`;
@@ -1183,7 +1191,7 @@ const ShopApp = () => {
 
   const handleTabPress = useCallback((screen: string, index: number) => {
     setActiveTab(index);
-    updateBadges(); // Change les badges au changement d'onglet
+    updateBadges();
     if (screen === 'Sell') router.push('/(tabs)/Auth/Produits/Produit');
     else if (screen === 'Home') router.push('/(tabs)/Auth/Produits/Fil');
     else if (screen === 'Discover') router.push('/(tabs)/Auth/Produits/Decouvrir');
@@ -1191,11 +1199,15 @@ const ShopApp = () => {
     else router.push('/(tabs)/Auth/Produits/profil-debug');
   }, [updateBadges]);
 
+  const fr = language === 'fr';
+
   if (loading && feedItems.length === 0) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: isDark ? '#0D0D0D' : '#F5F6FA' }]}>
         <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={[styles.loadingText, { color: isDark ? '#B0B0B0' : '#6C6C80' }]}>Chargement du fil...</Text>
+        <Text style={[styles.loadingText, { color: isDark ? '#B0B0B0' : '#6C6C80' }]}>
+          {fr ? 'Chargement du fil...' : 'Loading feed...'}
+        </Text>
       </SafeAreaView>
     );
   }
@@ -1204,7 +1216,6 @@ const ShopApp = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0D0D0D' : '#F5F6FA' }]}>
       <StatusBar backgroundColor={isDark ? '#0D0D0D' : '#FFFFFF'} barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      {/* HEADER AVEC BADGES MOCKÉS */}
       <View style={[
         styles.header, 
         { 
@@ -1225,33 +1236,23 @@ const ShopApp = () => {
       ]}>
         <Text style={[styles.logo, { color: '#4CAF50' }]}>SHOPNET</Text>
         <View style={styles.headerIcons}>
-          {/* Immobilier - Badge vert */}
           <TouchableOpacity onPress={() => router.push('/(tabs)/Auth/Produits/Immobilier')}>
-            <View style={styles.iconContainer}>
-              <FontAwesome name="home" size={22} color="#28a745" />
-              <NotificationBadge count={badgeCounts.home} small color="#28a745" />
-            </View>
+            <FontAwesome name="home" size={22} color="#28a745" />
           </TouchableOpacity>
-          {/* Recherche - Badge bleu */}
           <TouchableOpacity onPress={() => router.push('/(tabs)/Auth/Produits/Recherche')}>
             <View style={styles.iconContainer}>
-              <FontAwesome name="search" size={20} color={isDark ? '#B0B0B0' : '#292525'} />
+              <FontAwesome name="search" size={20} color={isDark ? '#B0B0B0' : '#6C6C80'} />
               <NotificationBadge count={badgeCounts.discover} small color="#42A5F5" />
             </View>
           </TouchableOpacity>
-          {/* Notifications - Badge rouge */}
           <TouchableOpacity onPress={() => router.push('/(tabs)/Auth/Notification/NotificationsUser')}>
             <View style={styles.iconContainer}>
-              <FontAwesome name="bell" size={20} color={isDark ? '#B0B0B0' : '#292525'} />
+              <FontAwesome name="bell" size={20} color={isDark ? '#B0B0B0' : '#6C6C80'} />
               <NotificationBadge count={badgeCounts.notification} color="#FF3B30" />
             </View>
           </TouchableOpacity>
-          {/* Profil - Badge orange */}
           <TouchableOpacity onPress={() => router.push('/(tabs)/Auth/Produits/profil-debug')}>
-            <View style={styles.iconContainer}>
-              <FontAwesome name="user-circle" size={20} color={isDark ? '#B0B0B0' : '#292525'} />
-              <NotificationBadge count={badgeCounts.profile} small color="#FF9800" />
-            </View>
+            <FontAwesome name="user-circle" size={20} color={isDark ? '#B0B0B0' : '#6C6C80'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1289,14 +1290,13 @@ const ShopApp = () => {
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       />
 
-      {/* MENU DU BAS AVEC BADGES MOCKÉS */}
       <View style={[styles.enhancedBottomNav, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', borderTopColor: isDark ? '#2E2E2E' : '#E8E8EC' }]}>
         {[
-          { screen: 'Home', icon: 'home', label: 'Tendances', badgeKey: 'home' as const, badgeColor: '#4CAF50' },
-          { screen: 'Discover', icon: 'compass', label: 'Découvrir', badgeKey: 'discover' as const, badgeColor: '#42A5F5' },
-          { screen: 'Sell', icon: 'plus', label: 'Vendre', badgeKey: 'sell' as const, badgeColor: '#FF9800' },
-          { screen: 'Messages', icon: 'shopping-cart', label: 'Panier', badgeKey: 'cart' as const, badgeColor: '#FF3B30' },
-          { screen: 'Profile', icon: 'user', label: 'Profil', badgeKey: 'profile' as const, badgeColor: '#9C27B0' },
+          { screen: 'Home', icon: 'home', label: fr ? 'Tendances' : 'Trending', badgeKey: null as string | null, badgeColor: '#4CAF50' },
+          { screen: 'Discover', icon: 'compass', label: fr ? 'Découvrir' : 'Discover', badgeKey: 'discover' as string | null, badgeColor: '#42A5F5' },
+          { screen: 'Sell', icon: 'plus', label: fr ? 'Vendre' : 'Sell', badgeKey: null as string | null, badgeColor: '#FF9800' },
+          { screen: 'Messages', icon: 'shopping-cart', label: fr ? 'Panier' : 'Cart', badgeKey: 'cart' as string | null, badgeColor: '#FF3B30' },
+          { screen: 'Profile', icon: 'user', label: fr ? 'Profil' : 'Profile', badgeKey: null as string | null, badgeColor: '#9C27B0' },
         ].map((item, index) => (
           <TouchableOpacity key={item.screen} style={styles.navButton} onPress={() => handleTabPress(item.screen, index)}>
             <View style={styles.navIconContainer}>
@@ -1305,7 +1305,9 @@ const ShopApp = () => {
                 size={24}
                 color={activeTab === index ? '#4CAF50' : isDark ? '#B0B0B0' : '#6C6C80'}
               />
-              <NotificationBadge count={badgeCounts[item.badgeKey]} small color={item.badgeColor} />
+              {item.badgeKey && (
+                <NotificationBadge count={badgeCounts[item.badgeKey as keyof typeof badgeCounts]} small color={item.badgeColor} />
+              )}
             </View>
             <Text style={[styles.navLabel, { color: isDark ? '#B0B0B0' : '#6C6C80' }, activeTab === index && styles.activeNavLabel]}>
               {item.label}
