@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
@@ -18,14 +17,49 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../../../app/theme/ThemeContext";
 
 const { width } = Dimensions.get("window");
 
 // ============================================
-// CONFIGURATION – URL FIXE
+// CONFIGURATION
 // ============================================
 const API_URL = "https://shopnet-backend.onrender.com/api/products/ai/flash-deals";
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// ============================================
+// HOOK COULEURS DYNAMIQUES
+// ============================================
+const useDynamicColors = () => {
+  const { isDark } = useTheme();
+
+  return {
+    background: isDark ? '#0D0D0D' : '#F5F5F5',
+    surface: isDark ? '#1A1A1A' : '#FFFFFF',
+    card: isDark ? '#1A1A1A' : '#FFFFFF',
+    border: isDark ? '#2E2E2E' : '#EEEEEE',
+    text: isDark ? '#F5F5F5' : '#1A1A1A',
+    textSecondary: isDark ? '#B0B0B0' : '#666666',
+    textTertiary: isDark ? '#888888' : '#999999',
+    accent: '#FF6B00',
+    discount: '#FF4444',
+    bestPrice: '#4CAF50',
+    imageBg: isDark ? '#222222' : '#F9F9F9',
+    placeholderBg: isDark ? '#222222' : '#F9F9F9',
+    sellerBg: isDark ? '#2A2A2A' : '#EEEEEE',
+    distanceBg: isDark ? '#2A2A2A' : '#EEEEEE',
+    headerBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    headerBorder: isDark ? '#2E2E2E' : '#EEEEEE',
+    headerIcon: isDark ? '#F5F5F5' : '#1A1A1A',
+    statusBar: isDark ? '#0D0D0D' : '#FFFFFF',
+    barStyle: isDark ? 'light-content' as const : 'dark-content' as const,
+    loadingBg: isDark ? '#0D0D0D' : '#FFFFFF',
+    emptyIcon: isDark ? '#666666' : '#999999',
+    retryBg: '#FF6B00',
+    retryText: '#FFFFFF',
+    white: '#FFFFFF',
+  };
+};
 
 // ============================================
 // TYPES
@@ -52,7 +86,7 @@ type Row = {
 };
 
 // ============================================
-// FONCTIONS UTILITAIRES (CORRIGÉES)
+// FONCTIONS UTILITAIRES
 // ============================================
 const formatPrice = (price: any): string => {
   const num = Number(price);
@@ -99,26 +133,25 @@ const ProductCard = ({
   item,
   onPress,
   showCategoryBadge = true,
+  colors,
 }: {
   item: Product;
   onPress: () => void;
   showCategoryBadge?: boolean;
+  colors: any;
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const hasDiscount = item.discount > 0;
-  const isBigDiscount = item.discount >= 30;
   const isCheapest = item.score > 100;
-
-  // ✅ Conversion sécurisée du prix
   const price = Number(item.price) || 0;
   const oldPrice = item.old_price ? Number(item.old_price) : null;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.imageContainer}>
+    <TouchableOpacity style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.imageContainer, { backgroundColor: colors.imageBg }]}>
         {!imageLoaded && (
-          <View style={styles.imagePlaceholder}>
-            <ActivityIndicator size="small" color="#FF6B00" />
+          <View style={[styles.imagePlaceholder, { backgroundColor: colors.placeholderBg }]}>
+            <ActivityIndicator size="small" color={colors.accent} />
           </View>
         )}
         <Image
@@ -128,46 +161,50 @@ const ProductCard = ({
           onError={() => setImageLoaded(true)}
         />
         {showCategoryBadge && (
-          <View style={styles.categoryBadge}>
+          <View style={[styles.categoryBadge, { backgroundColor: colors.accent }]}>
             <Text style={styles.categoryBadgeText}>⚡ Flash</Text>
           </View>
         )}
         {hasDiscount && (
-          <View style={styles.discountBadge}>
+          <View style={[styles.discountBadge, { backgroundColor: colors.discount }]}>
             <Text style={styles.discountText}>-{item.discount}%</Text>
           </View>
         )}
         {isCheapest && (
-          <View style={styles.bestPriceBadge}>
-            <Ionicons name="pricetag-outline" size={10} color="#fff" />
+          <View style={[styles.bestPriceBadge, { backgroundColor: colors.bestPrice }]}>
+            <Ionicons name="pricetag-outline" size={10} color={colors.white} />
             <Text style={styles.bestPriceText}>Prix mini</Text>
           </View>
         )}
       </View>
       <View style={styles.cardContent}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {item.title}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.currentPrice}>${formatPrice(price)}</Text>
+          <Text style={[styles.currentPrice, { color: colors.accent }]}>${formatPrice(price)}</Text>
           {hasDiscount && oldPrice && (
-            <Text style={styles.oldPrice}>${formatPrice(oldPrice)}</Text>
+            <Text style={[styles.oldPrice, { color: colors.textTertiary }]}>
+              ${formatPrice(oldPrice)}
+            </Text>
           )}
         </View>
         <View style={styles.footerRow}>
           <View style={styles.sellerInfo}>
             <Image
               source={{ uri: item.seller.avatar || "https://via.placeholder.com/16" }}
-              style={styles.sellerAvatar}
+              style={[styles.sellerAvatar, { backgroundColor: colors.sellerBg }]}
             />
-            <Text style={styles.sellerName} numberOfLines={1}>
+            <Text style={[styles.sellerName, { color: colors.textSecondary }]} numberOfLines={1}>
               {item.seller.name || "Vendeur"}
             </Text>
           </View>
           {item.distance && (
-            <View style={styles.distanceBadge}>
-              <Ionicons name="location-outline" size={12} color="#666" />
-              <Text style={styles.distanceText}>{formatDistance(item.distance)}</Text>
+            <View style={[styles.distanceBadge, { backgroundColor: colors.distanceBg }]}>
+              <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+              <Text style={[styles.distanceText, { color: colors.textSecondary }]}>
+                {formatDistance(item.distance)}
+              </Text>
             </View>
           )}
         </View>
@@ -181,6 +218,9 @@ const ProductCard = ({
 // ============================================
 export default function FlashDealsScreen() {
   const router = useRouter();
+  const COLORS = useDynamicColors();
+  const { isDark } = useTheme();
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,7 +250,6 @@ export default function FlashDealsScreen() {
       const json = await response.json();
 
       if (json.success && json.products) {
-        // Normaliser les prix
         const normalized = json.products.map((p: any) => ({
           ...p,
           price: Number(p.price) || 0,
@@ -312,6 +351,7 @@ export default function FlashDealsScreen() {
               item={product}
               onPress={() => handleProductPress(product)}
               showCategoryBadge={showBadge}
+              colors={COLORS}
             />
           </View>
         ))}
@@ -323,7 +363,7 @@ export default function FlashDealsScreen() {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#FF6B00" />
+        <ActivityIndicator size="small" color={COLORS.accent} />
       </View>
     );
   };
@@ -332,10 +372,12 @@ export default function FlashDealsScreen() {
     if (loading) return null;
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="alert-circle-outline" size={60} color="#999" />
-        <Text style={styles.emptyText}>{error || "Aucune offre flash trouvée"}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-          <Text style={styles.retryButtonText}>Réessayer</Text>
+        <Ionicons name="alert-circle-outline" size={60} color={COLORS.emptyIcon} />
+        <Text style={[styles.emptyText, { color: COLORS.emptyIcon }]}>
+          {error || "Aucune offre flash trouvée"}
+        </Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: COLORS.retryBg }]} onPress={onRefresh}>
+          <Text style={[styles.retryButtonText, { color: COLORS.retryText }]}>Réessayer</Text>
         </TouchableOpacity>
       </View>
     );
@@ -343,23 +385,23 @@ export default function FlashDealsScreen() {
 
   if (loading && rows.length === 0) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
-        <Text style={styles.loadingText}>Chargement des offres flash...</Text>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.loadingBg }]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
+        <Text style={[styles.loadingText, { color: COLORS.textSecondary }]}>Chargement des offres flash...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
+      <StatusBar backgroundColor={COLORS.statusBar} barStyle={COLORS.barStyle} />
+      <View style={[styles.header, { backgroundColor: COLORS.headerBg, borderBottomColor: COLORS.headerBorder }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.headerIcon} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>⚡ Flash Deals</Text>
+        <Text style={[styles.headerTitle, { color: COLORS.text }]}>⚡ Flash Deals</Text>
         <TouchableOpacity onPress={onRefresh} style={styles.headerButton}>
-          <Ionicons name="refresh-outline" size={22} color="#FF6B00" />
+          <Ionicons name="refresh-outline" size={22} color={COLORS.accent} />
         </TouchableOpacity>
       </View>
 
@@ -372,8 +414,8 @@ export default function FlashDealsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#FF6B00"]}
-            tintColor="#FF6B00"
+            colors={[COLORS.accent]}
+            tintColor={COLORS.accent}
           />
         }
         onEndReached={loadMore}
@@ -390,32 +432,28 @@ export default function FlashDealsScreen() {
 // STYLES
 // ============================================
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#666" },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 12, fontSize: 16 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   headerButton: { padding: 6 },
-  headerTitle: { fontSize: 18, fontWeight: "600", color: "#1A1A1A" },
+  headerTitle: { fontSize: 18, fontWeight: "600" },
   listContent: { paddingHorizontal: 8, paddingBottom: 20 },
   row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   col: { flex: 1, marginHorizontal: 4 },
   card: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#eee",
     overflow: "hidden",
   },
-  imageContainer: { position: "relative", aspectRatio: 1, backgroundColor: "#f9f9f9" },
+  imageContainer: { position: "relative", aspectRatio: 1 },
   productImage: { width: "100%", height: "100%" },
   imagePlaceholder: {
     position: "absolute",
@@ -425,55 +463,51 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
   },
   categoryBadge: {
     position: "absolute",
     top: 6,
     left: 6,
-    backgroundColor: "#FF6B00",
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 3,
   },
-  categoryBadgeText: { color: "#fff", fontSize: 8, fontWeight: "600" },
+  categoryBadgeText: { color: "#FFFFFF", fontSize: 8, fontWeight: "600" },
   discountBadge: {
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "#FF4444",
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
   },
-  discountText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  discountText: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
   bestPriceBadge: {
     position: "absolute",
     bottom: 6,
     left: 6,
-    backgroundColor: "#4CAF50",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  bestPriceText: { color: "#fff", fontSize: 8, fontWeight: "600", marginLeft: 2 },
+  bestPriceText: { color: "#FFFFFF", fontSize: 8, fontWeight: "600", marginLeft: 2 },
   cardContent: { padding: 8 },
-  title: { fontSize: 13, fontWeight: "500", color: "#1A1A1A", marginBottom: 4, lineHeight: 18 },
+  title: { fontSize: 13, fontWeight: "500", marginBottom: 4, lineHeight: 18 },
   priceRow: { flexDirection: "row", alignItems: "baseline", marginBottom: 6 },
-  currentPrice: { fontSize: 14, fontWeight: "700", color: "#FF6B00", marginRight: 6 },
-  oldPrice: { fontSize: 11, color: "#999", textDecorationLine: "line-through" },
+  currentPrice: { fontSize: 14, fontWeight: "700", marginRight: 6 },
+  oldPrice: { fontSize: 11, textDecorationLine: "line-through" },
   footerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sellerInfo: { flexDirection: "row", alignItems: "center", flex: 1 },
-  sellerAvatar: { width: 16, height: 16, borderRadius: 8, marginRight: 4, backgroundColor: "#eee" },
-  sellerName: { fontSize: 10, color: "#666", flex: 1 },
-  distanceBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#eee", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
-  distanceText: { fontSize: 9, color: "#666", marginLeft: 2 },
+  sellerAvatar: { width: 16, height: 16, borderRadius: 8, marginRight: 4 },
+  sellerName: { fontSize: 10, flex: 1 },
+  distanceBadge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
+  distanceText: { fontSize: 9, marginLeft: 2 },
   footerLoader: { paddingVertical: 20, alignItems: "center" },
   emptyContainer: { alignItems: "center", justifyContent: "center", paddingTop: 60, paddingHorizontal: 20 },
-  emptyText: { fontSize: 16, color: "#999", marginTop: 16, marginBottom: 20, textAlign: "center" },
-  retryButton: { backgroundColor: "#FF6B00", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
-  retryButtonText: { color: "#fff", fontWeight: "600" },
+  emptyText: { fontSize: 16, marginTop: 16, marginBottom: 20, textAlign: "center" },
+  retryButton: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+  retryButtonText: { fontWeight: "600" },
 });
 

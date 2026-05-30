@@ -18,14 +18,46 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../../../app/theme/ThemeContext";
 
 const { width } = Dimensions.get("window");
 
 // ============================================
-// CONFIGURATION – URL CORRIGÉE
+// CONFIGURATION
 // ============================================
 const API_URL = "https://shopnet-backend.onrender.com/api/products/mode/ai";
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// ============================================
+// HOOK COULEURS DYNAMIQUES
+// ============================================
+const useDynamicColors = () => {
+  const { isDark } = useTheme();
+
+  return {
+    background: isDark ? '#0D0D0D' : '#F5F5F5',
+    surface: isDark ? '#1A1A1A' : '#FFFFFF',
+    card: isDark ? '#1A1A1A' : '#FFFFFF',
+    border: isDark ? '#2E2E2E' : '#EEEEEE',
+    text: isDark ? '#F5F5F5' : '#1A1A1A',
+    textSecondary: isDark ? '#B0B0B0' : '#666666',
+    textTertiary: isDark ? '#888888' : '#999999',
+    accent: '#FF6B00',
+    discount: '#FF4444',
+    imageBg: isDark ? '#222222' : '#F9F9F9',
+    placeholderBg: isDark ? '#222222' : '#F9F9F9',
+    sellerBg: isDark ? '#2A2A2A' : '#EEEEEE',
+    headerBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    headerBorder: isDark ? '#2E2E2E' : '#EEEEEE',
+    headerIcon: isDark ? '#F5F5F5' : '#1A1A1A',
+    statusBar: isDark ? '#0D0D0D' : '#FFFFFF',
+    barStyle: isDark ? 'light-content' as const : 'dark-content' as const,
+    loadingBg: isDark ? '#0D0D0D' : '#FFFFFF',
+    emptyIcon: isDark ? '#666666' : '#999999',
+    retryBg: '#FF6B00',
+    retryText: '#FFFFFF',
+  };
+};
 
 // ============================================
 // TYPES
@@ -88,21 +120,23 @@ const ProductCard = ({
   item,
   onPress,
   showCategoryBadge = true,
+  colors,
 }: {
   item: Product;
   onPress: () => void;
   showCategoryBadge?: boolean;
+  colors: any;
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const discount = item.score > 80 ? Math.floor(Math.random() * 30) + 10 : 0;
   const originalPrice = discount ? item.price / (1 - discount / 100) : null;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.imageContainer}>
+    <TouchableOpacity style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.imageContainer, { backgroundColor: colors.imageBg }]}>
         {!imageLoaded && (
-          <View style={styles.imagePlaceholder}>
-            <ActivityIndicator size="small" color="#FF6B00" />
+          <View style={[styles.imagePlaceholder, { backgroundColor: colors.placeholderBg }]}>
+            <ActivityIndicator size="small" color={colors.accent} />
           </View>
         )}
         <Image
@@ -112,32 +146,34 @@ const ProductCard = ({
           onError={() => setImageLoaded(true)}
         />
         {showCategoryBadge && (
-          <View style={styles.categoryBadge}>
+          <View style={[styles.categoryBadge, { backgroundColor: colors.accent }]}>
             <Text style={styles.categoryBadgeText}>👗 Mode</Text>
           </View>
         )}
         {discount > 0 && (
-          <View style={styles.discountBadge}>
+          <View style={[styles.discountBadge, { backgroundColor: colors.discount }]}>
             <Text style={styles.discountText}>-{discount}%</Text>
           </View>
         )}
       </View>
       <View style={styles.cardContent}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {item.title}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.currentPrice}>${formatPrice(item.price)}</Text>
+          <Text style={[styles.currentPrice, { color: colors.accent }]}>${formatPrice(item.price)}</Text>
           {originalPrice && (
-            <Text style={styles.originalPrice}>${formatPrice(originalPrice)}</Text>
+            <Text style={[styles.originalPrice, { color: colors.textTertiary }]}>
+              ${formatPrice(originalPrice)}
+            </Text>
           )}
         </View>
         <View style={styles.sellerRow}>
           <Image
             source={{ uri: item.seller.avatar || "https://via.placeholder.com/16" }}
-            style={styles.sellerAvatar}
+            style={[styles.sellerAvatar, { backgroundColor: colors.sellerBg }]}
           />
-          <Text style={styles.sellerName} numberOfLines={1}>
+          <Text style={[styles.sellerName, { color: colors.textSecondary }]} numberOfLines={1}>
             {item.seller.name || "Vendeur"}
           </Text>
         </View>
@@ -151,6 +187,9 @@ const ProductCard = ({
 // ============================================
 export default function ModeAIScreen() {
   const router = useRouter();
+  const COLORS = useDynamicColors();
+  const { isDark } = useTheme();
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -276,6 +315,7 @@ export default function ModeAIScreen() {
               item={product}
               onPress={() => handleProductPress(product)}
               showCategoryBadge={showBadge}
+              colors={COLORS}
             />
           </View>
         ))}
@@ -287,7 +327,7 @@ export default function ModeAIScreen() {
     if (!loadingMore) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#FF6B00" />
+        <ActivityIndicator size="small" color={COLORS.accent} />
       </View>
     );
   };
@@ -296,10 +336,12 @@ export default function ModeAIScreen() {
     if (loading) return null;
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="alert-circle-outline" size={60} color="#999" />
-        <Text style={styles.emptyText}>{error || "Aucun produit mode trouvé"}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-          <Text style={styles.retryButtonText}>Réessayer</Text>
+        <Ionicons name="alert-circle-outline" size={60} color={COLORS.emptyIcon} />
+        <Text style={[styles.emptyText, { color: COLORS.emptyIcon }]}>
+          {error || "Aucun produit mode trouvé"}
+        </Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: COLORS.retryBg }]} onPress={onRefresh}>
+          <Text style={[styles.retryButtonText, { color: COLORS.retryText }]}>Réessayer</Text>
         </TouchableOpacity>
       </View>
     );
@@ -307,23 +349,23 @@ export default function ModeAIScreen() {
 
   if (loading && rows.length === 0) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
-        <Text style={styles.loadingText}>Chargement des tendances mode...</Text>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.loadingBg }]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
+        <Text style={[styles.loadingText, { color: COLORS.textSecondary }]}>Chargement des tendances mode...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
+      <StatusBar backgroundColor={COLORS.statusBar} barStyle={COLORS.barStyle} />
+      <View style={[styles.header, { backgroundColor: COLORS.headerBg, borderBottomColor: COLORS.headerBorder }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.headerIcon} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>👗 Mode IA</Text>
+        <Text style={[styles.headerTitle, { color: COLORS.text }]}>👗 Mode IA</Text>
         <TouchableOpacity onPress={onRefresh} style={styles.headerButton}>
-          <Ionicons name="refresh-outline" size={22} color="#FF6B00" />
+          <Ionicons name="refresh-outline" size={22} color={COLORS.accent} />
         </TouchableOpacity>
       </View>
 
@@ -336,8 +378,8 @@ export default function ModeAIScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#FF6B00"]}
-            tintColor="#FF6B00"
+            colors={[COLORS.accent]}
+            tintColor={COLORS.accent}
           />
         }
         onEndReached={loadMore}
@@ -351,23 +393,20 @@ export default function ModeAIScreen() {
 }
 
 // ============================================
-// STYLES (identiques)
+// STYLES
 // ============================================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#666",
   },
   header: {
     flexDirection: "row",
@@ -375,9 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   headerButton: {
     padding: 6,
@@ -385,7 +422,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1A1A1A",
   },
   listContent: {
     paddingHorizontal: 8,
@@ -401,16 +437,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   card: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#eee",
     overflow: "hidden",
   },
   imageContainer: {
     position: "relative",
     aspectRatio: 1,
-    backgroundColor: "#f9f9f9",
   },
   productImage: {
     width: "100%",
@@ -424,19 +457,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
   },
   categoryBadge: {
     position: "absolute",
     top: 6,
     left: 6,
-    backgroundColor: "#FF6B00",
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 3,
   },
   categoryBadgeText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 8,
     fontWeight: "600",
   },
@@ -444,13 +475,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "#FF4444",
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
   },
   discountText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "800",
   },
@@ -460,7 +490,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#1A1A1A",
     marginBottom: 4,
     lineHeight: 18,
   },
@@ -472,12 +501,10 @@ const styles = StyleSheet.create({
   currentPrice: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#FF6B00",
     marginRight: 6,
   },
   originalPrice: {
     fontSize: 11,
-    color: "#999",
     textDecorationLine: "line-through",
   },
   sellerRow: {
@@ -489,11 +516,9 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     marginRight: 4,
-    backgroundColor: "#eee",
   },
   sellerName: {
     fontSize: 10,
-    color: "#666",
     flex: 1,
   },
   footerLoader: {
@@ -508,19 +533,16 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#999",
     marginTop: 16,
     marginBottom: 20,
     textAlign: "center",
   },
   retryButton: {
-    backgroundColor: "#FF6B00",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: "#fff",
     fontWeight: "600",
   },
 });
