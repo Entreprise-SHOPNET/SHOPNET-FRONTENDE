@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -19,6 +16,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { authApi, getValidToken } from "../authService";
+import { useLanguage } from "../../../../context/LanguageContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -47,6 +45,8 @@ const categories = [
 const EditProduct = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { language } = useLanguage();
+  const fr = language === 'fr';
 
   const [formData, setFormData] = useState({
     title: "",
@@ -74,16 +74,8 @@ const EditProduct = () => {
 
   const startEntranceAnimation = () => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start();
   };
 
@@ -92,7 +84,7 @@ const EditProduct = () => {
       setLoading(true);
       const token = await getValidToken();
       if (!token) {
-        showToast("🔐 Utilisateur non connecté", "error");
+        showToast(fr ? "🔐 Utilisateur non connecté" : "🔐 User not connected", "error");
         router.back();
         return;
       }
@@ -109,14 +101,13 @@ const EditProduct = () => {
           category: product.category || "",
         });
         
-        // Démarrer l'animation après le chargement des données
         setTimeout(() => {
           startEntranceAnimation();
         }, 100);
       }
     } catch (error: any) {
       console.error("Erreur chargement produit:", error);
-      showToast("❌ Erreur lors du chargement du produit", "error");
+      showToast(fr ? "❌ Erreur lors du chargement du produit" : "❌ Error loading product", "error");
     } finally {
       setLoading(false);
     }
@@ -128,17 +119,9 @@ const EditProduct = () => {
     setToastVisible(true);
 
     Animated.sequence([
-      Animated.timing(toastAnim, {
-        toValue: 50,
-        duration: 400,
-        useNativeDriver: true,
-      }),
+      Animated.timing(toastAnim, { toValue: 50, duration: 400, useNativeDriver: true }),
       Animated.delay(2000),
-      Animated.timing(toastAnim, {
-        toValue: -100,
-        duration: 400,
-        useNativeDriver: true,
-      }),
+      Animated.timing(toastAnim, { toValue: -100, duration: 400, useNativeDriver: true }),
     ]).start(() => {
       setToastVisible(false);
     });
@@ -147,11 +130,11 @@ const EditProduct = () => {
   const handleSave = async () => {
     // Validation
     if (!formData.title.trim()) {
-      showToast("📝 Le titre est requis", "error");
+      showToast(fr ? "📝 Le titre est requis" : "📝 Title is required", "error");
       return;
     }
     if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
-      showToast("💰 Prix invalide", "error");
+      showToast(fr ? "💰 Prix invalide" : "💰 Invalid price", "error");
       return;
     }
 
@@ -159,7 +142,7 @@ const EditProduct = () => {
       setSaving(true);
       const token = await getValidToken();
       if (!token) {
-        showToast("🔐 Utilisateur non connecté", "error");
+        showToast(fr ? "🔐 Utilisateur non connecté" : "🔐 User not connected", "error");
         return;
       }
 
@@ -170,7 +153,7 @@ const EditProduct = () => {
         category: formData.category,
       });
 
-      showToast("✅ Produit modifié avec succès !", "success");
+      showToast(fr ? "✅ Produit modifié avec succès !" : "✅ Product updated successfully!", "success");
       
       setTimeout(() => {
         router.back();
@@ -178,7 +161,7 @@ const EditProduct = () => {
     } catch (error: any) {
       console.error("Erreur modification produit:", error);
       showToast(
-        error.response?.data?.message || "❌ Impossible de modifier le produit",
+        error.response?.data?.message || (fr ? "❌ Impossible de modifier le produit" : "❌ Unable to update product"),
         "error"
       );
     } finally {
@@ -187,19 +170,16 @@ const EditProduct = () => {
   };
 
   const updateField = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleCancel = () => {
     Alert.alert(
-      "Annuler les modifications",
-      "Voulez-vous vraiment annuler ? Toutes les modifications seront perdues.",
+      fr ? "Annuler les modifications" : "Cancel changes",
+      fr ? "Voulez-vous vraiment annuler ? Toutes les modifications seront perdues." : "Are you sure you want to cancel? All changes will be lost.",
       [
-        { text: "Non", style: "cancel" },
-        { text: "Oui", onPress: () => router.back() }
+        { text: fr ? "Non" : "No", style: "cancel" },
+        { text: fr ? "Oui" : "Yes", onPress: () => router.back() }
       ]
     );
   };
@@ -210,7 +190,9 @@ const EditProduct = () => {
         <StatusBar backgroundColor={SHOPNET_BLUE} barStyle="light-content" />
         <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color={PRO_BLUE} />
-          <Text style={styles.loadingText}>Chargement du produit...</Text>
+          <Text style={styles.loadingText}>
+            {fr ? "Chargement du produit..." : "Loading product..."}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -222,24 +204,17 @@ const EditProduct = () => {
 
       {/* Header Premium */}
       <Animated.View 
-        style={[
-          styles.header,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }
-        ]}
+        style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleCancel}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
           <Ionicons name="arrow-back" size={24} color={PRO_BLUE} />
-          <Text style={styles.backText}>Retour</Text>
+          <Text style={styles.backText}>{fr ? "Retour" : "Back"}</Text>
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Modifier Produit</Text>
+          <Text style={styles.headerTitle}>
+            {fr ? "Modifier Produit" : "Edit Product"}
+          </Text>
           <Text style={styles.headerSubtitle}>ID: {id}</Text>
         </View>
 
@@ -248,31 +223,21 @@ const EditProduct = () => {
         </View>
       </Animated.View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Section Informations Produit */}
-        <Animated.View
-          style={[
-            styles.section,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="information-circle" size={24} color={PRO_BLUE} />
-            <Text style={styles.sectionTitle}>Informations Produit</Text>
+            <Text style={styles.sectionTitle}>
+              {fr ? "Informations Produit" : "Product Information"}
+            </Text>
           </View>
 
           <View style={styles.formContainer}>
             {/* Titre */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Titre du produit <Text style={styles.required}>*</Text>
+                {fr ? "Titre du produit" : "Product Title"} <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.inputContainer}>
                 <Ionicons name="text" size={20} color={PRO_BLUE} style={styles.inputIcon} />
@@ -280,31 +245,24 @@ const EditProduct = () => {
                   style={styles.input}
                   value={formData.title}
                   onChangeText={(value) => updateField("title", value)}
-                  placeholder="Nom de votre produit"
+                  placeholder={fr ? "Nom de votre produit" : "Your product name"}
                   placeholderTextColor={TEXT_SECONDARY}
                   maxLength={100}
                 />
-                <Text style={styles.charCount}>
-                  {formData.title.length}/100
-                </Text>
+                <Text style={styles.charCount}>{formData.title.length}/100</Text>
               </View>
             </View>
 
             {/* Description */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>{fr ? "Description" : "Description"}</Text>
               <View style={styles.textAreaContainer}>
-                <Ionicons 
-                  name="document-text" 
-                  size={20} 
-                  color={PRO_BLUE} 
-                  style={styles.textAreaIcon} 
-                />
+                <Ionicons name="document-text" size={20} color={PRO_BLUE} style={styles.textAreaIcon} />
                 <TextInput
                   style={styles.textArea}
                   value={formData.description}
                   onChangeText={(value) => updateField("description", value)}
-                  placeholder="Décrivez votre produit en détail..."
+                  placeholder={fr ? "Décrivez votre produit en détail..." : "Describe your product in detail..."}
                   placeholderTextColor={TEXT_SECONDARY}
                   multiline
                   numberOfLines={4}
@@ -312,9 +270,7 @@ const EditProduct = () => {
                   maxLength={500}
                 />
                 <View style={styles.charCountContainer}>
-                  <Text style={styles.charCount}>
-                    {formData.description.length}/500
-                  </Text>
+                  <Text style={styles.charCount}>{formData.description.length}/500</Text>
                 </View>
               </View>
             </View>
@@ -322,7 +278,7 @@ const EditProduct = () => {
             {/* Prix */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Prix ($) <Text style={styles.required}>*</Text>
+                {fr ? "Prix ($)" : "Price ($)"} <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.inputContainer}>
                 <Ionicons name="pricetag" size={20} color={PRO_BLUE} style={styles.inputIcon} />
@@ -341,48 +297,23 @@ const EditProduct = () => {
         </Animated.View>
 
         {/* Section Catégorie */}
-        <Animated.View
-          style={[
-            styles.section,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="apps" size={24} color={PRO_BLUE} />
-            <Text style={styles.sectionTitle}>Catégorie</Text>
+            <Text style={styles.sectionTitle}>{fr ? "Catégorie" : "Category"}</Text>
           </View>
 
           <View style={styles.categoriesGrid}>
             {categories.map((cat) => (
               <TouchableOpacity
                 key={cat.name}
-                style={[
-                  styles.categoryCard,
-                  formData.category === cat.name && styles.categoryCardSelected,
-                ]}
+                style={[styles.categoryCard, formData.category === cat.name && styles.categoryCardSelected]}
                 onPress={() => updateField("category", cat.name)}
               >
-                <View
-                  style={[
-                    styles.categoryIcon,
-                    formData.category === cat.name && styles.categoryIconSelected,
-                  ]}
-                >
-                  <Ionicons
-                    name={cat.icon as any}
-                    size={20}
-                    color={formData.category === cat.name ? TEXT_WHITE : PRO_BLUE}
-                  />
+                <View style={[styles.categoryIcon, formData.category === cat.name && styles.categoryIconSelected]}>
+                  <Ionicons name={cat.icon as any} size={20} color={formData.category === cat.name ? TEXT_WHITE : PRO_BLUE} />
                 </View>
-                <Text
-                  style={[
-                    styles.categoryText,
-                    formData.category === cat.name && styles.categoryTextSelected,
-                  ]}
-                >
+                <Text style={[styles.categoryText, formData.category === cat.name && styles.categoryTextSelected]}>
                   {cat.name}
                 </Text>
                 {formData.category === cat.name && (
@@ -396,22 +327,14 @@ const EditProduct = () => {
         </Animated.View>
 
         {/* Boutons d'Action */}
-        <Animated.View
-          style={[
-            styles.actionsSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.actionsSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <TouchableOpacity
             style={[styles.cancelButton, saving && styles.buttonDisabled]}
             onPress={handleCancel}
             disabled={saving}
           >
             <Ionicons name="close-circle" size={20} color={TEXT_SECONDARY} />
-            <Text style={styles.cancelButtonText}>Annuler</Text>
+            <Text style={styles.cancelButtonText}>{fr ? "Annuler" : "Cancel"}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -425,12 +348,11 @@ const EditProduct = () => {
               <Ionicons name="save" size={20} color={TEXT_WHITE} />
             )}
             <Text style={styles.saveButtonText}>
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              {saving ? (fr ? "Enregistrement..." : "Saving...") : (fr ? "Enregistrer" : "Save")}
             </Text>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Espace en bas pour le scroll */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
@@ -460,290 +382,53 @@ const EditProduct = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: SHOPNET_BLUE,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: SHOPNET_BLUE,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingContent: {
-    alignItems: "center",
-  },
-  loadingText: {
-    color: PRO_BLUE,
-    fontSize: 16,
-    fontWeight: "600",
-    marginTop: 12,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: SHOPNET_BLUE,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(66, 165, 245, 0.1)",
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 8,
-  },
-  backText: {
-    color: PRO_BLUE,
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  headerCenter: {
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: TEXT_WHITE,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: TEXT_SECONDARY,
-    marginTop: 2,
-  },
-  headerRight: {
-    width: 40,
-    alignItems: "flex-end",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContainer: {
-    paddingBottom: 40,
-  },
-  section: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: TEXT_WHITE,
-    marginLeft: 12,
-  },
-  formContainer: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: TEXT_WHITE,
-    marginBottom: 8,
-  },
-  required: {
-    color: ERROR_RED,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(30, 42, 59, 0.8)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.2)",
-    paddingHorizontal: 16,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    color: TEXT_WHITE,
-    fontSize: 16,
-    paddingVertical: 14,
-  },
-  currency: {
-    color: PRO_BLUE,
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  charCount: {
-    color: TEXT_SECONDARY,
-    fontSize: 12,
-  },
-  charCountContainer: {
-    position: "absolute",
-    bottom: 8,
-    right: 12,
-  },
-  textAreaContainer: {
-    backgroundColor: "rgba(30, 42, 59, 0.8)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.2)",
-    position: "relative",
-    minHeight: 120,
-  },
-  textAreaIcon: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    zIndex: 1,
-  },
-  textArea: {
-    color: TEXT_WHITE,
-    fontSize: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    paddingLeft: 48,
-    minHeight: 120,
-    textAlignVertical: "top",
-  },
-  categoriesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  categoryCard: {
-    width: "48%",
-    backgroundColor: CARD_BG,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(66, 165, 245, 0.1)",
-    position: "relative",
-  },
-  categoryCardSelected: {
-    backgroundColor: PRO_BLUE,
-    borderColor: PRO_BLUE,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(66, 165, 245, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  categoryIconSelected: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-  },
-  categoryText: {
-    color: TEXT_SECONDARY,
-    fontSize: 14,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  categoryTextSelected: {
-    color: TEXT_WHITE,
-  },
-  selectedIndicator: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: SUCCESS_GREEN,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  actionsSection: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginHorizontal: 20,
-    marginTop: 8,
-  },
-  cancelButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(66, 165, 245, 0.1)",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PRO_BLUE,
-    flex: 1,
-    marginRight: 8,
-  },
-  saveButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: PRO_BLUE,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    flex: 1,
-    marginLeft: 8,
-    elevation: 4,
-    shadowColor: PRO_BLUE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  cancelButtonText: {
-    color: TEXT_SECONDARY,
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  saveButtonText: {
-    color: TEXT_WHITE,
-    fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 8,
-  },
-  bottomSpacer: {
-    height: 20,
-  },
-  toastContainer: {
-    position: "absolute",
-    top: 0,
-    left: 20,
-    right: 20,
-    backgroundColor: SUCCESS_GREEN,
-    borderRadius: 12,
-    padding: 16,
-    zIndex: 1001,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  toastContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  toastText: {
-    marginLeft: 12,
-    fontSize: 16,
-    fontWeight: "600",
-    color: TEXT_WHITE,
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: SHOPNET_BLUE },
+  loadingContainer: { flex: 1, backgroundColor: SHOPNET_BLUE, justifyContent: "center", alignItems: "center" },
+  loadingContent: { alignItems: "center" },
+  loadingText: { color: PRO_BLUE, fontSize: 16, fontWeight: "600", marginTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, backgroundColor: SHOPNET_BLUE, borderBottomWidth: 1, borderBottomColor: "rgba(66, 165, 245, 0.1)" },
+  backButton: { flexDirection: "row", alignItems: "center", padding: 8 },
+  backText: { color: PRO_BLUE, fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  headerCenter: { alignItems: "center" },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: TEXT_WHITE },
+  headerSubtitle: { fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 },
+  headerRight: { width: 40, alignItems: "flex-end" },
+  scrollView: { flex: 1 },
+  scrollContainer: { paddingBottom: 40 },
+  section: { marginHorizontal: 20, marginBottom: 24 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: TEXT_WHITE, marginLeft: 12 },
+  formContainer: { backgroundColor: CARD_BG, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: "rgba(66, 165, 245, 0.1)" },
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 16, fontWeight: "600", color: TEXT_WHITE, marginBottom: 8 },
+  required: { color: ERROR_RED },
+  inputContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(30, 42, 59, 0.8)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(66, 165, 245, 0.2)", paddingHorizontal: 16 },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, color: TEXT_WHITE, fontSize: 16, paddingVertical: 14 },
+  currency: { color: PRO_BLUE, fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  charCount: { color: TEXT_SECONDARY, fontSize: 12 },
+  charCountContainer: { position: "absolute", bottom: 8, right: 12 },
+  textAreaContainer: { backgroundColor: "rgba(30, 42, 59, 0.8)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(66, 165, 245, 0.2)", position: "relative", minHeight: 120 },
+  textAreaIcon: { position: "absolute", top: 16, left: 16, zIndex: 1 },
+  textArea: { color: TEXT_WHITE, fontSize: 16, paddingVertical: 14, paddingHorizontal: 16, paddingLeft: 48, minHeight: 120, textAlignVertical: "top" },
+  categoriesGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  categoryCard: { width: "48%", backgroundColor: CARD_BG, borderRadius: 12, padding: 16, marginBottom: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(66, 165, 245, 0.1)", position: "relative" },
+  categoryCardSelected: { backgroundColor: PRO_BLUE, borderColor: PRO_BLUE },
+  categoryIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(66, 165, 245, 0.1)", justifyContent: "center", alignItems: "center", marginBottom: 8 },
+  categoryIconSelected: { backgroundColor: "rgba(255, 255, 255, 0.2)" },
+  categoryText: { color: TEXT_SECONDARY, fontSize: 14, fontWeight: "600", textAlign: "center" },
+  categoryTextSelected: { color: TEXT_WHITE },
+  selectedIndicator: { position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: SUCCESS_GREEN, justifyContent: "center", alignItems: "center" },
+  actionsSection: { flexDirection: "row", justifyContent: "space-between", marginHorizontal: 20, marginTop: 8 },
+  cancelButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(66, 165, 245, 0.1)", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: PRO_BLUE, flex: 1, marginRight: 8 },
+  saveButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: PRO_BLUE, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, flex: 1, marginLeft: 8, elevation: 4, shadowColor: PRO_BLUE, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  buttonDisabled: { opacity: 0.6 },
+  cancelButtonText: { color: TEXT_SECONDARY, fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  saveButtonText: { color: TEXT_WHITE, fontSize: 16, fontWeight: "700", marginLeft: 8 },
+  bottomSpacer: { height: 20 },
+  toastContainer: { position: "absolute", top: 0, left: 20, right: 20, borderRadius: 12, padding: 16, zIndex: 1001, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  toastContent: { flexDirection: "row", alignItems: "center" },
+  toastText: { marginLeft: 12, fontSize: 16, fontWeight: "600", color: TEXT_WHITE, flex: 1 },
 });
 
 export default EditProduct;
