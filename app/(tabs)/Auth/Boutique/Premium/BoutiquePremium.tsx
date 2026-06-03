@@ -1134,9 +1134,9 @@ export default function BoutiquePremium() {
               <NotificationBadge count={notificationCounts.analytics} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/MisAjour")} activeOpacity={0.8}>
-              <MaterialIcons name="local-offer" size={24} color={PREMIUM_GOLD} />
-              <Text style={styles.actionText}>Promotion</Text>
+            <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/MisAjour ")} activeOpacity={0.8}>
+              <MaterialIcons name="insights" size={24} color={PREMIUM_GOLD} />
+              <Text style={styles.actionText}>Assistant Vendeur</Text>
               <NotificationBadge count={notificationCounts.promotions} />
             </TouchableOpacity>
 

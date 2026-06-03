@@ -6,42 +6,39 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/images/icon_shopnet.png",
-
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.shopai.app"
     },
-
     "android": {
       "package": "com.shopai.app",
       "versionCode": 17,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "googleServicesFile": "./android/app/google-services.json",
-      "permissions": ["POST_NOTIFICATIONS"],
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
     },
-
     "plugins": [
       "expo-router",
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      "expo-asset"
     ],
-
     "extra": {
       "eas": {
         "projectId": "e13e20ae-c613-4793-b219-5c71ef691549"
       }
     },
-
     "owner": "shopnet-expo-eass-organization"
   }
 }

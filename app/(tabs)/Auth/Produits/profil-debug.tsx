@@ -1014,7 +1014,7 @@ export default function ProfilVendeurPremium() {
               style={styles.quickActionButton}
               onPress={() => {
                 resetBadge("promotions");
-                router.push("/MisAjour");
+                router.push("/(tabs)/Auth/AssistantIA/AssistantIA");
               }}
             >
               <View style={styles.quickActionContent}>

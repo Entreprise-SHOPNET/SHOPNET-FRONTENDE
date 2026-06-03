@@ -509,23 +509,23 @@ export default function PayerPremium() {
             <MaterialIcons name="arrow-forward" size={20} color="#00182A" />
           </TouchableOpacity>
 
-          {/* Secondary Buttons */}
-          <View style={styles.secondaryButtons}>
-            <TouchableOpacity
-              style={styles.helpButton}
-              onPress={() => router.push("/faq")}
-            >
-              <MaterialIcons name="help" size={18} color="#fff" />
-              <Text style={styles.helpButtonText}>Questions fréquentes</Text>
-            </TouchableOpacity>
+        {/* Secondary Buttons */}
+        <View style={styles.secondaryButtons}>
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={() => router.push("/MisAjour")}
+          >
+            <MaterialIcons name="help" size={18} color="#fff" />
+            <Text style={styles.helpButtonText}>Questions fréquentes</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.backButtonSecondary}
-              onPress={handleBack}
-            >
-              <Text style={styles.backButtonText}>Revenir plus tard</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.backButtonSecondary}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Revenir plus tard</Text>
+          </TouchableOpacity>
+        </View>
 
           {/* Security Badge */}
           <View style={styles.securityBadge}>
