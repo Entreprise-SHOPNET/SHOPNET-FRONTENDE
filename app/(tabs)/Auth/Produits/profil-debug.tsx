@@ -746,9 +746,29 @@ export default function ProfilVendeurPremium() {
             )}
             <View style={styles.coverOverlay} />
 
-            <View style={styles.coverBadge}>
-              <Ionicons name="diamond" size={14} color="#0048ffff" />
-              <Text style={styles.coverBadgeText}>PROFIL PRO</Text>
+            {/* NOUVEAU : 3 icônes en haut à droite */}
+            <View style={styles.coverActionIcons}>
+              {/* Icône Modifier (page d'édition du profil) */}
+              <TouchableOpacity
+                style={styles.coverIconButton}
+                onPress={() => router.push("/(tabs)/Auth/Produits/profil-edit")}
+              >
+                <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              {/* Icône Search (page de recherche) */}
+              <TouchableOpacity
+                style={styles.coverIconButton}
+                onPress={() => router.push("/(tabs)/Auth/Produits/Recherche")}
+              >
+                <Ionicons name="search-outline" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              {/* Icône Assistant IA */}
+              <TouchableOpacity
+                style={styles.coverIconButton}
+                onPress={() => router.push("/(tabs)/Auth/AssistantIA/ConversationIA")}
+              >
+                <MaterialCommunityIcons name="robot" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </View>
@@ -782,12 +802,7 @@ export default function ProfilVendeurPremium() {
           <View style={styles.userInfoContainer}>
             <View style={styles.nameContainer}>
               <Text style={styles.userName}>{user.fullName}</Text>
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color={PRO_BLUE} />
-                <Text style={styles.verifiedText}>
-                  {fr ? "Vérifié" : "Verified"}
-                </Text>
-              </View>
+              {/* badge Vérifié supprimé */}
             </View>
 
             <View style={styles.memberSinceContainer}>
@@ -1235,25 +1250,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  coverBadge: {
+  coverActionIcons: {
     position: "absolute",
     top: 16,
     right: 16,
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: PRO_BLUE,
+    gap: 12,
   },
-  coverBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-    marginLeft: 4,
-    letterSpacing: 0.5,
+  coverIconButton: {
+    backgroundColor: "rgba(0,0,0,0.6)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   profileSection: {
     flexDirection: "row",
@@ -1313,21 +1325,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "800",
     color: "#FFFFFF",
-    marginRight: 8,
-  },
-  verifiedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(66, 165, 245, 0.1)",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  verifiedText: {
-    color: PRO_BLUE,
-    fontSize: 10,
-    fontWeight: "700",
-    marginLeft: 2,
   },
   memberSinceContainer: {
     flexDirection: "row",

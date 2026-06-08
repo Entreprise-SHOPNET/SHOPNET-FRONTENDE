@@ -1,6 +1,5 @@
 
 
-
 import { useRouter } from 'expo-router';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -20,6 +19,7 @@ import { useLanguage } from "../../../../context/LanguageContext";
 
 const { width, height } = Dimensions.get('window');
 const API_URL = 'https://shopnet-backend.onrender.com/api/products';
+const AI_API_URL = 'https://shopnet-backend.onrender.com/api/ai/description';
 
 // Hook couleurs dynamiques
 const useDynamicColors = () => {
@@ -110,7 +110,8 @@ const ProductForm = () => {
 
   const [formData, setFormData] = useState<ProductFormData>({
     title: '', description: '', price: '', originalPrice: '',
-    category: 'mode', condition: 'new', stock: '1', location: '',
+    category: '', // ✅ CHANGEMENT : catégorie vide par défaut (plus de "mode")
+    condition: 'new', stock: '1', location: '',
     deliveryOptions: ['standard'],
   });
 
@@ -124,6 +125,7 @@ const ProductForm = () => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const categories = [
@@ -206,6 +208,8 @@ const ProductForm = () => {
       else if (formData.title.length < 5) errors.title = fr ? 'Titre trop court (min 5 caractères)' : 'Title too short (min 5 characters)';
       if (!formData.description.trim()) errors.description = fr ? 'Description requise' : 'Description required';
       else if (formData.description.length < 20) errors.description = fr ? 'Description trop courte (min 20 caractères)' : 'Description too short (min 20 characters)';
+      // ✅ Validation catégorie : ne doit pas être vide
+      if (!formData.category) errors.category = fr ? 'Veuillez sélectionner une catégorie' : 'Please select a category';
     }
     if (step === 3) {
       if (!formData.price) errors.price = fr ? 'Prix requis' : 'Price required';
@@ -219,6 +223,43 @@ const ProductForm = () => {
   const handleNextStep = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (validateStep(activeStep)) { setActiveStep(prev => prev + 1); scrollViewRef.current?.scrollTo({ y: 0, animated: true }); } };
   const handlePrevStep = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveStep(prev => prev - 1); scrollViewRef.current?.scrollTo({ y: 0, animated: true }); };
   const formatPrice = (price: string) => { if (!price) return ''; const numericValue = parseFloat(price); return isNaN(numericValue) ? '' : `$${numericValue.toFixed(2)}`; };
+
+  // Génération description par IA
+  const generateDescriptionWithAI = async () => {
+    const { title, category } = formData;
+    if (!title.trim()) {
+      Alert.alert(fr ? 'Titre manquant' : 'Missing title', fr ? 'Veuillez d\'abord saisir un titre pour générer la description.' : 'Please enter a title first.');
+      return;
+    }
+    if (!category) {
+      Alert.alert(fr ? 'Catégorie manquante' : 'Missing category', fr ? 'Veuillez sélectionner une catégorie.' : 'Please select a category.');
+      return;
+    }
+
+    setIsGeneratingDesc(true);
+    try {
+      const url = `${AI_API_URL}?title=${encodeURIComponent(title)}&category=${encodeURIComponent(category)}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (data.success && data.description) {
+        handleInputChange('description', data.description);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        throw new Error(data.error || 'Erreur IA');
+      }
+    } catch (error: any) {
+      console.error('Erreur génération IA:', error);
+      Alert.alert(
+        fr ? 'Erreur IA' : 'AI Error',
+        fr ? 'Impossible de générer la description. Vérifiez votre connexion.' : 'Unable to generate description. Check your connection.'
+      );
+    } finally {
+      setIsGeneratingDesc(false);
+    }
+  };
 
   const prepareImageForUpload = async (uri: string, index: number): Promise<ImageInfo> => {
     try {
@@ -325,22 +366,72 @@ const ProductForm = () => {
         {formErrors.title && <Text style={[styles.errorText, { color: COLORS.error }]}>{formErrors.title}</Text>}
       </View>
       <View style={[styles.inputContainer, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
-        <View style={styles.inputHeader}><FontAwesome name="align-left" size={16} color={COLORS.accent} /><Text style={[styles.inputLabel, { color: COLORS.text }]}>{fr ? 'Description détaillée *' : 'Detailed Description *'}</Text></View>
-        <TextInput style={[styles.input, styles.textArea, { backgroundColor: COLORS.inputBg, borderColor: formErrors.description ? COLORS.error : COLORS.inputBorder, color: COLORS.inputText }]} multiline numberOfLines={6} value={formData.description} onChangeText={text => handleInputChange('description', text)} placeholder={fr ? 'Décrivez votre produit avec précision...' : 'Describe your product accurately...'} placeholderTextColor={COLORS.placeholder} textAlignVertical="top" />
-        <View style={styles.charCount}><Text style={[styles.charCountText, formData.description.length < 20 && { color: COLORS.warning }, { color: COLORS.textSecondary }]}>{formData.description.length} / {fr ? '20 caractères minimum' : '20 characters minimum'}</Text></View>
+        <View style={styles.inputHeaderRow}>
+          <View style={styles.inputHeader}>
+            <FontAwesome name="align-left" size={16} color={COLORS.accent} />
+            <Text style={[styles.inputLabel, { color: COLORS.text }]}>{fr ? 'Description détaillée *' : 'Detailed Description *'}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.aiButton, { backgroundColor: COLORS.accent }]}
+            onPress={generateDescriptionWithAI}
+            disabled={isGeneratingDesc || !formData.title || !formData.category}
+          >
+            {isGeneratingDesc ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="robot" size={16} color={COLORS.white} />
+                <Text style={styles.aiButtonText}>{fr ? 'Générer avec IA' : 'Generate with AI'}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          style={[styles.input, styles.textArea, { backgroundColor: COLORS.inputBg, borderColor: formErrors.description ? COLORS.error : COLORS.inputBorder, color: COLORS.inputText }]}
+          multiline numberOfLines={6}
+          value={formData.description}
+          onChangeText={text => handleInputChange('description', text)}
+          placeholder={fr ? 'Décrivez votre produit avec précision...' : 'Describe your product accurately...'}
+          placeholderTextColor={COLORS.placeholder}
+          textAlignVertical="top"
+        />
+        <View style={styles.charCount}>
+          <Text style={[styles.charCountText, formData.description.length < 20 && { color: COLORS.warning }, { color: COLORS.textSecondary }]}>
+            {formData.description.length} / {fr ? '20 caractères minimum' : '20 characters minimum'}
+          </Text>
+        </View>
         {formErrors.description && <Text style={[styles.errorText, { color: COLORS.error }]}>{formErrors.description}</Text>}
       </View>
       <View style={styles.row}>
         <View style={[styles.inputContainer, { flex: 1, marginRight: 8, backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
-          <View style={styles.inputHeader}><Ionicons name="apps" size={16} color={COLORS.accent} /><Text style={[styles.inputLabel, { color: COLORS.accent }]}>{fr ? 'Catégorie' : 'Category'}</Text></View>
+          <View style={styles.inputHeader}><Ionicons name="apps" size={16} color={COLORS.accent} /><Text style={[styles.inputLabel, { color: COLORS.accent }]}>{fr ? 'Catégorie *' : 'Category *'}</Text></View>
           <View style={[styles.pickerWrapper, { backgroundColor: COLORS.pickerBg, borderColor: COLORS.pickerBorder }]}>
-            <Picker selectedValue={formData.category} onValueChange={(itemValue) => handleInputChange('category', itemValue)} mode="dropdown" style={[styles.picker, { color: COLORS.accent }]} dropdownIconColor={COLORS.accent}>{categories.map(item => (<Picker.Item key={item.value} label={item.label} value={item.value} color={COLORS.accent} />))}</Picker>
+            <Picker
+              selectedValue={formData.category}
+              onValueChange={(itemValue) => handleInputChange('category', itemValue)}
+              mode="dropdown"
+              style={[styles.picker, { color: COLORS.accent }]}
+              dropdownIconColor={COLORS.accent}
+            >
+              <Picker.Item
+                label={fr ? '-- Sélectionnez une catégorie --' : '-- Select a category --'}
+                value=""
+                enabled={false}
+                color={COLORS.placeholder}
+              />
+              {categories.map(item => (
+                <Picker.Item key={item.value} label={item.label} value={item.value} color={COLORS.accent} />
+              ))}
+            </Picker>
           </View>
+          {formErrors.category && <Text style={[styles.errorText, { color: COLORS.error }]}>{formErrors.category}</Text>}
         </View>
         <View style={[styles.inputContainer, { flex: 1, marginLeft: 8, backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
           <View style={styles.inputHeader}><FontAwesome name="star" size={16} color={COLORS.accent} /><Text style={[styles.inputLabel, { color: COLORS.accent }]}>{fr ? 'État' : 'Condition'}</Text></View>
           <View style={[styles.pickerWrapper, { backgroundColor: COLORS.pickerBg, borderColor: COLORS.pickerBorder }]}>
-            <Picker selectedValue={formData.condition} onValueChange={(itemValue) => handleInputChange('condition', itemValue)} mode="dropdown" style={[styles.picker, { color: COLORS.accent }]} dropdownIconColor={COLORS.accent}>{conditions.map(item => (<Picker.Item key={item.value} label={item.label} value={item.value} color={COLORS.accent} />))}</Picker>
+            <Picker selectedValue={formData.condition} onValueChange={(itemValue) => handleInputChange('condition', itemValue)} mode="dropdown" style={[styles.picker, { color: COLORS.accent }]} dropdownIconColor={COLORS.accent}>
+              {conditions.map(item => (<Picker.Item key={item.value} label={item.label} value={item.value} color={COLORS.accent} />))}
+            </Picker>
           </View>
         </View>
       </View>
@@ -496,6 +587,7 @@ const styles = StyleSheet.create({
   tipsText: { fontSize: 14, marginLeft: 12, flex: 1, fontWeight: '500' },
   inputContainer: { borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1 },
   inputHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  inputHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   inputLabel: { fontSize: 16, fontWeight: '600', marginLeft: 8 },
   input: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, fontSize: 16, borderWidth: 1 },
   textArea: { minHeight: 120, textAlignVertical: 'top' },
@@ -545,6 +637,19 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.7 },
   footer: { alignItems: 'center', paddingVertical: 16, borderTopWidth: 1, marginTop: 16 },
   footerText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  aiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  aiButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
 
 export default ProductForm;
