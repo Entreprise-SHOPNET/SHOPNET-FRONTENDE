@@ -1,5 +1,6 @@
 
 
+// ProductForm.tsx – Version corrigée avec gestion robuste de l’API
 import { useRouter } from 'expo-router';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -19,9 +20,9 @@ import { useLanguage } from "../../../../context/LanguageContext";
 
 const { width, height } = Dimensions.get('window');
 const API_URL = 'https://shopnet-backend.onrender.com/api/products';
-const AI_API_URL = 'https://shopnet-backend.onrender.com/api/ai/description';
+const AI_DESC_URL = 'https://shopnet-backend.onrender.com/api/ai/description';
+const AI_GENERATE_URL = 'https://shopnet-backend.onrender.com/api/ai/generate-product';
 
-// Hook couleurs dynamiques
 const useDynamicColors = () => {
   const { isDark } = useTheme();
   return {
@@ -81,6 +82,7 @@ const useDynamicColors = () => {
     addImageBg: isDark ? 'rgba(66, 165, 245, 0.08)' : 'rgba(66, 165, 245, 0.05)',
     pickerBg: isDark ? '#222222' : 'rgba(30, 42, 59, 0.5)',
     pickerBorder: isDark ? '#2E2E2E' : 'rgba(66, 165, 245, 0.1)',
+    chipBg: isDark ? 'rgba(66, 165, 245, 0.15)' : 'rgba(66, 165, 245, 0.1)',
   };
 };
 
@@ -110,8 +112,7 @@ const ProductForm = () => {
 
   const [formData, setFormData] = useState<ProductFormData>({
     title: '', description: '', price: '', originalPrice: '',
-    category: '', // ✅ CHANGEMENT : catégorie vide par défaut (plus de "mode")
-    condition: 'new', stock: '1', location: '',
+    category: '', condition: 'new', stock: '1', location: '',
     deliveryOptions: ['standard'],
   });
 
@@ -128,15 +129,25 @@ const ProductForm = () => {
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const categories = [
-    { label: fr ? '📱 Électronique' : '📱 Electronics', value: 'electronics', icon: 'mobile-alt' },
-    { label: fr ? '👗 Mode & Vêtements' : '👗 Fashion', value: 'fashion', icon: 'tshirt' },
-    { label: fr ? '🏠 Maison & Jardin' : '🏠 Home & Garden', value: 'home', icon: 'home' },
-    { label: fr ? '🚗 Automobile' : '🚗 Automotive', value: 'auto', icon: 'car' },
-    { label: fr ? '💄 Beauté & Santé' : '💄 Beauty & Health', value: 'beauty', icon: 'spa' },
-    { label: fr ? '⚽ Sports & Loisirs' : '⚽ Sports', value: 'sports', icon: 'futbol' },
-    { label: fr ? '🎮 Jeux & Jouets' : '🎮 Games & Toys', value: 'games', icon: 'gamepad' },
-    { label: fr ? '📚 Livres & Éducation' : '📚 Books & Education', value: 'books', icon: 'book' },
+  // États pour l’IA globale (compacte en étape 2)
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingFull, setIsGeneratingFull] = useState(false);
+  const [generatedTags, setGeneratedTags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState('');
+
+  const allowedCategories = [
+    { label: fr ? '👗 Mode' : '👗 Fashion', value: 'mode' },
+    { label: fr ? '🏠 Maison' : '🏠 Home', value: 'home' },
+    { label: fr ? '📚 Livres' : '📚 Books', value: 'books' },
+    { label: fr ? '🚗 Auto' : '🚗 Auto', value: 'auto' },
+    { label: fr ? '📱 Électronique' : '📱 Electronics', value: 'electronics' },
+    { label: 'Tech', value: 'Tech' },
+    { label: fr ? '👗 Mode (fashion)' : '👗 Fashion (fashion)', value: 'fashion' },
+    { label: fr ? '🔥 Tendance' : '🔥 Trending', value: 'Tendance' },
+    { label: fr ? '💄 Beauté' : '💄 Beauty', value: 'beauty' },
+    { label: 'Beauté', value: 'Beauté' },
+    { label: 'Maison', value: 'Maison' },
+    { label: fr ? '⚽ Sports' : '⚽ Sports', value: 'sports' },
   ];
 
   const conditions = [
@@ -157,21 +168,22 @@ const ProductForm = () => {
     const checkAuth = async () => {
       try {
         const token = await AsyncStorage.getItem('userToken');
-        if (token) { setAuthToken(token); } else { router.push('/splash'); }
-      } catch (error) { console.error('Erreur de vérification du token:', error); router.push('/splash'); }
+        if (token) setAuthToken(token);
+        else router.push('/splash');
+      } catch (error) { console.error(error); router.push('/splash'); }
     };
     checkAuth();
     (async () => {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') { Alert.alert(fr ? 'Permission requise' : 'Permission Required', fr ? 'Nous avons besoin de la permission pour accéder à vos photos.' : 'We need permission to access your photos.'); }
+        if (status !== 'granted') Alert.alert(fr ? 'Permission requise' : 'Permission Required', fr ? 'Nous avons besoin de la permission pour accéder à vos photos.' : 'We need permission to access your photos.');
       }
     })();
   }, []);
 
   const handleInputChange = (name: keyof ProductFormData, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (formErrors[name]) { setFormErrors(prev => ({ ...prev, [name]: '' })); }
+    if (formErrors[name]) setFormErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const pickImage = async () => {
@@ -179,8 +191,8 @@ const ProductForm = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: false, quality: 0.8 });
-      if (!result.canceled && result.assets?.[0]?.uri) { setImages([...images, result.assets[0].uri]); }
-    } catch (error) { console.error('Erreur sélection image:', error); Alert.alert(fr ? 'Erreur' : 'Error', fr ? 'Impossible de sélectionner l\'image' : 'Unable to select image'); }
+      if (!result.canceled && result.assets?.[0]?.uri) setImages([...images, result.assets[0].uri]);
+    } catch (error) { console.error(error); Alert.alert(fr ? 'Erreur' : 'Error', fr ? 'Impossible de sélectionner l\'image' : 'Unable to select image'); }
   };
 
   const removeImage = (index: number) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setImages(prev => prev.filter((_, i) => i !== index)); };
@@ -193,7 +205,12 @@ const ProductForm = () => {
       if (status !== 'granted') { Alert.alert(fr ? 'Permission refusée' : 'Permission Denied', fr ? 'Nous avons besoin de la permission pour accéder à votre position.' : 'We need location permission.'); return; }
       const location = await Location.getCurrentPositionAsync({});
       const [place] = await Location.reverseGeocodeAsync(location.coords);
-      if (place) { const city = place.city || place.region || 'Inconnu'; const country = place.country === 'Democratic Republic of the Congo' ? 'RDC' : place.country; setFormData(prev => ({ ...prev, location: `${city}, ${country}` })); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+      if (place) {
+        const city = place.city || place.region || 'Inconnu';
+        const country = place.country === 'Democratic Republic of the Congo' ? 'RDC' : place.country;
+        setFormData(prev => ({ ...prev, location: `${city}, ${country}` }));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (error) { Alert.alert(fr ? 'Erreur' : 'Error', fr ? 'Impossible d\'obtenir votre position' : 'Unable to get location'); }
     finally { setIsLoading(false); }
   };
@@ -208,7 +225,6 @@ const ProductForm = () => {
       else if (formData.title.length < 5) errors.title = fr ? 'Titre trop court (min 5 caractères)' : 'Title too short (min 5 characters)';
       if (!formData.description.trim()) errors.description = fr ? 'Description requise' : 'Description required';
       else if (formData.description.length < 20) errors.description = fr ? 'Description trop courte (min 20 caractères)' : 'Description too short (min 20 characters)';
-      // ✅ Validation catégorie : ne doit pas être vide
       if (!formData.category) errors.category = fr ? 'Veuillez sélectionner une catégorie' : 'Please select a category';
     }
     if (step === 3) {
@@ -217,14 +233,62 @@ const ProductForm = () => {
       if (isPromo && !formData.originalPrice) errors.originalPrice = fr ? 'Prix original requis' : 'Original price required';
       if (!formData.stock) errors.stock = fr ? 'Quantité requise' : 'Quantity required';
     }
-    setFormErrors(errors); return Object.keys(errors).length === 0;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleNextStep = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (validateStep(activeStep)) { setActiveStep(prev => prev + 1); scrollViewRef.current?.scrollTo({ y: 0, animated: true }); } };
   const handlePrevStep = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveStep(prev => prev - 1); scrollViewRef.current?.scrollTo({ y: 0, animated: true }); };
   const formatPrice = (price: string) => { if (!price) return ''; const numericValue = parseFloat(price); return isNaN(numericValue) ? '' : `$${numericValue.toFixed(2)}`; };
 
-  // Génération description par IA
+  // ========== CORRECTION DE LA FONCTION DE GÉNÉRATION IA ==========
+  const generateFullProductWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      Alert.alert(fr ? 'Prompt manquant' : 'Missing prompt', fr ? 'Veuillez décrire le produit que vous souhaitez créer.' : 'Please describe the product you want to create.');
+      return;
+    }
+    setIsGeneratingFull(true);
+    try {
+      const response = await fetch(AI_GENERATE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt.trim() }),
+      });
+
+      let data;
+      const rawText = await response.text();
+      console.log('🔍 Réponse brute:', rawText);
+
+      // Nettoyer les blocs Markdown ```json ... ``` avant parsing
+      const cleanJson = rawText
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+
+      data = JSON.parse(cleanJson);
+
+      if (!response.ok) throw new Error(data.error || 'Erreur serveur');
+      if (!data.success) throw new Error(data.error || 'Erreur IA');
+      if (!data.product) throw new Error('Produit manquant dans la réponse');
+
+      const { title, description, category, price, tags } = data.product;
+      if (title) handleInputChange('title', title);
+      if (description) handleInputChange('description', description);
+      if (category) handleInputChange('category', category);
+      if (price && typeof price === 'number') handleInputChange('price', price.toString());
+      if (tags && Array.isArray(tags)) setGeneratedTags(tags);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(fr ? 'Produit généré' : 'Product generated', fr ? 'Les informations ont été pré-remplies. Vous pouvez les modifier avant de publier.' : 'Information pre-filled. You can edit before publishing.');
+    } catch (error) {
+      console.error('Erreur génération produit IA:', error);
+      Alert.alert(fr ? 'Erreur IA' : 'AI Error', fr ? 'Impossible de générer le produit. Vérifiez votre connexion ou réessayez.' : 'Unable to generate product. Check your connection or try again.');
+    } finally {
+      setIsGeneratingFull(false);
+    }
+  };
+  // ================================================================
+
   const generateDescriptionWithAI = async () => {
     const { title, category } = formData;
     if (!title.trim()) {
@@ -235,14 +299,10 @@ const ProductForm = () => {
       Alert.alert(fr ? 'Catégorie manquante' : 'Missing category', fr ? 'Veuillez sélectionner une catégorie.' : 'Please select a category.');
       return;
     }
-
     setIsGeneratingDesc(true);
     try {
-      const url = `${AI_API_URL}?title=${encodeURIComponent(title)}&category=${encodeURIComponent(category)}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const url = `${AI_DESC_URL}?title=${encodeURIComponent(title)}&category=${encodeURIComponent(category)}`;
+      const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
       const data = await response.json();
       if (data.success && data.description) {
         handleInputChange('description', data.description);
@@ -251,14 +311,22 @@ const ProductForm = () => {
         throw new Error(data.error || 'Erreur IA');
       }
     } catch (error: any) {
-      console.error('Erreur génération IA:', error);
-      Alert.alert(
-        fr ? 'Erreur IA' : 'AI Error',
-        fr ? 'Impossible de générer la description. Vérifiez votre connexion.' : 'Unable to generate description. Check your connection.'
-      );
+      console.error('Erreur génération IA description:', error);
+      Alert.alert(fr ? 'Erreur IA' : 'AI Error', fr ? 'Impossible de générer la description. Vérifiez votre connexion.' : 'Unable to generate description. Check your connection.');
     } finally {
       setIsGeneratingDesc(false);
     }
+  };
+
+  const addTag = () => {
+    const tag = newTagInput.trim();
+    if (tag && !generatedTags.includes(tag)) {
+      setGeneratedTags([...generatedTags, tag]);
+      setNewTagInput('');
+    }
+  };
+  const removeTag = (tagToRemove: string) => {
+    setGeneratedTags(generatedTags.filter(t => t !== tagToRemove));
   };
 
   const prepareImageForUpload = async (uri: string, index: number): Promise<ImageInfo> => {
@@ -274,14 +342,18 @@ const ProductForm = () => {
     setIsSubmitting(true); setSubmitError(null);
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title); formDataToSend.append('description', formData.description);
-      formDataToSend.append('price', formData.price); formDataToSend.append('original_price', formData.originalPrice || '');
-      formDataToSend.append('category', formData.category); formDataToSend.append('condition', formData.condition);
-      formDataToSend.append('stock', formData.stock); formDataToSend.append('location', formData.location || '');
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('price', formData.price);
+      formDataToSend.append('original_price', formData.originalPrice || '');
+      formDataToSend.append('category', formData.category);
+      formDataToSend.append('condition', formData.condition);
+      formDataToSend.append('stock', formData.stock);
+      formDataToSend.append('location', formData.location || '');
       formDataToSend.append('deliveryOptions', JSON.stringify(formData.deliveryOptions));
       for (let i = 0; i < images.length; i++) {
         const imageInfo = await prepareImageForUpload(images[i], i);
-        if (Platform.OS === 'web') { const response = await fetch(imageInfo.uri); const blob = await response.blob(); formDataToSend.append('images', blob, imageInfo.name); }
+        if (Platform.OS === 'web') { const resp = await fetch(imageInfo.uri); const blob = await resp.blob(); formDataToSend.append('images', blob, imageInfo.name); }
         else { formDataToSend.append('images', { uri: imageInfo.uri, name: imageInfo.name, type: imageInfo.type } as any); }
       }
       const headers: Record<string, string> = { Authorization: `Bearer ${authToken}`, Accept: 'application/json' };
@@ -303,14 +375,67 @@ const ProductForm = () => {
       {[1, 2, 3].map((step) => (
         <View key={step} style={styles.stepRow}>
           <View style={[styles.stepCircle, activeStep >= step ? { backgroundColor: COLORS.accent } : { backgroundColor: COLORS.stepInactive, borderColor: COLORS.stepBorder }]}>
-            {activeStep > step ? <Ionicons name="checkmark" size={20} color={COLORS.white} /> : <Text style={[styles.stepNumber, { color: COLORS.text }]}>{step}</Text>}
+            {activeStep > step ? <Ionicons name="checkmark" size={12} color={COLORS.white} /> : <Text style={[styles.stepNumber, { color: COLORS.text }]}>{step}</Text>}
           </View>
           <Text style={[styles.stepLabel, activeStep >= step ? { color: COLORS.accent } : { color: COLORS.textSecondary }]}>
-            {step === 1 ? (fr ? 'Photos' : 'Photos') : step === 2 ? (fr ? 'Détails' : 'Details') : (fr ? 'Prix' : 'Price')}
+            {step === 1 ? (fr ? 'Photo' : 'Photo') : step === 2 ? (fr ? 'Détail' : 'Detail') : (fr ? 'Prix' : 'Price')}
           </Text>
           {step < 3 && <View style={[styles.stepConnector, activeStep > step ? { backgroundColor: COLORS.accent } : { backgroundColor: COLORS.stepInactive }]} />}
         </View>
       ))}
+    </View>
+  );
+
+  // Assistant IA compact en haut de l'étape 2
+  const renderCompactAIAssistant = () => (
+    <View style={[styles.compactAiContainer, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
+      <View style={styles.compactAiHeader}>
+        <MaterialCommunityIcons name="lightbulb-on" size={18} color={COLORS.accent} />
+        <Text style={[styles.compactAiTitle, { color: COLORS.accent }]}>
+          {fr ? 'Génération IA rapide' : 'Quick AI generation'}
+        </Text>
+      </View>
+      <View style={styles.compactAiRow}>
+        <TextInput
+          style={[styles.compactAiInput, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder, color: COLORS.inputText }]}
+          placeholder={fr ? 'je veux vendre des chaussures nike originales' : 'I want to sell original Nike shoes'}
+          placeholderTextColor={COLORS.placeholder}
+          value={aiPrompt}
+          onChangeText={setAiPrompt}
+        />
+        <TouchableOpacity
+          style={[styles.compactAiButton, { backgroundColor: COLORS.accent }]}
+          onPress={generateFullProductWithAI}
+          disabled={isGeneratingFull}
+        >
+          {isGeneratingFull ? <ActivityIndicator size="small" color={COLORS.white} /> : <MaterialCommunityIcons name="robot" size={16} color={COLORS.white} />}
+        </TouchableOpacity>
+      </View>
+      {generatedTags.length > 0 && (
+        <View style={styles.tagsSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsScroll}>
+            {generatedTags.map((tag, idx) => (
+              <View key={idx} style={[styles.tagChip, { backgroundColor: COLORS.chipBg, borderColor: COLORS.border }]}>
+                <Text style={[styles.tagText, { color: COLORS.text }]}>{tag}</Text>
+                <TouchableOpacity onPress={() => removeTag(tag)}>
+                  <Ionicons name="close-circle" size={14} color={COLORS.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <View style={styles.addTagInline}>
+              <TextInput
+                style={[styles.addTagInputInline, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder, color: COLORS.inputText }]}
+                placeholder={fr ? '+' : '+'}
+                placeholderTextColor={COLORS.placeholder}
+                value={newTagInput}
+                onChangeText={setNewTagInput}
+                onSubmitEditing={addTag}
+                maxLength={20}
+              />
+            </View>
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 
@@ -351,6 +476,8 @@ const ProductForm = () => {
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
+      {renderCompactAIAssistant()}
+
       <View style={styles.sectionHeader}>
         <View style={[styles.sectionIconContainer, { backgroundColor: COLORS.iconBg, borderColor: COLORS.iconBorder }]}>
           <Ionicons name="document-text" size={28} color={COLORS.accent} />
@@ -376,14 +503,7 @@ const ProductForm = () => {
             onPress={generateDescriptionWithAI}
             disabled={isGeneratingDesc || !formData.title || !formData.category}
           >
-            {isGeneratingDesc ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="robot" size={16} color={COLORS.white} />
-                <Text style={styles.aiButtonText}>{fr ? 'Générer avec IA' : 'Generate with AI'}</Text>
-              </>
-            )}
+            {isGeneratingDesc ? <ActivityIndicator size="small" color={COLORS.white} /> : <><MaterialCommunityIcons name="robot" size={16} color={COLORS.white} /><Text style={styles.aiButtonText}>{fr ? 'Générer' : 'Gen'}</Text></>}
           </TouchableOpacity>
         </View>
         <TextInput
@@ -413,14 +533,9 @@ const ProductForm = () => {
               style={[styles.picker, { color: COLORS.accent }]}
               dropdownIconColor={COLORS.accent}
             >
-              <Picker.Item
-                label={fr ? '-- Sélectionnez une catégorie --' : '-- Select a category --'}
-                value=""
-                enabled={false}
-                color={COLORS.placeholder}
-              />
-              {categories.map(item => (
-                <Picker.Item key={item.value} label={item.label} value={item.value} color={COLORS.accent} />
+              <Picker.Item label={fr ? '-- Sélectionnez une catégorie --' : '-- Select a category --'} value="" enabled={false} color={COLORS.placeholder} />
+              {allowedCategories.map(cat => (
+                <Picker.Item key={cat.value} label={cat.label} value={cat.value} color={COLORS.accent} />
               ))}
             </Picker>
           </View>
@@ -454,7 +569,7 @@ const ProductForm = () => {
         <View style={styles.priceWrapper}>
           <View style={styles.priceInputContainer}>
             <View style={[styles.currencySymbol, { backgroundColor: COLORS.currencyBg, borderColor: COLORS.currencyBorder }]}><Text style={[styles.currencyText, { color: COLORS.success }]}>$</Text></View>
-            <TextInput style={[styles.priceInput, { backgroundColor: COLORS.inputBg, borderColor: formErrors.price ? COLORS.error : COLORS.inputBorder, color: COLORS.inputText }]} keyboardType="numeric" value={formData.price} onChangeText={(text) => handleInputChange('price', text)} placeholder="0.00" placeholderTextColor={COLORS.placeholder} />
+            <TextInput style={[styles.priceInput, { backgroundColor: COLORS.inputBg, borderColor: formErrors.price ? COLORS.error : COLORS.inputBorder, color: COLORS.inputText }]} keyboardType="numeric" value={formData.price} onChangeText={text => handleInputChange('price', text)} placeholder="0.00" placeholderTextColor={COLORS.placeholder} />
           </View>
           {formData.price && (<View style={[styles.priceDisplay, { backgroundColor: COLORS.priceDisplayBg, borderColor: COLORS.priceDisplayBorder }]}><Text style={[styles.priceDisplayText, { color: COLORS.success }]}>{formatPrice(formData.price)}</Text></View>)}
         </View>
@@ -471,7 +586,7 @@ const ProductForm = () => {
             <View style={styles.inputHeader}><FontAwesome name="history" size={16} color={COLORS.warning} /><Text style={[styles.inputLabel, { color: COLORS.text }]}>{fr ? 'Prix original ($) *' : 'Original Price ($) *'}</Text></View>
             <View style={styles.priceInputContainer}>
               <View style={[styles.currencySymbol, { backgroundColor: COLORS.currencyBg, borderColor: COLORS.currencyBorder }]}><Text style={[styles.currencyText, { color: COLORS.success }]}>$</Text></View>
-              <TextInput style={[styles.priceInput, { backgroundColor: COLORS.inputBg, borderColor: formErrors.originalPrice ? COLORS.error : COLORS.inputBorder, color: COLORS.inputText }]} keyboardType="numeric" value={formData.originalPrice} onChangeText={(text) => handleInputChange('originalPrice', text)} placeholder="0.00" placeholderTextColor={COLORS.placeholder} />
+              <TextInput style={[styles.priceInput, { backgroundColor: COLORS.inputBg, borderColor: formErrors.originalPrice ? COLORS.error : COLORS.inputBorder, color: COLORS.inputText }]} keyboardType="numeric" value={formData.originalPrice} onChangeText={text => handleInputChange('originalPrice', text)} placeholder="0.00" placeholderTextColor={COLORS.placeholder} />
             </View>
             {formData.originalPrice && formData.price && (<View style={[styles.discountTag, { backgroundColor: COLORS.warning }]}><Text style={styles.discountText}>-{Math.round((1 - parseFloat(formData.price) / parseFloat(formData.originalPrice)) * 100)}%</Text></View>)}
             {formErrors.originalPrice && <Text style={[styles.errorText, { color: COLORS.error }]}>{formErrors.originalPrice}</Text>}
@@ -482,7 +597,7 @@ const ProductForm = () => {
         <View style={styles.inputHeader}><FontAwesome name="boxes" size={16} color={COLORS.accent} /><Text style={[styles.inputLabel, { color: COLORS.text }]}>{fr ? 'Quantité disponible *' : 'Available Quantity *'}</Text></View>
         <View style={styles.quantityWrapper}>
           <TouchableOpacity style={[styles.quantityButton, { backgroundColor: COLORS.qtyBtnBg, borderColor: COLORS.qtyBtnBorder }]} onPress={() => { const current = parseInt(formData.stock) || 1; if (current > 1) handleInputChange('stock', (current - 1).toString()); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}><Ionicons name="remove" size={24} color={COLORS.accent} /></TouchableOpacity>
-          <TextInput style={[styles.quantityInput, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder, color: COLORS.inputText }]} keyboardType="numeric" value={formData.stock} onChangeText={(text) => handleInputChange('stock', text)} textAlign="center" />
+          <TextInput style={[styles.quantityInput, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder, color: COLORS.inputText }]} keyboardType="numeric" value={formData.stock} onChangeText={text => handleInputChange('stock', text)} textAlign="center" />
           <TouchableOpacity style={[styles.quantityButton, { backgroundColor: COLORS.qtyBtnBg, borderColor: COLORS.qtyBtnBorder }]} onPress={() => { const current = parseInt(formData.stock) || 1; handleInputChange('stock', (current + 1).toString()); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}><Ionicons name="add" size={24} color={COLORS.accent} /></TouchableOpacity>
         </View>
         {formErrors.stock && <Text style={[styles.errorText, { color: COLORS.error }]}>{formErrors.stock}</Text>}
@@ -499,7 +614,7 @@ const ProductForm = () => {
           <View style={[styles.locationContainer, { backgroundColor: COLORS.locationBg, borderColor: COLORS.locationBorder }]}>
             {formData.location ? (<><Ionicons name="checkmark-circle" size={20} color={COLORS.success} /><Text style={[styles.locationText, { color: COLORS.success }]}>{formData.location}</Text></>) : (<View style={styles.locationLoading}><ActivityIndicator size="small" color={COLORS.accent} /><Text style={[styles.locationLoadingText, { color: COLORS.accent }]}>{fr ? 'Détection en cours...' : 'Detecting...'}</Text></View>)}
           </View>
-        ) : (<TextInput style={[styles.input, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder, color: COLORS.inputText }]} value={formData.location} onChangeText={(text) => handleInputChange('location', text)} placeholder={fr ? 'Ville, région, pays' : 'City, region, country'} placeholderTextColor={COLORS.placeholder} />)}
+        ) : (<TextInput style={[styles.input, { backgroundColor: COLORS.inputBg, borderColor: COLORS.inputBorder, color: COLORS.inputText }]} value={formData.location} onChangeText={text => handleInputChange('location', text)} placeholder={fr ? 'Ville, région, pays' : 'City, region, country'} placeholderTextColor={COLORS.placeholder} />)}
       </View>
       <View style={[styles.inputContainer, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
         <View style={styles.inputHeader}><FontAwesome name="shipping-fast" size={16} color={COLORS.accent} /><Text style={[styles.inputLabel, { color: COLORS.text }]}>{fr ? 'Options de livraison' : 'Delivery Options'}</Text></View>
@@ -528,6 +643,7 @@ const ProductForm = () => {
           <View style={styles.headerRight}><Text style={[styles.stepCounter, { color: COLORS.textSecondary }]}>{fr ? 'Étape' : 'Step'} {activeStep}/3</Text></View>
         </View>
         {showSuccess && (<View style={[styles.successNotification, { backgroundColor: COLORS.success }]}><Ionicons name="checkmark-circle" size={24} color={COLORS.white} /><Text style={[styles.successNotificationText, { color: COLORS.white }]}>{fr ? 'Produit publié avec succès !' : 'Product published successfully!'}</Text></View>)}
+
         {renderStepIndicator()}
         <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {activeStep === 1 && renderStep1()}
@@ -559,12 +675,22 @@ const styles = StyleSheet.create({
   stepCounter: { fontSize: 14, fontWeight: '600' },
   successNotification: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, marginHorizontal: 20, marginTop: 10, borderRadius: 8 },
   successNotificationText: { fontSize: 16, fontWeight: '600', marginLeft: 12 },
-  stepIndicatorContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 40, paddingVertical: 20, marginHorizontal: 20, marginTop: 10, borderRadius: 16, borderWidth: 1 },
+  stepIndicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    marginHorizontal: 20,
+    marginTop: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
   stepRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  stepCircle: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', zIndex: 1, borderWidth: 2 },
-  stepNumber: { fontSize: 16, fontWeight: '700' },
-  stepLabel: { fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
-  stepConnector: { flex: 1, height: 3, marginHorizontal: 4 },
+  stepCircle: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', zIndex: 1, borderWidth: 1.5 },
+  stepNumber: { fontSize: 11, fontWeight: '700' },
+  stepLabel: { fontSize: 9, fontWeight: '600', marginTop: 2, textAlign: 'center' },
+  stepConnector: { flex: 1, height: 2, marginHorizontal: 4 },
   container: { paddingHorizontal: 20, paddingBottom: 40 },
   stepContainer: { marginTop: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
@@ -637,19 +763,20 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.7 },
   footer: { alignItems: 'center', paddingVertical: 16, borderTopWidth: 1, marginTop: 16 },
   footerText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  aiButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  aiButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  aiButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 6 },
+  aiButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+  compactAiContainer: { marginBottom: 16, padding: 10, borderRadius: 12, borderWidth: 1 },
+  compactAiHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  compactAiTitle: { fontSize: 13, fontWeight: '600' },
+  compactAiRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  compactAiInput: { flex: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, fontSize: 13, borderWidth: 1 },
+  compactAiButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  tagsSection: { marginTop: 8 },
+  tagsScroll: { flexDirection: 'row' },
+  tagChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, borderWidth: 1, marginRight: 6 },
+  tagText: { fontSize: 11, marginRight: 4 },
+  addTagInline: { marginLeft: 4 },
+  addTagInputInline: { width: 40, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 20, fontSize: 13, borderWidth: 1, textAlign: 'center' },
 });
 
 export default ProductForm;
