@@ -2,6 +2,7 @@
 
 
 // AssistantDashboard.tsx
+// AssistantDashboard.tsx - Sans affichage des vues
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -38,7 +39,7 @@ const CHART_PURPLE = "#9C27B0";
 const CHART_ORANGE = "#FF9800";
 const DANGER_RED = "#F44336";
 
-// ------------------------- Types (basés sur le backend amélioré) -------------------------
+// Types (inchangés)
 interface ActionRecommandee {
   type: string;
   label: string;
@@ -217,7 +218,7 @@ export default function AssistantDashboard() {
     }
   };
 
-  // Préparer les données pour le graphique à barres (Top 5 produits par score)
+  // Top 5 produits par score
   const topProductsByScore = dashboard
     ? [...dashboard.products].sort((a, b) => b.score - a.score).slice(0, 5)
     : [];
@@ -226,7 +227,7 @@ export default function AssistantDashboard() {
     datasets: [{ data: topProductsByScore.map(p => p.score) }],
   };
 
-  // Répartition des statuts produits
+  // Répartition des statuts
   const statusCount = dashboard ? {
     star: dashboard.top_products.length,
     bon: dashboard.products.filter(p => p.score >= 60 && p.score < 80).length,
@@ -243,16 +244,12 @@ export default function AssistantDashboard() {
     ] : [0,0,0,0],
   };
 
-  // Données pour le graphique d'engagement (ligne simulée à partir des données existantes)
-  const engagementData = dashboard ? {
-    labels: ['Likes', 'Vues', 'Score'],
-    datasets: [{ data: [dashboard.stats.total_likes, dashboard.stats.total_views, dashboard.stats.avg_views_per_product] }],
-  } : { labels: [], datasets: [{ data: [] }] };
-
+  // ========== RENDU (sans aucune mention des vues) ==========
   const renderKPI = () => {
     if (!dashboard) return null;
     const { stats } = dashboard;
-    const engagementRate = stats.total_views > 0 ? (stats.total_likes / stats.total_views) * 100 : 0;
+    // Taux d'engagement basé uniquement sur les likes (sans vues)
+    const engagementRate = stats.total_likes > 0 ? (stats.total_likes / stats.total_products) * 100 : 0;
     return (
       <View style={styles.kpiGrid}>
         <View style={styles.kpiCard}>
@@ -262,12 +259,6 @@ export default function AssistantDashboard() {
           <Text style={styles.kpiSubLabel}>actifs</Text>
         </View>
         <View style={styles.kpiCard}>
-          <Feather name="eye" size={20} color={PENDING_BLUE} />
-          <Text style={styles.kpiValue}>{formatNumber(stats.total_views)}</Text>
-          <Text style={styles.kpiLabel}>Vues totales</Text>
-          <Text style={styles.kpiSubLabel}>période</Text>
-        </View>
-        <View style={styles.kpiCard}>
           <AntDesign name="like1" size={20} color={VALID_GREEN} />
           <Text style={styles.kpiValue}>{formatNumber(stats.total_likes)}</Text>
           <Text style={styles.kpiLabel}>J'aime</Text>
@@ -275,21 +266,21 @@ export default function AssistantDashboard() {
         </View>
         <View style={styles.kpiCard}>
           <MaterialIcons name="trending-up" size={20} color={CHART_PURPLE} />
-          <Text style={styles.kpiValue}>{stats.avg_views_per_product.toFixed(0)}</Text>
-          <Text style={styles.kpiLabel}>Moy. vues/prod</Text>
+          <Text style={styles.kpiValue}>{stats.avg_likes_per_product.toFixed(0)}</Text>
+          <Text style={styles.kpiLabel}>Moy. likes/prod</Text>
           <Text style={styles.kpiSubLabel}>performance</Text>
         </View>
         <View style={styles.kpiCard}>
           <MaterialIcons name="compare-arrows" size={20} color={CHART_ORANGE} />
-          <Text style={styles.kpiValue}>{stats.platform_avg_views}</Text>
-          <Text style={styles.kpiLabel}>Plateforme (vues)</Text>
+          <Text style={styles.kpiValue}>{stats.platform_avg_likes}</Text>
+          <Text style={styles.kpiLabel}>Plateforme (likes)</Text>
           <Text style={styles.kpiSubLabel}>référence</Text>
         </View>
         <View style={styles.kpiCard}>
           <FontAwesome5 name="chart-line" size={20} color={PREMIUM_GOLD} />
           <Text style={styles.kpiValue}>{engagementRate.toFixed(1)}%</Text>
           <Text style={styles.kpiLabel}>Taux d'engagement</Text>
-          <Text style={styles.kpiSubLabel}>likes/vues</Text>
+          <Text style={styles.kpiSubLabel}>likes/produit</Text>
         </View>
       </View>
     );
@@ -341,26 +332,6 @@ export default function AssistantDashboard() {
               labelColor: (opacity = 1) => `rgba(255,255,255,${opacity})`,
             }}
             hideLegend={false}
-          />
-        </View>
-
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>📈 Comparaison clés</Text>
-          <LineChart
-            data={engagementData}
-            width={SCREEN_WIDTH - 40}
-            height={200}
-            chartConfig={{
-              backgroundColor: 'transparent',
-              backgroundGradientFrom: 'rgba(30,42,59,0.8)',
-              backgroundGradientTo: 'rgba(30,42,59,0.8)',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(66, 165, 245, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255,255,255,${opacity})`,
-              style: { borderRadius: 16 },
-            }}
-            bezier
-            style={styles.chart}
           />
         </View>
       </View>
@@ -439,7 +410,8 @@ export default function AssistantDashboard() {
                     <Text style={styles.scoreText}>{product.score}</Text>
                   </View>
                 </View>
-                <Text style={styles.productStats}>👁️ {formatNumber(product.views)}  ❤️ {formatNumber(product.likes)}</Text>
+                {/* Suppression de l'affichage des vues */}
+                <Text style={styles.productStats}>❤️ {formatNumber(product.likes)}</Text>
               </View>
             </View>
             <Feather name="chevron-right" size={18} color="#888" />
@@ -511,10 +483,6 @@ export default function AssistantDashboard() {
                     <Text style={styles.modalStatLabel}>Score</Text>
                   </View>
                   <View style={styles.modalStat}>
-                    <Text style={styles.modalStatValue}>{formatNumber(p.views)}</Text>
-                    <Text style={styles.modalStatLabel}>Vues</Text>
-                  </View>
-                  <View style={styles.modalStat}>
                     <Text style={styles.modalStatValue}>{formatNumber(p.likes)}</Text>
                     <Text style={styles.modalStatLabel}>Likes</Text>
                   </View>
@@ -570,35 +538,28 @@ export default function AssistantDashboard() {
   };
 
   const renderOverview = () => (
-    <ScrollView showsVerticalScrollIndicator={false}>
+    <View>
       {renderKPI()}
       {renderCharts()}
       {renderGlobalRecommendations()}
       {renderAIPredictions()}
-    </ScrollView>
+    </View>
   );
 
   const renderProductsTab = () => (
-    <ScrollView showsVerticalScrollIndicator={false}>
+    <View>
       {renderProductsOverview()}
-    </ScrollView>
+    </View>
   );
 
   const renderInsightsTab = () => {
     if (!dashboard) return null;
     return (
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <View>
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <MaterialIcons name="insights" size={22} color={PREMIUM_GOLD} />
             <Text style={styles.sectionTitle}>Analyse comparative</Text>
-          </View>
-          <View style={styles.comparisonRow}>
-            <Text style={styles.comparisonLabel}>Votre moyenne vues/produit</Text>
-            <Text style={styles.comparisonValue}>{dashboard.stats.avg_views_per_product.toFixed(0)}</Text>
-            <Text style={styles.comparisonVs}>vs</Text>
-            <Text style={styles.comparisonValue}>{dashboard.stats.platform_avg_views}</Text>
-            <Text style={styles.comparisonLabel}>Plateforme</Text>
           </View>
           <View style={styles.comparisonRow}>
             <Text style={styles.comparisonLabel}>Votre moyenne likes/produit</Text>
@@ -614,7 +575,7 @@ export default function AssistantDashboard() {
             </Text>
           </View>
         </View>
-      </ScrollView>
+      </View>
     );
   };
 
@@ -682,17 +643,15 @@ export default function AssistantDashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* Main content */}
+      {/* Contenu principal */}
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PREMIUM_GOLD]} />}
+        showsVerticalScrollIndicator={true}
       >
         {renderContent()}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Données mises à jour en temps réel • Assistant v3 Pro
-          </Text>
-        </View>
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       {renderProductModal()}
@@ -722,17 +681,19 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: 'rgba(255,167,38,0.2)' },
   tabText: { color: '#aaa', fontSize: 13, fontWeight: '500' },
   tabTextActive: { color: PREMIUM_GOLD, fontWeight: '600' },
-  content: { flex: 1, padding: 16 },
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
+  content: { flex: 1 },
+  contentContainer: { paddingBottom: 40 },
+  bottomSpacer: { height: 20 },
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 16 },
   kpiCard: { backgroundColor: 'rgba(30,42,59,0.9)', borderRadius: 16, padding: 12, width: (SCREEN_WIDTH - 48) / 2, alignItems: 'center', marginBottom: 12 },
   kpiValue: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 8 },
   kpiLabel: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 4 },
   kpiSubLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, marginTop: 2 },
-  chartsContainer: { gap: 16, marginBottom: 16 },
+  chartsContainer: { gap: 16, marginBottom: 16, paddingHorizontal: 16 },
   chartCard: { backgroundColor: 'rgba(30,42,59,0.9)', borderRadius: 16, padding: 12 },
   chartTitle: { color: '#fff', fontSize: 14, fontWeight: '600', marginBottom: 8 },
   chart: { borderRadius: 12, marginLeft: -20 },
-  sectionCard: { backgroundColor: 'rgba(30,42,59,0.9)', borderRadius: 16, padding: 16, marginBottom: 16 },
+  sectionCard: { backgroundColor: 'rgba(30,42,59,0.9)', borderRadius: 16, padding: 16, marginBottom: 16, marginHorizontal: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
   sectionIcon: { fontSize: 18 },
   sectionTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
@@ -767,8 +728,6 @@ const styles = StyleSheet.create({
   scoreGauge: { alignItems: 'center', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
   scoreGaugeLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
   scoreGaugeValue: { color: PREMIUM_GOLD, fontSize: 32, fontWeight: 'bold', marginTop: 4 },
-  footer: { paddingVertical: 16, alignItems: 'center' },
-  footerText: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: SHOPNET_BLUE, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
@@ -789,4 +748,5 @@ const styles = StyleSheet.create({
   modalActionDesc: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
   modalInsight: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginBottom: 6, paddingLeft: 8 },
 });
+
 
