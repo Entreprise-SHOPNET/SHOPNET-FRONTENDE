@@ -187,7 +187,7 @@ const SettingsScreen = () => {
       title: fr ? "Compte & Profil" : "Account & Profile",
       items: [
         { id: '1-1', name: fr ? "Mon profil" : "My Profile", route: "/Auth/Produits/profil-edit", icon: "person-circle", badge: 0, iconFamily: 'ionicons' },
-        { id: '1-2', name: fr ? "Sécurité" : "Security", route: "/MisAjour", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
+        { id: '1-2', name: fr ? "Sécurité" : "Security", route: "/Auth/Parametre/Securite", icon: "shield-checkmark", badge: 0, iconFamily: 'ionicons' },
         { id: '1-3', name: fr ? "Paiements" : "Payments", route: "/MisAjour", icon: "card-outline", badge: 3, iconFamily: 'ionicons' },
         { id: '1-4', name: fr ? "Badge Pro" : "Pro Badge", route: "/MisAjour", icon: "verified", badge: 0, iconFamily: 'material' },
       ],
