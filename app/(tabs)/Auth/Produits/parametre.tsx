@@ -196,8 +196,8 @@ const SettingsScreen = () => {
       id: '2',
       title: fr ? "Notifications & Communications" : "Notifications & Communications",
       items: [
-        { id: '2-1', name: fr ? "Notifications" : "Notifications", route: "/MisAjour", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
-        { id: '2-3', name: fr ? "Alertes" : "Alerts", route: "/MisAjour", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
+        { id: '2-1', name: fr ? "Notifications" : "Notifications", route: "/Auth/Parametre/NotificationSettings", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
+        { id: '2-3', name: fr ? "Alertes" : "Alerts", route: "/Auth/Parametre/Alertes", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
       ],
     },
     {
