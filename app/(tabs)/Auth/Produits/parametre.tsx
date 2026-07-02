@@ -1,7 +1,4 @@
-
-
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -18,6 +15,7 @@ import {
   Switch,
   ActivityIndicator,
   Linking,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -46,6 +44,7 @@ type SettingsItem = {
   badge?: number;
   iconFamily?: 'ionicons' | 'material' | 'fontawesome' | 'feather';
   url?: string;
+  subItems?: SettingsItem[];
 };
 
 type SettingsSection = {
@@ -179,8 +178,14 @@ const SettingsScreen = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [advancedSecurityEnabled, setAdvancedSecurityEnabled] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  
+  // État pour le toast de notification
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const toastOpacity = useRef(new Animated.Value(0)).current;
 
-  // Données de configuration avec traductions
+  // Données de configuration avec traductions (section Alertes supprimée)
   const settingsData: SettingsSection[] = [
     {
       id: '1',
@@ -197,7 +202,7 @@ const SettingsScreen = () => {
       title: fr ? "Notifications & Communications" : "Notifications & Communications",
       items: [
         { id: '2-1', name: fr ? "Notifications" : "Notifications", route: "/Auth/Parametre/NotificationSettings", icon: "notifications", badge: 5, iconFamily: 'ionicons' },
-        { id: '2-3', name: fr ? "Alertes" : "Alerts", route: "/Auth/Parametre/Alertes", icon: "alert-circle", badge: 0, iconFamily: 'ionicons' },
+        // Suppression de l'élément "Alertes" (id '2-3')
       ],
     },
     {
@@ -210,15 +215,16 @@ const SettingsScreen = () => {
     },
     {
       id: '4',
-      title: fr ? "Boutique & Produits" : "Shop & Products",
+      title: fr ? "📢 Publicité" : "📢 Advertising",
       items: [
-        { id: '4-1', name: fr ? "Paramètres boutique" : "Shop Settings", route: "/MisAjour", icon: "store", badge: 0, iconFamily: 'material' },
-        { id: '4-2', name: fr ? "Gestion produits" : "Product Management", route: "/MisAjour", icon: "cube", badge: 9, iconFamily: 'ionicons' },
-        { id: '4-3', name: fr ? "Livraison" : "Delivery", route: "/MisAjour", icon: "truck", badge: 0, iconFamily: 'fontawesome' },
-        { id: '4-4', name: fr ? "Boutique Premium" : "Premium Shop", route: "/MisAjour", icon: "diamond", badge: 0, iconFamily: 'fontawesome' },
-        { id: '4-5', name: fr ? "Créer une publicité" : "Create Ad", route: "/MisAjour", icon: "bullhorn", badge: 0, iconFamily: 'fontawesome' },
-        { id: '4-6', name: fr ? "Historique des paiements" : "Payment History", route: "/MisAjour", icon: "history", badge: 0, iconFamily: 'fontawesome' },
-        { id: '4-7', name: fr ? "Assistant Vendeur" : "Seller Assistant", route: "/MisAjour", icon: "rocket", badge: 2, iconFamily: 'ionicons' },
+        { id: '4-1', name: fr ? "Créer une publicité" : "Create Ad", route: "/MisAjour", icon: "bullhorn", iconFamily: 'fontawesome' },
+        { id: '4-2', name: fr ? "Mes publicités" : "My Ads", route: "/MisAjour", icon: "list", iconFamily: 'ionicons' },
+        { id: '4-3', name: fr ? "Statistiques publicitaires" : "Ad Statistics", route: "/MisAjour", icon: "bar-chart", iconFamily: 'fontawesome' },
+        { id: '4-4', name: fr ? "Ciblage" : "Targeting", route: "/MisAjour", icon: "target", iconFamily: 'fontawesome' },
+        { id: '4-5', name: fr ? "Paiements publicité" : "Ad Payments", route: "/MisAjour", icon: "credit-card", iconFamily: 'fontawesome' },
+        { id: '4-6', name: fr ? "Planification" : "Scheduling", route: "/MisAjour", icon: "calendar", iconFamily: 'fontawesome' },
+        { id: '4-7', name: fr ? "Suggestions IA" : "AI Suggestions", route: "/MisAjour", icon: "brain", iconFamily: 'ionicons' },
+        { id: '4-8', name: fr ? "Paramètres publicité" : "Ad Settings", route: "/MisAjour", icon: "settings", iconFamily: 'ionicons' },
       ],
     },
     {
@@ -234,8 +240,8 @@ const SettingsScreen = () => {
       id: '6',
       title: fr ? "Support & Aide" : "Support & Help",
       items: [
-        { id: '6-1', name: fr ? "Centre d'aide" : "Help Center", route: "/MisAjour", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
-        { id: '6-2', name: fr ? "Signaler un problème" : "Report a Problem", route: "/MisAjour", icon: "warning", badge: 0, iconFamily: 'material' },
+        { id: '6-1', name: fr ? "Centre d'aide" : "Help Center", route: "/Auth/AssistantIA/Centre_aide", icon: "help-circle", badge: 0, iconFamily: 'ionicons' },
+        { id: '6-2', name: fr ? "Signaler un problème" : "Report a Problem", route: "/Auth/AssistantIA/Signalement", icon: "warning", badge: 0, iconFamily: 'material' },
         { id: '6-3', name: fr ? "Nous contacter" : "Contact Us", route: "/MisAjour", icon: "mail", badge: 0, iconFamily: 'ionicons' },
         { id: '6-4', name: fr ? "À propos" : "About", route: "/MisAjour", icon: "information-circle", badge: 0, iconFamily: 'ionicons' },
       ],
@@ -262,6 +268,28 @@ const SettingsScreen = () => {
       ],
     },
   ];
+
+  // Filtrer les données en fonction du texte de recherche (titre de section ou nom d'item)
+  const filteredData = useMemo(() => {
+    if (!searchText.trim()) return settingsData;
+    const lowerSearch = searchText.toLowerCase();
+    return settingsData
+      .map(section => {
+        const sectionMatches = section.title.toLowerCase().includes(lowerSearch);
+        const filteredItems = section.items.filter(item =>
+          item.name.toLowerCase().includes(lowerSearch)
+        );
+        // Garder la section si le titre correspond ou s'il y a des items correspondants
+        if (sectionMatches || filteredItems.length > 0) {
+          return {
+            ...section,
+            items: sectionMatches ? section.items : filteredItems,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as SettingsSection[];
+  }, [searchText, settingsData]);
 
   useEffect(() => { fetchUserData(); }, []);
 
@@ -299,17 +327,48 @@ const SettingsScreen = () => {
     );
   };
 
+  // Fonction qui affiche un toast au lieu d'une alerte
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+    Animated.timing(toastOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    setTimeout(() => {
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setToastVisible(false);
+      });
+    }, 3000);
+  };
+
   const handleSaveSettings = async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("userToken");
-      const settingsData = { notifications_enabled: notificationsEnabled, dark_mode: isDark, location_enabled: locationEnabled, advanced_security: advancedSecurityEnabled, updated_at: new Date().toISOString() };
-      await axios.post(`${BASE_URL}/api/user/settings`, settingsData, { headers: { Authorization: `Bearer ${token}` } });
-      Alert.alert(fr ? "Succès" : "Success", fr ? "Paramètres sauvegardés avec succès" : "Settings saved successfully");
+      const settingsData = {
+        notifications_enabled: notificationsEnabled,
+        dark_mode: isDark,
+        location_enabled: locationEnabled,
+        advanced_security: advancedSecurityEnabled,
+        updated_at: new Date().toISOString()
+      };
+      await axios.post(`${BASE_URL}/api/user/settings`, settingsData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Notification toast au lieu de Alert.alert
+      showToast(fr ? "✅ Paramètres sauvegardés avec succès" : "✅ Settings saved successfully");
     } catch (error) {
       console.error("Erreur sauvegarde paramètres:", error);
-      Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible de sauvegarder les paramètres" : "Unable to save settings");
-    } finally { setLoading(false); }
+      showToast(fr ? "❌ Erreur lors de la sauvegarde" : "❌ Error saving settings");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSyncData = async () => {
@@ -318,21 +377,34 @@ const SettingsScreen = () => {
       const token = await AsyncStorage.getItem("userToken");
       await axios.post(`${BASE_URL}/api/user/sync`, {}, { headers: { Authorization: `Bearer ${token}` } });
       await fetchUserData();
-      Alert.alert(fr ? "Succès" : "Success", fr ? "Données synchronisées avec succès" : "Data synced successfully");
+      showToast(fr ? "✅ Données synchronisées" : "✅ Data synced");
     } catch (error) {
       console.error("Erreur synchronisation:", error);
-      Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible de synchroniser les données" : "Unable to sync data");
-    } finally { setLoading(false); }
+      showToast(fr ? "❌ Erreur de synchronisation" : "❌ Sync error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateApp = () => {
     const playStoreUrl = "https://play.google.com/store/apps/details?id=com.shopai.app&pcampaignid=web_share";
-    Linking.openURL(playStoreUrl).catch(() => { Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible d'ouvrir le Play Store." : "Unable to open Play Store."); });
+    Linking.openURL(playStoreUrl).catch(() => {
+      showToast(fr ? "❌ Impossible d'ouvrir le Play Store" : "❌ Unable to open Play Store");
+    });
   };
 
   const handleItemPress = (item: SettingsItem) => {
-    if (item.url) { Linking.openURL(item.url).catch(() => { Alert.alert(fr ? "Erreur" : "Error", fr ? "Impossible d'ouvrir ce lien." : "Unable to open this link."); }); }
-    else { router.push(item.route); }
+    if (item.url) {
+      Linking.openURL(item.url).catch(() => {
+        showToast(fr ? "❌ Impossible d'ouvrir ce lien" : "❌ Unable to open link");
+      });
+    } else {
+      router.push(item.route);
+    }
+  };
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSection(prev => prev === sectionId ? null : sectionId);
   };
 
   if (loading && !userData.name) {
@@ -378,12 +450,24 @@ const SettingsScreen = () => {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Barre de recherche */}
         <View style={[styles.searchBar, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
           <Ionicons name="search" size={20} color={COLORS.accent} style={styles.searchIcon} />
-          <TextInput style={[styles.searchInput, { color: COLORS.inputText }]} placeholder={fr ? "Rechercher un paramètre..." : "Search settings..."} placeholderTextColor={COLORS.placeholder} value={searchText} onChangeText={setSearchText} />
-          {searchText.length > 0 && (<TouchableOpacity onPress={() => setSearchText("")}><Ionicons name="close-circle" size={20} color={COLORS.danger} /></TouchableOpacity>)}
+          <TextInput
+            style={[styles.searchInput, { color: COLORS.inputText }]}
+            placeholder={fr ? "Rechercher un paramètre..." : "Search settings..."}
+            placeholderTextColor={COLORS.placeholder}
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText("")}>
+              <Ionicons name="close-circle" size={20} color={COLORS.danger} />
+            </TouchableOpacity>
+          )}
         </View>
 
+        {/* Réglages rapides */}
         <View style={[styles.quickSettingsSection, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
           <Text style={[styles.sectionTitle, { color: COLORS.text }]}>{fr ? "Réglages rapides" : "Quick Settings"}</Text>
           <View style={styles.quickSettingsGrid}>
@@ -393,19 +477,42 @@ const SettingsScreen = () => {
             <QuickSetting iconName="shield-checkmark" title={fr ? "Sécurité avancée" : "Advanced Security"} description={fr ? "Protection renforcée" : "Enhanced protection"} value={advancedSecurityEnabled} onValueChange={setAdvancedSecurityEnabled} colors={COLORS} />
           </View>
           <TouchableOpacity style={[styles.saveButton, { backgroundColor: COLORS.accent }]} onPress={handleSaveSettings} disabled={loading}>
-            <View style={styles.saveButtonContent}><Ionicons name="save" size={20} color="#FFFFFF" /><Text style={styles.saveButtonText}>{fr ? "Sauvegarder les réglages" : "Save Settings"}</Text></View>
+            <View style={styles.saveButtonContent}>
+              <Ionicons name="save" size={20} color="#FFFFFF" />
+              <Text style={styles.saveButtonText}>{fr ? "Sauvegarder les réglages" : "Save Settings"}</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
-        {settingsData.map((section) => (
-          <View key={section.id} style={[styles.settingsSection, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
-            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>{section.title}</Text>
-            <View style={styles.settingsList}>
-              {section.items.map((item) => (<SettingRow key={item.id} item={item} onPress={() => handleItemPress(item)} colors={COLORS} />))}
-            </View>
-          </View>
-        ))}
+        {/* Sections filtrées */}
+        {filteredData.map((section) => {
+          const isExpanded = expandedSection === section.id;
+          const isAdvertising = section.id === '4';
+          return (
+            <View key={section.id} style={[styles.settingsSection, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+              <TouchableOpacity
+                style={styles.sectionHeaderTouchable}
+                onPress={() => isAdvertising && toggleSection(section.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.sectionTitle, { color: COLORS.text }]}>{section.title}</Text>
+                {isAdvertising && (
+                  <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={24} color={COLORS.textSecondary} />
+                )}
+              </TouchableOpacity>
 
+              {!isAdvertising || (isAdvertising && isExpanded) ? (
+                <View style={styles.settingsList}>
+                  {section.items.map((item) => (
+                    <SettingRow key={item.id} item={item} onPress={() => handleItemPress(item)} colors={COLORS} />
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+
+        {/* Informations */}
         <View style={[styles.infoSection, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
           <InfoRow iconName="information-circle" label={fr ? "Version de l'application" : "App Version"} value="Shopnet Pro 3.2.3" colors={COLORS} />
           <TouchableOpacity style={[styles.updateButton, { backgroundColor: COLORS.accent }]} onPress={handleUpdateApp}>
@@ -416,15 +523,26 @@ const SettingsScreen = () => {
           <InfoRow iconName="cloud" label={fr ? "Dernière synchronisation" : "Last Sync"} value={fr ? "À l'instant" : "Just now"} colors={COLORS} />
         </View>
 
+        {/* Bouton Déconnexion */}
         <TouchableOpacity style={[styles.logoutButton, { backgroundColor: COLORS.card, borderColor: COLORS.logoutBorder }]} onPress={handleLogout} disabled={loading}>
-          <View style={styles.logoutButtonContent}><MaterialIcons name="logout" size={22} color={COLORS.danger} /><Text style={[styles.logoutButtonText, { color: COLORS.danger }]}>{fr ? "Déconnexion" : "Logout"}</Text></View>
+          <View style={styles.logoutButtonContent}>
+            <MaterialIcons name="logout" size={22} color={COLORS.danger} />
+            <Text style={[styles.logoutButtonText, { color: COLORS.danger }]}>{fr ? "Déconnexion" : "Logout"}</Text>
+          </View>
         </TouchableOpacity>
 
         <View style={[styles.footer, { borderTopColor: COLORS.footerBorder }]}>
-          <Text style={[styles.footerText, { color: COLORS.textSecondary }]}>© 2026 Shopnet Markeplace. {fr ? "Tous droits réservés." : "All rights reserved."}</Text>
-          <Text style={[styles.footerSubText, { color: COLORS.textMuted }]}>Version 3.2.3 • Build 2412</Text>
+          <Text style={[styles.footerText, { color: COLORS.textSecondary }]}>© 2026 Shopnet Markeplace RDC. {fr ? "Tous droits réservés." : "All rights reserved."}</Text>
+          <Text style={[styles.footerSubText, { color: COLORS.textMuted }]}>Version 10.2.2 • Build 213</Text>
         </View>
       </ScrollView>
+
+      {/* Toast notification */}
+      {toastVisible && (
+        <Animated.View style={[styles.toastContainer, { opacity: toastOpacity, backgroundColor: COLORS.card }]}>
+          <Text style={[styles.toastText, { color: COLORS.text }]}>{toastMessage}</Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 };
@@ -453,6 +571,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 16, padding: 0 },
   quickSettingsSection: { borderRadius: 16, marginHorizontal: 20, marginBottom: 20, padding: 20, borderWidth: 1 },
   sectionTitle: { fontSize: 18, fontWeight: "800", marginBottom: 16, letterSpacing: 0.5 },
+  sectionHeaderTouchable: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   quickSettingsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   quickSettingCard: { width: "48%", borderRadius: 12, padding: 16, marginBottom: 12 },
   quickSettingHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
@@ -483,6 +602,28 @@ const styles = StyleSheet.create({
   footer: { alignItems: "center", paddingTop: 20, borderTopWidth: 1, marginHorizontal: 20 },
   footerText: { fontSize: 12, textAlign: "center", marginBottom: 4 },
   footerSubText: { fontSize: 11, textAlign: "center" },
+  // Toast styles
+  toastContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 20,
+    right: 20,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(66, 165, 245, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  toastText: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });
 
 export default SettingsScreen;
