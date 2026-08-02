@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
@@ -20,12 +19,19 @@ import {
   Share,
   TextInput,
   Alert,
+  Pressable,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../../../app/theme/ThemeContext";
 import { useLanguage } from "../../../../context/LanguageContext";
+// ✅ Import corrigé pour react-native-google-mobile-ads v16.4.0
+import {
+  NativeAdView,
+  NativeMediaView,
+  NativeAsset,
+} from "react-native-google-mobile-ads";
 
 if (Platform.OS === "android") {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -36,6 +42,7 @@ const { width, height } = Dimensions.get("window");
 const USD_TO_CDF = 2307;
 const CACHE_TTL = 5 * 60 * 1000;
 
+// Types inchangés
 type ProductDetail = {
   id: number; title: string; description: string; price: number;
   original_price: number | null; category: string; condition: string;
@@ -220,6 +227,85 @@ const CountdownTimer = ({ endDate }: { endDate: Date }) => {
   );
 };
 
+// ✅ Composant publicité native (corrigé pour version 16.4.0)
+const NativeProductAd = ({ adUnitID }: { adUnitID: string }) => {
+  const COLORS = useDynamicColors();
+  const { language } = useLanguage();
+  const fr = language === 'fr';
+  const [nativeAd, setNativeAd] = useState<any>(null);
+  const [adLoaded, setAdLoaded] = useState(false);
+  const [adError, setAdError] = useState(false);
+
+  useEffect(() => {
+    setAdLoaded(false);
+    setAdError(false);
+    setNativeAd(null);
+  }, [adUnitID]);
+
+  if (adError) return null; // masquer en cas d'erreur
+
+  return (
+    <NativeAdView
+      adUnitID={adUnitID}
+      onAdLoaded={(ad) => {
+        setNativeAd(ad);
+        setAdLoaded(true);
+      }}
+      onAdFailedToLoad={(error) => {
+        console.warn("Native ad failed:", error);
+        setAdError(true);
+      }}
+      style={[styles.adCardBase, { backgroundColor: COLORS.cardBackground }]}
+    >
+      {!adLoaded ? (
+        <View style={styles.adPlaceholder}>
+          <ActivityIndicator size="small" color={COLORS.accent} />
+        </View>
+      ) : (
+        <>
+          <NativeMediaView style={styles.adMedia} />
+          <View style={styles.adInfo}>
+            <NativeAsset style={styles.adIcon} />
+            <View style={styles.adTextBlock}>
+              <Text
+                style={[styles.adHeadline, { color: COLORS.textPrimary }]}
+                numberOfLines={2}
+              >
+                {nativeAd?.headline}
+              </Text>
+              <Text
+                style={[styles.adBody, { color: COLORS.textSecondary }]}
+                numberOfLines={2}
+              >
+                {nativeAd?.body}
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => {
+              nativeAd?.performClick();
+            }}
+            style={({ pressed }) => [
+              styles.adCta,
+              { opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={styles.adCtaText}>
+              {fr ? "Voir le produit" : "See product"}
+            </Text>
+          </Pressable>
+        </>
+      )}
+      <View style={styles.sponsoredBadgeOverlay}>
+        <Ionicons name="star" size={12} color="#FFFFFF" />
+        <Text style={styles.sponsoredBadgeText}>
+          {fr ? "Sponsorisé" : "Sponsored"}
+        </Text>
+      </View>
+    </NativeAdView>
+  );
+};
+
 export default function DetailId() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -227,6 +313,7 @@ export default function DetailId() {
   const { language } = useLanguage();
   const fr = language === 'fr';
 
+  // --- États (inchangés) ---
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [seller, setSeller] = useState<Seller | null>(null);
@@ -257,6 +344,7 @@ export default function DetailId() {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const flatListRef = useRef<FlatList>(null);
 
+  // --- Fonctions (inchangées) ---
   const showNotification = (message: string) => {
     setNotificationMessage(message); setNotificationVisible(true);
     Animated.sequence([Animated.timing(notificationPosition, { toValue: 60, duration: 400, useNativeDriver: true }), Animated.delay(2000), Animated.timing(notificationPosition, { toValue: -100, duration: 400, useNativeDriver: true })]).start(() => setNotificationVisible(false));
@@ -402,6 +490,7 @@ export default function DetailId() {
   const navigateToImage = (direction: "prev" | "next") => { const images = product?.images || []; if (images.length <= 1) return; let newIndex = direction === "next" ? (activeImageIndex + 1) % images.length : (activeImageIndex - 1 + images.length) % images.length; scrollToImage(newIndex); };
   const openLink = (url: string) => { Linking.openURL(url).catch(() => showNotification(fr ? "Impossible d'ouvrir ce lien" : "Unable to open this link")); };
 
+  // --- Fonctions de rendu (inchangées sauf renderProductCard et renderFooter) ---
   const renderImageItem = ({ item, index }: { item: string; index: number }) => (
     <TouchableOpacity activeOpacity={0.9} onPress={() => showImage(item, index)} style={styles.imageWrapper}>
       <Image source={{ uri: item }} style={styles.mainImage} resizeMode="cover" />
@@ -417,12 +506,13 @@ export default function DetailId() {
     </TouchableOpacity>
   );
 
-  const renderProductCard = (item: SimilarProduct | ProductDetail) => {
+  // ✅ renderProductCard accepte un style optionnel pour l'affichage en paire
+  const renderProductCard = (item: SimilarProduct | ProductDetail, cardStyle?: any) => {
     const discount = item.original_price && item.original_price > item.price ? Math.round(((item.original_price - item.price) / item.original_price) * 100) : 0;
     const isBoosted = (item as any).is_boosted || false;
     const endDate = item.created_at && (item as any).duration_days ? new Date(new Date(item.created_at).getTime() + (item as any).duration_days * 24 * 60 * 60 * 1000) : null;
     return (
-      <TouchableOpacity style={[styles.productCard, { backgroundColor: COLORS.cardBackground }]} onPress={() => navigateToProduct(item)} activeOpacity={0.8}>
+      <TouchableOpacity style={[styles.productCard, cardStyle && cardStyle, { backgroundColor: COLORS.cardBackground }]} onPress={() => navigateToProduct(item)} activeOpacity={0.8}>
         <View style={styles.productImageContainer}>
           <Image source={{ uri: (item as any).image_url || (item as any).images?.[0] || "https://via.placeholder.com/150" }} style={styles.productCardImage} />
           {isBoosted && (<View style={styles.sponsoredBadge}><Ionicons name="star" size={12} color="#FFFFFF" /><Text style={styles.sponsoredBadgeText}>{fr ? "Sponsorisé" : "Sponsored"}</Text></View>)}
@@ -475,7 +565,25 @@ export default function DetailId() {
     </TouchableOpacity>
   );
 
+  // ✅ Construction des lignes pour la section similaires avec pub après le 2e produit
+  const similarRows = React.useMemo(() => {
+    const rows: Array<
+      | { type: "pair"; products: [SimilarProduct, SimilarProduct?] }
+      | { type: "ad" }
+    > = [];
+    for (let i = 0; i < similarProducts.length; i += 2) {
+      const pair: [SimilarProduct, SimilarProduct?] = [similarProducts[i], similarProducts[i + 1]];
+      rows.push({ type: "pair", products: pair });
+      // Insertion de la pub après la première paire (indices 0 et 1)
+      if (i === 0 && similarProducts.length >= 2) {
+        rows.push({ type: "ad" });
+      }
+    }
+    return rows;
+  }, [similarProducts]);
+
   const renderHeader = () => (
+    // ... (exactement le même que votre code d'origine)
     <>
       <View style={styles.imageSection}>
         <FlatList ref={flatListRef} data={product?.images || []} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={(e) => { const idx = Math.round(e.nativeEvent.contentOffset.x / width); setActiveImageIndex(idx); }} renderItem={renderImageItem} keyExtractor={(item, i) => i.toString()} />
@@ -565,6 +673,7 @@ export default function DetailId() {
     </>
   );
 
+  // ✅ renderFooter modifié pour intégrer la pub
   const renderFooter = () => (
     <View style={styles.content}>
       <View style={styles.categoriesSection}>
@@ -579,8 +688,45 @@ export default function DetailId() {
       )}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: COLORS.textPrimary }]}>{fr ? "Produits similaires" : "Similar products"}</Text>
-        <FlatList data={similarProducts} numColumns={2} columnWrapperStyle={styles.suggestionsGrid} renderItem={({ item }) => renderProductCard(item)} keyExtractor={(item) => item.id.toString()} onEndReached={fetchMoreSimilar} onEndReachedThreshold={0.3} ListFooterComponent={similarLoadingMore ? <View style={styles.footerLoader}><ActivityIndicator size="small" color={COLORS.accent} /></View> : null} scrollEnabled={false} />
-        {!similarHasMore && similarProducts.length > 0 && (<Text style={[styles.endMessage, { color: COLORS.textSecondary }]}>{fr ? "Fin des résultats" : "End of results"}</Text>)}
+        {/* Nouvelle FlatList avec insertion de la pub */}
+        <FlatList
+          data={similarRows}
+          numColumns={1}
+          renderItem={({ item }) => {
+            if (item.type === "ad") {
+              return <NativeProductAd adUnitID="ca-app-pub-8075684020069689/5432329618" />;
+            }
+            const [prod1, prod2] = item.products;
+            return (
+              <View style={styles.similarPairRow}>
+                <View style={{ flex: 1, marginRight: 6 }}>
+                  {prod1 && renderProductCard(prod1, styles.similarProductCard)}
+                </View>
+                <View style={{ flex: 1, marginLeft: 6 }}>
+                  {prod2 && renderProductCard(prod2, styles.similarProductCard)}
+                </View>
+              </View>
+            );
+          }}
+          keyExtractor={(item, index) =>
+            item.type === "ad" ? `ad-${index}` : `pair-${item.products[0]?.id}-${index}`
+          }
+          onEndReached={fetchMoreSimilar}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            similarLoadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={COLORS.accent} />
+              </View>
+            ) : null
+          }
+          scrollEnabled={false}
+        />
+        {!similarHasMore && similarProducts.length > 0 && (
+          <Text style={[styles.endMessage, { color: COLORS.textSecondary }]}>
+            {fr ? "Fin des résultats" : "End of results"}
+          </Text>
+        )}
       </View>
       <View style={styles.bottomButtons}>
         <TouchableOpacity style={[styles.bottomButton, { backgroundColor: COLORS.cardBackground }]} onPress={handleReport}>
@@ -597,6 +743,7 @@ export default function DetailId() {
     </View>
   );
 
+  // --- Reste du rendu (inchangé) ---
   if (loading && !product) return (
     <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.background }]}>
       <StatusBar backgroundColor={COLORS.statusBar} barStyle={COLORS.barStyle} />
@@ -654,6 +801,7 @@ export default function DetailId() {
   );
 }
 
+// --- Styles (tous les styles originaux + les nouveaux pour la pub) ---
 const styles = StyleSheet.create({
   container: { flex: 1 }, scrollContainer: { paddingBottom: 20 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -749,4 +897,49 @@ const styles = StyleSheet.create({
   cancelButtonText: { fontWeight: "600" },
   submitButton: { flex: 1, paddingVertical: 12, marginLeft: 8, alignItems: "center", borderRadius: 8 },
   submitButtonText: { color: "#FFFFFF", fontWeight: "600" },
+
+  // Nouveaux styles pour la publicité et les paires
+  similarProductCard: { width: "100%", marginBottom: 0 },
+  similarPairRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+  adCardBase: {
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  adMedia: { height: 150, width: "100%" },
+  adPlaceholder: { height: 150, justifyContent: "center", alignItems: "center" },
+  adInfo: { flexDirection: "row", padding: 12, alignItems: "center" },
+  adIcon: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+  adTextBlock: { flex: 1 },
+  adHeadline: { fontSize: 14, fontWeight: "600", marginBottom: 2 },
+  adBody: { fontSize: 12, lineHeight: 16 },
+  adCta: {
+    backgroundColor: "#FF6B00",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignSelf: "flex-end",
+    margin: 12,
+    borderRadius: 8,
+  },
+  adCtaText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  sponsoredBadgeOverlay: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#FF6B00",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
 });
