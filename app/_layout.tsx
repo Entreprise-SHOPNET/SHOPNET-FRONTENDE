@@ -7,19 +7,16 @@ import React, { useEffect, useState } from "react";
 import { View, Text } from "react-native";
 import "react-native-reanimated";
 import * as Device from "expo-device";
-
+import mobileAds from "react-native-google-mobile-ads";
 import { ThemeProvider } from "./theme/ThemeContext";
 import { LanguageProvider } from "../context/LanguageContext";
-
 import {
   registerForPushNotificationsAsync,
   listenNotifications,
 } from "../services/notifications";
-
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 export { ErrorBoundary } from "expo-router";
-
 export const unstable_settings = {
   initialRouteName: "index",
 };
@@ -27,6 +24,18 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  // ✅ Initialisation Google AdMob
+  useEffect(() => {
+    mobileAds()
+      .initialize()
+      .then(() => {
+        console.log("✅ AdMob initialisé avec succès");
+      })
+      .catch((error) => {
+        console.log("❌ Erreur initialisation AdMob :", error);
+      });
+  }, []);
+
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ...FontAwesome.font,
@@ -37,7 +46,9 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
   }, [loaded]);
 
   if (!loaded) return null;
@@ -47,7 +58,6 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const router = useRouter();
-
   const [notifVisible, setNotifVisible] = useState(false);
   const [notifMessage, setNotifMessage] = useState("");
 
@@ -63,25 +73,20 @@ function RootLayoutNav() {
       const checkUserInterval = setInterval(async () => {
         if (globalThis.currentUser?.id) {
           clearInterval(checkUserInterval);
-
           console.log("👤 User détecté:", globalThis.currentUser.id);
-
           await registerForPushNotificationsAsync(globalThis.currentUser.id);
 
           cleanup = listenNotifications(
             (notification) => {
-              const message =
-                notification.request.content.body || "";
-
+              const message = notification.request.content.body || "";
               setNotifMessage(message);
               setNotifVisible(true);
-              setTimeout(() => setNotifVisible(false), 4000);
+              setTimeout(() => {
+                setNotifVisible(false);
+              }, 4000);
             },
-
             (response) => {
-              const data =
-                response.notification.request.content.data || {};
-
+              const data = response.notification.request.content.data || {};
               const productId = data.productId;
 
               // 🔥 OUVERTURE PRODUIT
@@ -92,7 +97,6 @@ function RootLayoutNav() {
                 });
                 return;
               }
-
               router.push("/Auth/Produits/Fil");
             }
           );
@@ -103,20 +107,19 @@ function RootLayoutNav() {
     initNotifications();
 
     return () => {
-      if (cleanup) cleanup();
+      if (cleanup) {
+        cleanup();
+      }
     };
   }, []);
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-
         {/* 🌙 THEME GLOBAL SHOPNET */}
         <ThemeProvider>
-
           {/* 🌐 LANGUE GLOBAL SHOPNET */}
           <LanguageProvider>
-
             {/* 🔔 NOTIFICATION UI */}
             {notifVisible && (
               <View
@@ -145,7 +148,6 @@ function RootLayoutNav() {
                 </Text>
               </View>
             )}
-
             {/* 📱 NAVIGATION */}
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
@@ -157,9 +159,7 @@ function RootLayoutNav() {
               <Stack.Screen name="Auth/Questionnaire" />
               <Stack.Screen name="Auth" />
             </Stack>
-
           </LanguageProvider>
-
         </ThemeProvider>
       </SafeAreaView>
     </SafeAreaProvider>

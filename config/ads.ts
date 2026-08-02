@@ -1,0 +1,3 @@
+
+export const ADMOB_NATIVE_PRODUCT_ID =
+"ca-app-pub-8075684020069689/5432329618";
