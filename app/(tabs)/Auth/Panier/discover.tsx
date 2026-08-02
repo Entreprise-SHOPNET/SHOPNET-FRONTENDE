@@ -1,8 +1,4 @@
-
-
-
-
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,6 +21,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import {
+  NativeAd,
+  NativeAdView,
+  NativeAdEventType,
+  NativeAssetType,
+  NativeMediaView,
+} from 'react-native-google-mobile-ads';
 
 // ========== CONSTANTES ==========
 const { width } = Dimensions.get('window');
@@ -33,6 +36,9 @@ const ITEMS_PER_PAGE = 10;
 const INITIAL_LIMIT = 50;
 const CACHE_KEY = '@shopnet_discover_cache';
 const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes
+const AD_UNIT_ID = 'ca-app-pub-8075684020069689/5432329618';
+const ADS_TO_LOAD = 6; // Nombre de publicités natives à charger d'avance
+const AD_INTERVAL = 4; // Une pub tous les 4 produits
 
 // ========== PALETTE DE COULEURS MODERNE (sans ombres) ==========
 const COLORS = {
@@ -128,6 +134,57 @@ const PremiumBadge = ({ size = 14, showText = false }: { size?: number; showText
   </View>
 );
 
+// ========== COMPOSANT PUBLICITÉ NATIVE ==========
+const NativeProductAd = ({ nativeAd, cardWidth }: { nativeAd: NativeAd; cardWidth?: number }) => {
+  if (!nativeAd?.loaded) return null;
+
+  return (
+    <NativeAdView
+      nativeAd={nativeAd}
+      style={[
+        styles.productCardHorizontal, // même style que la carte produit
+        {
+          backgroundColor: COLORS.card,
+          borderColor: COLORS.border,
+          width: cardWidth || width - 32,
+          marginHorizontal: 8,
+          marginBottom: 12,
+        },
+      ]}
+    >
+      <View style={styles.imageContainerHorizontal}>
+        <NativeMediaView style={styles.adMediaView} />
+        <View style={styles.sponsoredBadge}>
+          <Text style={styles.sponsoredText}>Sponsorisé</Text>
+        </View>
+        <TouchableOpacity style={styles.optionsButton}>
+          <Ionicons name="ellipsis-horizontal" size={16} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.cardContent}>
+        <Text style={[styles.productTitle, { color: COLORS.text }]} numberOfLines={2}>
+          {/* HeadlineView remplace le titre */}
+          <NativeAdView.HeadlineView style={styles.adHeadline} />
+        </Text>
+        <View style={styles.sellerRow}>
+          <NativeAdView.IconView style={styles.adIcon} />
+          <Text style={[styles.sellerName, { color: COLORS.textSecondary }]}>
+            <NativeAdView.AdvertiserView style={styles.adAdvertiser} />
+          </Text>
+        </View>
+        <View style={styles.priceRow}>
+          <Text style={[styles.regularPrice, { color: COLORS.accent }]}>À découvrir</Text>
+        </View>
+        <View style={styles.productMetaRow}>
+          <NativeAdView.CallToActionView style={styles.adCTA}>
+            <Text style={styles.ctaText}>En savoir plus</Text>
+          </NativeAdView.CallToActionView>
+        </View>
+      </View>
+    </NativeAdView>
+  );
+};
+
 // ========== COMPOSANT PRINCIPAL ==========
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -150,10 +207,60 @@ export default function DiscoverScreen() {
   const [actionModalVisible, setActionModalVisible] = useState(false);
   const [isCacheLoaded, setIsCacheLoaded] = useState(false);
 
+  // États pour les pubs natives
+  const [nativeAds, setNativeAds] = useState<NativeAd[]>([]);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]); // pour la section Produits similaires
+  const adRefs = useRef<NativeAd[]>([]);
+
   // Mode d'affichage : 'horizontal' ou 'vertical'
   const [layoutMode, setLayoutMode] = useState<'horizontal' | 'vertical'>('horizontal');
 
   const flatListRef = useRef<FlatList>(null);
+
+  // ========== CHARGEMENT DES PUBS NATIVES ==========
+  const loadNativeAds = useCallback(() => {
+    const ads: NativeAd[] = [];
+    for (let i = 0; i < ADS_TO_LOAD; i++) {
+      const ad = NativeAd.createForAdRequest(AD_UNIT_ID, {
+        requestNonPersonalizedAdsOnly: true,
+        mediaAspectRatio: 'any',
+      });
+
+      const onAdLoaded = () => {
+        // Forcer la mise à jour une fois chargée
+        setNativeAds(prev => {
+          // remplacer l'annonce correspondante
+          const updated = [...prev];
+          const index = updated.findIndex(a => a.adUnitId === ad.adUnitId);
+          if (index !== -1) updated[index] = ad;
+          else updated.push(ad);
+          return updated;
+        });
+      };
+
+      const unsubscribe = ad.addAdEventListener(NativeAdEventType.LOADED, onAdLoaded);
+      ad.addAdEventListener(NativeAdEventType.ERROR, (error) => {
+        console.warn('Native ad error', error);
+      });
+
+      ad.load();
+      ads.push(ad);
+      adRefs.current.push(ad);
+
+      // Nettoyage partiel dans le cleanup
+      ad.addAdEventListener(NativeAdEventType.CLOSED, () => {
+        // Optionnel
+      });
+    }
+    return () => {
+      ads.forEach(ad => ad.destroy());
+    };
+  }, []);
+
+  useEffect(() => {
+    const cleanup = loadNativeAds();
+    return cleanup;
+  }, [loadNativeAds]);
 
   // ========== SYSTÈME DE CACHE AVANCÉ ==========
   useEffect(() => {
@@ -231,6 +338,7 @@ export default function DiscoverScreen() {
         fetchNearbyShops(location!.latitude, location!.longitude),
         fetchTrendingProducts(),
         fetchBoostedProducts(),
+        fetchSimilarProducts(), // nouvelle fonction pour produits similaires
       ]);
     } catch (error) {
       console.error('Erreur chargement initial:', error);
@@ -333,6 +441,28 @@ export default function DiscoverScreen() {
     }
   };
 
+  // ========== PRODUITS SIMILAIRES (nouvelle section) ==========
+  const fetchSimilarProducts = async () => {
+    // Ici vous pouvez adapter l'API : par exemple récupérer des produits de la même catégorie
+    // Pour l'exemple, on prend les produits déjà chargés et on en sélectionne 8 aléatoirement
+    if (allProducts.length > 0) {
+      const shuffled = shuffleArray([...allProducts]);
+      setSimilarProducts(shuffled.slice(0, 8));
+    } else {
+      // Sinon on fait un appel API factice (à adapter)
+      try {
+        const response = await fetch(`${LOCAL_API}/products?limit=8`);
+        const data = await response.json();
+        if (data.success) {
+          const formatted = formatProducts(data.products || []);
+          setSimilarProducts(formatted);
+        }
+      } catch (error) {
+        console.error('Erreur fetchSimilarProducts:', error);
+      }
+    }
+  };
+
   // ========== FORMATAGE PRODUIT ==========
   const formatProducts = (rawProducts: any[]): Product[] => {
     return rawProducts.map(p => ({
@@ -392,6 +522,7 @@ export default function DiscoverScreen() {
         fetchNearbyShops(userLocation.latitude, userLocation.longitude),
         fetchTrendingProducts(),
         fetchBoostedProducts(),
+        fetchSimilarProducts(),
       ]);
     } else {
       await requestLocationAndFetchData();
@@ -439,14 +570,30 @@ export default function DiscoverScreen() {
     Linking.openURL(url).catch(() => Alert.alert('Erreur', 'Impossible d\'ouvrir WhatsApp'));
   };
 
-  // ========== RENDU CARTE PRODUIT (sans likes/comments, sans ombres) ==========
-  // Pour le mode horizontal (défilement horizontal)
+  // ========== FONCTIONS D'INSERTION DE PUBS ==========
+  // Crée un tableau mélangeant produits et indices de pub
+  const interleaveAds = (products: Product[]) => {
+    if (!products.length) return [];
+    const result: (Product | { isAd: true; adIndex: number })[] = [];
+    let adCounter = 0;
+    products.forEach((product, index) => {
+      result.push(product);
+      // Après chaque bloc de AD_INTERVAL produits, insérer une pub si disponible
+      if ((index + 1) % AD_INTERVAL === 0 && adCounter < nativeAds.length) {
+        result.push({ isAd: true, adIndex: adCounter });
+        adCounter++;
+      }
+    });
+    return result;
+  };
+
+  // ========== RENDU CARTE PRODUIT (identique à avant) ==========
   const renderHorizontalProductCard = ({ item }: { item: Product }) => {
     const discount = item.original_price
       ? Math.round(((item.original_price - item.price) / item.original_price) * 100)
       : 0;
     const imageUrl = item.images?.length > 0 ? item.images[0] : null;
-    const cardWidth = width - 32; // largeur presque pleine pour une meilleure lisibilité
+    const cardWidth = width - 32;
 
     return (
       <TouchableOpacity
@@ -454,7 +601,7 @@ export default function DiscoverScreen() {
         onPress={() => goToDetail(item)}
         style={[
           styles.productCardHorizontal,
-          { backgroundColor: COLORS.card, borderColor: COLORS.border, width: cardWidth, marginHorizontal: 8 },
+          { backgroundColor: COLORS.card, borderColor: COLORS.border, width: cardWidth, marginHorizontal: 8, marginBottom: 12 },
         ]}
       >
         <View style={styles.imageContainerHorizontal}>
@@ -465,7 +612,6 @@ export default function DiscoverScreen() {
               <Ionicons name="cube-outline" size={30} color={COLORS.textSecondary} />
             </View>
           )}
-
           <View style={styles.badgeContainer}>
             {item.isPromotion && (
               <View style={[styles.badge, { backgroundColor: COLORS.error }]}>
@@ -491,7 +637,6 @@ export default function DiscoverScreen() {
               </View>
             )}
           </View>
-
           <TouchableOpacity
             style={styles.optionsButton}
             onPress={(e) => {
@@ -503,12 +648,10 @@ export default function DiscoverScreen() {
             <Ionicons name="ellipsis-horizontal" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
-
         <View style={styles.cardContent}>
           <Text style={[styles.productTitle, { color: COLORS.text }]} numberOfLines={2}>
             {item.title}
           </Text>
-
           <View style={styles.sellerRow}>
             {item.seller?.avatar ? (
               <Image source={{ uri: item.seller.avatar }} style={styles.sellerAvatar} />
@@ -522,7 +665,6 @@ export default function DiscoverScreen() {
             </Text>
             {item.seller?.is_premium && <PremiumBadge size={12} />}
           </View>
-
           <View style={styles.priceRow}>
             {item.original_price ? (
               <View style={styles.priceContainer}>
@@ -539,7 +681,6 @@ export default function DiscoverScreen() {
               </Text>
             )}
           </View>
-
           <View style={styles.productMetaRow}>
             {item.location && (
               <View style={styles.locationRow}>
@@ -560,7 +701,6 @@ export default function DiscoverScreen() {
     );
   };
 
-  // Pour le mode vertical (grille 2 colonnes)
   const renderVerticalProductCard = ({ item }: { item: Product }) => {
     const discount = item.original_price
       ? Math.round(((item.original_price - item.price) / item.original_price) * 100)
@@ -585,7 +725,6 @@ export default function DiscoverScreen() {
               <Ionicons name="cube-outline" size={30} color={COLORS.textSecondary} />
             </View>
           )}
-
           <View style={styles.badgeContainer}>
             {item.isPromotion && (
               <View style={[styles.badge, { backgroundColor: COLORS.error }]}>
@@ -611,7 +750,6 @@ export default function DiscoverScreen() {
               </View>
             )}
           </View>
-
           <TouchableOpacity
             style={styles.optionsButton}
             onPress={(e) => {
@@ -623,12 +761,10 @@ export default function DiscoverScreen() {
             <Ionicons name="ellipsis-horizontal" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
-
         <View style={styles.cardContent}>
           <Text style={[styles.productTitle, { color: COLORS.text }]} numberOfLines={2}>
             {item.title}
           </Text>
-
           <View style={styles.sellerRow}>
             {item.seller?.avatar ? (
               <Image source={{ uri: item.seller.avatar }} style={styles.sellerAvatar} />
@@ -642,7 +778,6 @@ export default function DiscoverScreen() {
             </Text>
             {item.seller?.is_premium && <PremiumBadge size={12} />}
           </View>
-
           <View style={styles.priceRow}>
             {item.original_price ? (
               <View style={styles.priceContainer}>
@@ -659,7 +794,6 @@ export default function DiscoverScreen() {
               </Text>
             )}
           </View>
-
           <View style={styles.productMetaRow}>
             {item.location && (
               <View style={styles.locationRow}>
@@ -680,7 +814,21 @@ export default function DiscoverScreen() {
     );
   };
 
-  // ========== SECTION BOUTIQUES PREMIUM PROCHES ==========
+  // Rendu d'un élément de la FlatList principale (peut être produit ou pub)
+  const renderFeedItem = ({ item }: { item: any }) => {
+    if (item.isAd) {
+      const adIndex = item.adIndex;
+      const ad = nativeAds[adIndex];
+      // En mode vertical on adapte la largeur
+      const cardWidth = layoutMode === 'vertical' ? (width - 36) / 2 : undefined;
+      return <NativeProductAd nativeAd={ad} cardWidth={cardWidth} />;
+    }
+    return layoutMode === 'horizontal'
+      ? renderHorizontalProductCard({ item })
+      : renderVerticalProductCard({ item });
+  };
+
+  // ========== SECTION BOUTIQUES PREMIUM PROCHES (inchangée) ==========
   const renderShopsSection = () => {
     if (shops.length === 0) return null;
     return (
@@ -732,7 +880,7 @@ export default function DiscoverScreen() {
     );
   };
 
-  // ========== SECTION PRODUITS BOOSTÉS ==========
+  // ========== SECTION PRODUITS BOOSTÉS (inchangée) ==========
   const renderBoostedSection = () => {
     const boosted = boostedProducts.length > 0 ? boostedProducts : allProducts.filter(p => p.is_boosted).slice(0, 10);
     if (boosted.length === 0) return null;
@@ -802,7 +950,7 @@ export default function DiscoverScreen() {
     );
   };
 
-  // ========== SECTION MEILLEURES OFFRES ==========
+  // ========== SECTION MEILLEURES OFFRES (inchangée) ==========
   const renderPromoSection = () => {
     const promos = allProducts.filter(p => p.isPromotion).slice(0, 8);
     if (promos.length === 0) return null;
@@ -863,7 +1011,7 @@ export default function DiscoverScreen() {
     );
   };
 
-  // ========== SECTION TENDANCES ==========
+  // ========== SECTION TENDANCES (inchangée) ==========
   const renderTrendingSection = () => {
     if (trendingProducts.length === 0) return null;
     return (
@@ -917,7 +1065,7 @@ export default function DiscoverScreen() {
     );
   };
 
-  // ========== SECTION PRODUITS RÉCENTS ==========
+  // ========== SECTION PRODUITS RÉCENTS (inchangée) ==========
   const renderRecentSection = () => {
     const recent = allProducts
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -974,7 +1122,7 @@ export default function DiscoverScreen() {
     );
   };
 
-  // ========== SECTION PRODUITS PROCHES ==========
+  // ========== SECTION PRODUITS PROCHES (inchangée) ==========
   const renderNearbySection = () => {
     const nearby = allProducts.filter(p => p.distance && p.distance < 10).slice(0, 8);
     if (nearby.length === 0) return null;
@@ -1029,6 +1177,70 @@ export default function DiscoverScreen() {
     );
   };
 
+  // ========== NOUVELLE SECTION : PRODUITS SIMILAIRES AVEC PUBS ==========
+  const renderSimilarSection = () => {
+    if (similarProducts.length === 0) return null;
+    // Mélange produits + pubs
+    const mixed = interleaveAds(similarProducts);
+
+    return (
+      <View style={styles.sectionContainer}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleContainer}>
+            <Ionicons name="shuffle-outline" size={22} color={COLORS.accent} />
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>Produits similaires</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/SimilarProducts')}>
+            <Text style={[styles.seeAllText, { color: COLORS.accent }]}>Voir tout</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent}>
+          {mixed.map((entry, idx) => {
+            if ('isAd' in entry && entry.isAd) {
+              const ad = nativeAds[entry.adIndex];
+              return <NativeProductAd key={`sim-ad-${idx}`} nativeAd={ad} cardWidth={160} />;
+            }
+            const item = entry as Product;
+            return (
+              <TouchableOpacity
+                key={`sim-${item.id}`}
+                activeOpacity={0.95}
+                onPress={() => goToDetail(item)}
+                style={[
+                  styles.productCard,
+                  {
+                    backgroundColor: COLORS.card,
+                    borderColor: COLORS.border,
+                    width: 160,
+                    marginRight: 12,
+                  },
+                ]}
+              >
+                <View style={styles.imageContainer}>
+                  {item.images[0] ? (
+                    <Image source={{ uri: item.images[0] }} style={styles.productImage} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.imagePlaceholder, { backgroundColor: COLORS.border }]}>
+                      <Ionicons name="cube-outline" size={30} color={COLORS.textSecondary} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.cardContent}>
+                  <Text style={[styles.productTitle, { color: COLORS.text }]} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.horizontalPrice, { color: COLORS.accent }]}>
+                    ${item.price.toFixed(2)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
   // ========== HEADER FIXE AVEC SEULEMENT RECHERCHE ==========
   const renderFixedHeader = () => (
     <View style={[styles.fixedHeader, { backgroundColor: COLORS.headerBg, borderBottomColor: COLORS.border }]}>
@@ -1057,6 +1269,7 @@ export default function DiscoverScreen() {
       {renderTrendingSection()}
       {renderRecentSection()}
       {renderNearbySection()}
+      {renderSimilarSection()} {/* Nouvelle section */}
       <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
       <View style={styles.feedHeader}>
         <Text style={[styles.feedTitle, { color: COLORS.text }]}>Recommandations pour vous</Text>
@@ -1077,7 +1290,7 @@ export default function DiscoverScreen() {
     </View>
   );
 
-  // ========== FOOTER DE CHARGEMENT ==========
+  // ========== FOOTER DE CHARGEMENT (inchangé) ==========
   const renderFooter = () => {
     if (loadingMore) {
       return (
@@ -1098,7 +1311,7 @@ export default function DiscoverScreen() {
     return null;
   };
 
-  // ========== MODAL D'ACTIONS ==========
+  // ========== MODAL D'ACTIONS (inchangé) ==========
   const renderActionModal = () => (
     <Modal
       visible={actionModalVisible}
@@ -1179,6 +1392,9 @@ export default function DiscoverScreen() {
     );
   }
 
+  // Préparation des données de la FlatList avec pubs intercalées
+  const feedWithAds = interleaveAds(feedProducts);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       <StatusBar barStyle={COLORS.statusBar as any} backgroundColor={COLORS.headerBg} />
@@ -1189,9 +1405,11 @@ export default function DiscoverScreen() {
       {/* FLATLIST PRINCIPALE (horizontal ou vertical) */}
       <FlatList
         ref={flatListRef}
-        data={feedProducts}
-        keyExtractor={(item) => `feed-${item.id}`}
-        renderItem={layoutMode === 'horizontal' ? renderHorizontalProductCard : renderVerticalProductCard}
+        data={feedWithAds}
+        keyExtractor={(item, index) =>
+          'isAd' in item ? `ad-${index}` : `feed-${(item as Product).id}`
+        }
+        renderItem={renderFeedItem}
         horizontal={layoutMode === 'horizontal'}
         showsHorizontalScrollIndicator={layoutMode === 'horizontal'}
         showsVerticalScrollIndicator={false}
@@ -1234,7 +1452,7 @@ export default function DiscoverScreen() {
   );
 }
 
-// ========== STYLES (sans ombres) ==========
+// ========== STYLES (ajouts pour la pub native) ==========
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -1529,4 +1747,56 @@ const styles = StyleSheet.create({
   modalActionContent: { flex: 1 },
   modalActionText: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
   modalActionSubtext: { fontSize: 12 },
+
+  // ====== Styles pour la publicité native ======
+  adMediaView: {
+    width: '100%',
+    height: '100%',
+  },
+  sponsoredBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 2,
+  },
+  sponsoredText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  adHeadline: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.text,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  adIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    marginRight: 6,
+    backgroundColor: COLORS.border,
+  },
+  adAdvertiser: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    flex: 1,
+  },
+  adCTA: {
+    backgroundColor: COLORS.accent,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  ctaText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
