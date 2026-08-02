@@ -2,7 +2,7 @@
   "expo": {
     "name": "SHOPNET",
     "slug": "shopnet-expo",
-    "version": "3.2.1",
+    "version": "10.2.3",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/images/icon_shopnet.png",
@@ -17,10 +17,10 @@
     },
     "android": {
       "package": "com.shopai.app",
-      "versionCode": 17,
+      "versionCode": 60,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
-      "googleServicesFile": "./android/app/google-services.json",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "POST_NOTIFICATIONS"
       ],
@@ -32,7 +32,13 @@
     "plugins": [
       "expo-router",
       "@react-native-firebase/app",
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-2890686793855380~1831875817"
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -87,18 +87,13 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.shopai.app'
-            defaultConfig {
-            applicationId 'com.shopai.app'
-            minSdkVersion rootProject.ext.minSdkVersion
-            targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 17
-            versionName "1.1.0"
-
-            // 🔹 Correction NDK ABI
-            ndk {
-                abiFilters "armeabi-v7a", "arm64-v8a"
-            }
-        }
+    defaultConfig {
+        applicationId 'com.shopai.app'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 60
+        versionName "10.2.3"
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -121,15 +116,10 @@ android {
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
-packagingOptions {
+    packagingOptions {
         jniLibs {
-            // Désactive la compression pour permettre l'alignement mémoire
-            useLegacyPackaging = false 
+            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
-        // Empêche le nettoyage (strip) qui casse l'alignement de 16 ko
-        doNotStrip "*/armeabi-v7a/*.so"
-        doNotStrip "*/arm64-v8a/*.so"
-        doNotStrip "*/x86_64/*.so"
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -159,10 +149,6 @@ packagingOptions {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    // Firebase Messaging
-    implementation platform('com.google.firebase:firebase-bom:34.2.0')
-    implementation 'com.google.firebase:firebase-messaging'
-
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";

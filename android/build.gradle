@@ -5,19 +5,20 @@ buildscript {
         buildToolsVersion = findProperty('android.buildToolsVersion') ?: '35.0.0'
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
-        targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '35')
+        targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
         kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
 
-         ndkVersion = "28.0.12433566" // Ou la version r28 la plus récente dans ton SDK Manager
+        ndkVersion = "26.1.10909125"
     }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.google.gms:google-services:4.4.2'
+        classpath 'com.google.gms:google-services:4.4.1'
+        classpath('com.android.tools.build:gradle')
         classpath('com.facebook.react:react-native-gradle-plugin')
-        classpath('com.android.tools.build:gradle:8.7.2')  // Version recommandée pour le SDK 35
+        classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
     }
 }
 
