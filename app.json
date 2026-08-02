@@ -38,6 +38,14 @@
         {
           "androidAppId": "ca-app-pub-8075684020069689~9782638169"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.1.0"
+          }
+        }
       ]
     ],
     "extra": {
