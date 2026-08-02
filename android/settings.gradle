@@ -1,7 +1,11 @@
 pluginManagement {
     includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().toString())
 }
-plugins { id("com.facebook.react.settings") }
+plugins { 
+    id("com.facebook.react.settings") 
+    // CORRECTION : Forcer la version globale de Kotlin pour toutes les dépendances
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+}
 
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {
