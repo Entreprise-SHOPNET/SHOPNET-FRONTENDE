@@ -1,6 +1,4 @@
-
-
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -14,6 +12,9 @@ import {
   Dimensions,
   FlatList,
   Modal,
+  Animated,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -37,17 +38,6 @@ const SHOPNET_BLUE = "#00182A";
 const NOTIFICATION_RED = "#FF3B30";
 
 // Types
-type Notification = {
-  id: string;
-  title: string;
-  message: string;
-  type: "statistic" | "order" | "message" | "shop" | "promotion" | "setting";
-  isRead: boolean;
-  createdAt: string;
-  icon?: string;
-  data?: any;
-};
-
 type Product = {
   id: number;
   title: string;
@@ -71,109 +61,22 @@ type UserProfile = {
   ordersCount: number;
 };
 
-// Données mockées pour les notifications
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    title: "Nouvelle statistique 📈",
-    message: "Votre boutique a été vue 150 fois cette semaine",
-    type: "statistic",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    icon: "bar-chart",
-    data: { views: 150 },
-  },
-  {
-    id: "2",
-    title: "Nouvelle commande 🛒",
-    message: "Commande #7890 confirmée par Marie",
-    type: "order",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    icon: "cart",
-    data: { orderId: 7890 },
-  },
-  {
-    id: "3",
-    title: "Nouveau message 💬",
-    message: "Jean vous a envoyé un message",
-    type: "message",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    icon: "chatbubble",
-    data: { sender: "Jean" },
-  },
-  {
-    id: "4",
-    title: "Mise à jour boutique 🏪",
-    message: "Votre boutique a été mise en avant",
-    type: "shop",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    icon: "store",
-    data: { featured: true },
-  },
-  {
-    id: "5",
-    title: "Promotion expirant bientôt ⏰",
-    message: "Votre promotion sur les smartphones expire dans 2h",
-    type: "promotion",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    icon: "pricetag",
-    data: { promotionId: 123 },
-  },
-  {
-    id: "6",
-    title: "Mise à jour paramètres ⚙️",
-    message: "Nouvelles options de paiement disponibles",
-    type: "setting",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
-    icon: "settings",
-    data: { feature: "paiement" },
-  },
-  {
-    id: "7",
-    title: "Commande annulée ❌",
-    message: "Commande #7891 a été annulée",
-    type: "order",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-    icon: "close-circle",
-    data: { orderId: 7891 },
-  },
-  {
-    id: "8",
-    title: "Nouveau commentaire ⭐",
-    message: "Pierre a commenté votre produit",
-    type: "message",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 200).toISOString(),
-    icon: "star",
-    data: { productId: 456 },
-  },
-  {
-    id: "9",
-    title: "Statistique hebdomadaire 📊",
-    message: "+25% de ventes cette semaine",
-    type: "statistic",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-    icon: "trending-up",
-    data: { increase: 25 },
-  },
-  {
-    id: "10",
-    title: "Promotion créée 🎉",
-    message: "Votre promotion sur les casques est active",
-    type: "promotion",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
-    icon: "flash",
-    data: { promotionId: 456 },
-  },
-];
+// Formatage des nombres (1K, 1.2K, 1M, 1Md)
+const formatNumber = (num: number): string => {
+  if (num >= 1e9) {
+    const formatted = (num / 1e9).toFixed(1);
+    return formatted.endsWith(".0") ? formatted.slice(0, -2) + "Md" : formatted + "Md";
+  }
+  if (num >= 1e6) {
+    const formatted = (num / 1e6).toFixed(1);
+    return formatted.endsWith(".0") ? formatted.slice(0, -2) + "M" : formatted + "M";
+  }
+  if (num >= 1000) {
+    const formatted = (num / 1000).toFixed(1);
+    return formatted.endsWith(".0") ? formatted.slice(0, -2) + "K" : formatted + "K";
+  }
+  return num.toString();
+};
 
 // Composant pour les badges de notification
 const NotificationBadge = ({
@@ -345,9 +248,7 @@ export default function ProfilVendeurPremium() {
   const [uploading, setUploading] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
 
-  // État pour les notifications et badges
-  const [notifications, setNotifications] =
-    useState<Notification[]>(MOCK_NOTIFICATIONS);
+  // État pour les badges (conservés, sans notifications mock)
   const [badgeCounts, setBadgeCounts] = useState({
     statistics: generateRandomCount(0, 15),
     orders: generateRandomCount(0, 15),
@@ -356,6 +257,40 @@ export default function ProfilVendeurPremium() {
     promotions: generateRandomCount(0, 15),
     settings: generateRandomCount(0, 15),
   });
+
+  // États pour les abonnés
+  const [followersCount, setFollowersCount] = useState<number>(0);
+  const [followersLoading, setFollowersLoading] = useState(false);
+  const [newFollowersDot, setNewFollowersDot] = useState(false);
+
+  // Animation rapide de fondu pour les icônes de couverture
+  const coverIconsOpacity = useRef(new Animated.Value(1)).current;
+  const prevScrollY = useRef(0);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const currentY = event.nativeEvent.contentOffset.y;
+      const scrollingDown = currentY > prevScrollY.current;
+
+      if (scrollingDown && currentY > 20) {
+        // Disparition immédiate et rapide
+        Animated.timing(coverIconsOpacity, {
+          toValue: 0,
+          duration: 80,
+          useNativeDriver: true,
+        }).start();
+      } else if (!scrollingDown) {
+        // Apparition immédiate
+        Animated.timing(coverIconsOpacity, {
+          toValue: 1,
+          duration: 80,
+          useNativeDriver: true,
+        }).start();
+      }
+      prevScrollY.current = currentY;
+    },
+    [],
+  );
 
   // Charger token et profil
   const loadTokenAndUser = useCallback(async () => {
@@ -377,6 +312,54 @@ export default function ProfilVendeurPremium() {
     }
   }, [router, fr]);
 
+  // Récupération du nombre d'abonnés avec cache et détection de nouveautés
+  const fetchFollowersCount = useCallback(async (userId: number) => {
+    const cacheKey = `followersCount_${userId}`;
+    const seenKey = `followersSeen_${userId}`;
+    try {
+      // Lecture du cache
+      const cachedData = await AsyncStorage.getItem(cacheKey);
+      if (cachedData) {
+        const cachedCount = parseInt(cachedData, 10);
+        if (!isNaN(cachedCount)) {
+          setFollowersCount(cachedCount);
+        }
+      }
+
+      setFollowersLoading(true);
+      const response = await axios.get(`${BASE_URL}/api/followers/count/${userId}`);
+      if (response.data.success) {
+        const newCount = response.data.followersCount;
+        setFollowersCount(newCount);
+        // Mise en cache
+        await AsyncStorage.setItem(cacheKey, newCount.toString());
+
+        // Vérification nouveau point rouge
+        const lastSeen = await AsyncStorage.getItem(seenKey);
+        const lastSeenNum = lastSeen ? parseInt(lastSeen, 10) : 0;
+        if (newCount > lastSeenNum) {
+          setNewFollowersDot(true);
+        } else {
+          setNewFollowersDot(false);
+        }
+      }
+    } catch (error) {
+      console.error("Erreur fetchFollowersCount:", error);
+    } finally {
+      setFollowersLoading(false);
+    }
+  }, []);
+
+  // Quand on ouvre la liste des abonnés, on enlève le point rouge (fonction conservée pour usage futur)
+  const openFollowersList = useCallback(() => {
+    setNewFollowersDot(false);
+    if (user) {
+      const seenKey = `followersSeen_${user.id}`;
+      AsyncStorage.setItem(seenKey, followersCount.toString());
+    }
+    router.push("/(tabs)/Auth/Produits/ListeFollowers");
+  }, [user, followersCount, router]);
+
   useEffect(() => {
     loadTokenAndUser();
 
@@ -397,29 +380,18 @@ export default function ProfilVendeurPremium() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fonction pour réinitialiser un badge
+  useEffect(() => {
+    if (user && user.id) {
+      fetchFollowersCount(user.id);
+    }
+  }, [user, fetchFollowersCount]);
+
+  // Réinitialiser un badge
   const resetBadge = (key: keyof typeof badgeCounts) => {
     setBadgeCounts((prev) => ({
       ...prev,
       [key]: 0,
     }));
-
-    const typeMap: { [key: string]: Notification["type"] } = {
-      statistics: "statistic",
-      orders: "order",
-      messages: "message",
-      boutique: "shop",
-      promotions: "promotion",
-      settings: "setting",
-    };
-
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.type === typeMap[key]
-          ? { ...notification, isRead: true }
-          : notification,
-      ),
-    );
   };
 
   const fetchUserProfile = async (token: string) => {
@@ -482,10 +454,13 @@ export default function ProfilVendeurPremium() {
     if (token) {
       fetchUserProfile(token);
       fetchProducts(token);
+      if (user) {
+        fetchFollowersCount(user.id);
+      }
     } else {
       loadTokenAndUser();
     }
-  }, [token]);
+  }, [token, user]);
 
   // Photos profil / couverture
   const handlePhotoAction = useCallback((type: "profile" | "cover") => {
@@ -689,9 +664,6 @@ export default function ProfilVendeurPremium() {
   if (!user) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>
-          {fr ? "Impossible de charger le profil" : "Unable to load profile"}
-        </Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadTokenAndUser}>
           <Text style={styles.retryButtonText}>
             {fr ? "Réessayer" : "Retry"}
@@ -713,6 +685,8 @@ export default function ProfilVendeurPremium() {
             tintColor={PRO_BLUE}
           />
         }
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -746,30 +720,32 @@ export default function ProfilVendeurPremium() {
             )}
             <View style={styles.coverOverlay} />
 
-            {/* NOUVEAU : 3 icônes en haut à droite */}
-            <View style={styles.coverActionIcons}>
-              {/* Icône Modifier (page d'édition du profil) */}
+            {/* Icônes d'action animées (disparition rapide au scroll) */}
+            <Animated.View
+              style={[
+                styles.coverActionIcons,
+                { opacity: coverIconsOpacity },
+              ]}
+            >
               <TouchableOpacity
                 style={styles.coverIconButton}
                 onPress={() => router.push("/(tabs)/Auth/Produits/profil-edit")}
               >
                 <Ionicons name="create-outline" size={20} color="#FFFFFF" />
               </TouchableOpacity>
-              {/* Icône Search (page de recherche) */}
               <TouchableOpacity
                 style={styles.coverIconButton}
                 onPress={() => router.push("/(tabs)/Auth/Produits/Recherche")}
               >
                 <Ionicons name="search-outline" size={20} color="#FFFFFF" />
               </TouchableOpacity>
-              {/* Icône Assistant IA */}
               <TouchableOpacity
                 style={styles.coverIconButton}
                 onPress={() => router.push("/(tabs)/Auth/AssistantIA/ConversationIA")}
               >
                 <MaterialCommunityIcons name="robot" size={20} color="#FFFFFF" />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </TouchableOpacity>
         </View>
 
@@ -802,7 +778,6 @@ export default function ProfilVendeurPremium() {
           <View style={styles.userInfoContainer}>
             <View style={styles.nameContainer}>
               <Text style={styles.userName}>{user.fullName}</Text>
-              {/* badge Vérifié supprimé */}
             </View>
 
             <View style={styles.memberSinceContainer}>
@@ -816,6 +791,82 @@ export default function ProfilVendeurPremium() {
               <Text style={styles.description}>{user.description}</Text>
             )}
           </View>
+        </View>
+
+        {/* Section Abonnés (style unifié) */}
+        <View style={styles.followersSection}>
+          {followersLoading && !followersCount ? (
+            <View style={styles.followersLoadingContainer}>
+              <ActivityIndicator size="small" color={PRO_BLUE} />
+              <Text style={styles.followersLoadingText}>
+                {fr ? "Chargement..." : "Loading..."}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.followersGrid}>
+              {/* Nombre d'abonnés */}
+              <View style={styles.followerCard}>
+                <View style={styles.followerIconContainer}>
+                  <Ionicons name="people-outline" size={20} color={PRO_BLUE} />
+                </View>
+                <View style={styles.countWrapper}>
+                  <Text style={styles.followerValue}>
+                    {formatNumber(followersCount)}
+                  </Text>
+                  {newFollowersDot && <View style={styles.redDot} />}
+                </View>
+                <Text style={styles.followerLabel}>
+                  {fr ? "Abonnés" : "Followers"}
+                </Text>
+              </View>
+
+             {/* Bouton Liste des abonnés - CORRIGÉ */}
+             <TouchableOpacity
+               style={styles.followerCardButton}
+               onPress={() => router.push("/(tabs)/Auth/Produits/ListeFollowers")}
+               activeOpacity={0.7}
+             >
+               <View style={styles.followerIconContainer}>
+                 <Ionicons name="list-outline" size={20} color={PRO_BLUE} />
+               </View>
+               <Text style={styles.followerButtonText}>
+                 {fr ? "Liste" : "List"}
+               </Text>
+               <Text style={styles.followerButtonSubtext}>
+                 {fr ? "des abonnés" : "of followers"}
+               </Text>
+               <Ionicons
+                 name="chevron-forward-outline"
+                 size={14}
+                 color={PRO_BLUE}
+                 style={styles.followerChevron}
+               />
+             </TouchableOpacity>
+
+             {/* Bouton Alerter - CORRIGÉ */}
+             <TouchableOpacity
+               style={styles.followerCardButton}
+               onPress={() => router.push("/(tabs)/Auth/Produits/AlerterAbonnes")}
+               activeOpacity={0.7}
+             >
+               <View style={styles.followerIconContainer}>
+                 <Ionicons name="notifications-outline" size={20} color={PRO_BLUE} />
+               </View>
+               <Text style={styles.followerButtonText}>
+                 {fr ? "Alerter" : "Alert"}
+               </Text>
+               <Text style={styles.followerButtonSubtext}>
+                 {fr ? "mes abonnés" : "my followers"}
+               </Text>
+               <Ionicons
+                 name="chevron-forward-outline"
+                 size={14}
+                 color={PRO_BLUE}
+                 style={styles.followerChevron}
+               />
+             </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Statistiques */}
@@ -1204,12 +1255,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontWeight: "600",
   },
-  errorText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    marginBottom: 20,
-    textAlign: "center",
-  },
   retryButton: {
     backgroundColor: PRO_BLUE,
     paddingHorizontal: 24,
@@ -1250,6 +1295,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
+  // Icônes d'action dans la couverture (positionnées comme avant)
   coverActionIcons: {
     position: "absolute",
     top: 16,
@@ -1342,6 +1388,101 @@ const styles = StyleSheet.create({
     color: "#E2E8F0",
     lineHeight: 22,
   },
+  // Styles unifiés pour la section abonnés
+  followersSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  followersLoadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  followersLoadingText: {
+    color: PRO_BLUE,
+    marginLeft: 10,
+    fontSize: 14,
+  },
+  followersGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  followerCard: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: "rgba(30, 42, 59, 0.9)",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.1)",
+  },
+  followerCardButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(30, 42, 59, 0.9)",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "rgba(66, 165, 245, 0.3)",
+    position: "relative",
+  },
+  followerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(66, 165, 245, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  countWrapper: {
+    position: "relative",
+  },
+  followerValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  followerLabel: {
+    fontSize: 12,
+    color: "#A0AEC0",
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  followerButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: PRO_BLUE,
+    marginBottom: 2,
+    textAlign: "center",
+  },
+  followerButtonSubtext: {
+    fontSize: 12,
+    color: "#A0AEC0",
+    fontWeight: "500",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  followerChevron: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+  },
+  redDot: {
+    position: "absolute",
+    top: -4,
+    right: -12,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: NOTIFICATION_RED,
+  },
+  // Fin des styles abonnés
   statsSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -1721,4 +1862,3 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
-
