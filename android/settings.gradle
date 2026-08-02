@@ -4,7 +4,7 @@ pluginManagement {
 plugins { 
     id("com.facebook.react.settings") 
     // CORRECTION : Forcer la version globale de Kotlin pour toutes les dépendances
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.25" apply false
 }
 
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
