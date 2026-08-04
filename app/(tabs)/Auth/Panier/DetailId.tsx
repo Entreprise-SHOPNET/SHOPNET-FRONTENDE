@@ -25,6 +25,7 @@ import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../../../app/theme/ThemeContext";
 import { useLanguage } from "../../../../context/LanguageContext";
+import { loadInterstitialAd, showInterstitialAd } from '../../../../services/admob/interstitial';
 
 if (Platform.OS === "android") {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -255,6 +256,12 @@ export default function DetailId() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const flatListRef = useRef<FlatList>(null);
+  const productClickCountRef = useRef(0); // Compteur pour la pub
+
+  // Précharger une pub interstitielle au montage
+  useEffect(() => {
+    loadInterstitialAd();
+  }, []);
 
   const showNotification = (message: string) => {
     setNotificationMessage(message); setNotificationVisible(true);
@@ -395,7 +402,15 @@ export default function DetailId() {
     finally { setSubmitting(false); }
   };
 
-  const navigateToProduct = (item: SimilarProduct | ProductDetail) => { router.push({ pathname: "/(tabs)/Auth/Panier/DetailId", params: { id: item.id.toString() } }); };
+  // Navigation vers un autre produit avec pub interstitielle tous les 6 clics
+  const navigateToProduct = async (item: SimilarProduct | ProductDetail) => {
+    productClickCountRef.current += 1;
+    if (productClickCountRef.current % 6 === 0) {
+      await showInterstitialAd();
+    }
+    router.push({ pathname: "/(tabs)/Auth/Panier/DetailId", params: { id: item.id.toString() } });
+  };
+
   const showImage = (url: string, index: number) => { setSelectedImage(url); setActiveImageIndex(index); setModalVisible(true); };
   const scrollToImage = (index: number) => { if (flatListRef.current) flatListRef.current.scrollToIndex({ index, animated: true }); setActiveImageIndex(index); setSelectedImage(product?.images?.[index] || null); };
   const navigateToImage = (direction: "prev" | "next") => { const images = product?.images || []; if (images.length <= 1) return; let newIndex = direction === "next" ? (activeImageIndex + 1) % images.length : (activeImageIndex - 1 + images.length) % images.length; scrollToImage(newIndex); };
@@ -749,3 +764,5 @@ const styles = StyleSheet.create({
   submitButton: { flex: 1, paddingVertical: 12, marginLeft: 8, alignItems: "center", borderRadius: 8 },
   submitButtonText: { color: "#FFFFFF", fontWeight: "600" },
 });
+
+

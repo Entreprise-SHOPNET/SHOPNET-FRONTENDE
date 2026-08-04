@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
@@ -23,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from "../../../../app/theme/ThemeContext";
+import { loadInterstitialAd, showInterstitialAd } from '../../../../services/admob/interstitial';
 
 const { width } = Dimensions.get('window');
 const LOCAL_API = 'https://shopnet-backend.onrender.com/api';
@@ -199,6 +198,12 @@ const DiscoverScreen = () => {
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
   const flatListRef = useRef<FlatList>(null);
+  const productViewCountRef = useRef(0); // Compteur de produits consultés
+
+  // Précharger la publicité interstitielle au montage
+  useEffect(() => {
+    loadInterstitialAd();
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -435,6 +440,17 @@ const DiscoverScreen = () => {
     if (!product) return;
     const productId = getProductId(product);
     await saveViewedProduct(productId);
+
+    // Incrémenter le compteur de produits consultés
+    productViewCountRef.current += 1;
+
+    // Afficher une pub interstitielle tous les 6 produits
+    if (productViewCountRef.current % 6 === 0) {
+      // Attendre la fermeture de la pub si elle est prête,
+      // sinon continue immédiatement (pas de blocage)
+      await showInterstitialAd();
+    }
+
     const path = isPromotion(product) ? '/(tabs)/Auth/Panier/PromoDetail' : '/(tabs)/Auth/Panier/DetailId';
     router.push({ pathname: path, params: { id: productId.toString() } });
   };
