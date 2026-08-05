@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.shopai.app",
-      "versionCode": 60,
+      "versionCode": 69,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "googleServicesFile": "./google-services.json",
