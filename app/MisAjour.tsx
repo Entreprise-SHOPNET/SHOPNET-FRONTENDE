@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -11,26 +9,23 @@ import {
   Animated,
   Dimensions,
   ScrollView,
-  Platform,
 } from "react-native";
 import {
-  FontAwesome,
   MaterialIcons,
   Ionicons,
   Feather,
 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PRO_BLUE = "#42A5F5";
 const SHOPNET_BLUE = "#00182A";
-const PREMIUM_GOLD = "#FFD700";
 
-// On calcule la date cible à 150 jours à partir d'aujourd'hui (5 mois environ)
+// Compte à rebours de 30 jours (1 mois)
 const getCountdownTargetDate = () => {
   const now = new Date();
   const target = new Date(now);
-  target.setDate(target.getDate() + 150); // Ajoute 150 jours
+  target.setDate(target.getDate() + 30);
   return target;
 };
 
@@ -39,7 +34,6 @@ const ComingSoonPage = () => {
   const [countdownTargetDate] = useState(getCountdownTargetDate());
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(countdownTargetDate));
 
-  // Animations
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
   const scaleAnim = useState(new Animated.Value(0.8))[0];
@@ -48,9 +42,7 @@ const ComingSoonPage = () => {
   function getTimeLeft(targetDate: Date) {
     const now = new Date();
     const difference = targetDate.getTime() - now.getTime();
-
     if (difference <= 0) return null;
-
     return {
       days: Math.floor(difference / (1000 * 60 * 60 * 24)),
       hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
@@ -64,141 +56,78 @@ const ComingSoonPage = () => {
       setTimeLeft(getTimeLeft(countdownTargetDate));
     }, 1000);
 
-    // Lancement des animations
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
     ]).start();
 
-    // Animation de pulsation pour le badge VIP
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseAnim, { toValue: 1.1, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       ]),
     ).start();
 
     return () => clearInterval(timer);
   }, [countdownTargetDate]);
 
-  // ✅ NOUVELLE FONCTION ROBUSTE POUR WHATSAPP
   const handleContactSupport = async () => {
-    const phoneNumber = "+243896037137"; 
-    const message = "Bonjour l'équipe SHOPNET, je souhaite avoir plus d'informations sur SHOPNET V3.2.3 et les fonctionnalités VIP à venir.";
-    
-    // Formatage du numéro pour wa.me : uniquement les chiffres avec l'indicatif
+    const phoneNumber = "+243896037137";
+    const message = "Bonjour l'équipe SHOPNET, je souhaite avoir plus d'informations sur SHOPNET 10.2.4 et les fonctionnalités VIP à venir.";
     const formattedNumber = phoneNumber.replace(/\D/g, '');
-    
-    // URL pour ouvrir l'appli (avec deep link)
     const appUrl = `whatsapp://send?phone=${formattedNumber}&text=${encodeURIComponent(message)}`;
-    // URL de fallback web (wa.me) - fonctionne partout
     const webUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
-    
+
     try {
-      // Essayer D'ABORD d'ouvrir l'application WhatsApp
       const canOpen = await Linking.canOpenURL(appUrl);
-      
       if (canOpen) {
         await Linking.openURL(appUrl);
       } else {
-        // Si l'appli ne peut pas être ouverte, on propose directement l'alternative web
         Alert.alert(
           "Ouvrir WhatsApp",
-          "Vous allez être redirigé vers WhatsApp pour contacter notre équipe. Cette fonctionnalité utilise le lien officiel WhatsApp qui fonctionne sur tous les appareils.",
+          "Vous allez être redirigé vers WhatsApp pour contacter notre équipe.",
           [
-            {
-              text: "Annuler",
-              style: "cancel"
-            },
+            { text: "Annuler", style: "cancel" },
             {
               text: "Continuer",
               onPress: async () => {
                 try {
-                  // Essayer l'URL web qui fonctionne sur tous les appareils
                   await Linking.openURL(webUrl);
                 } catch (webError) {
-                  Alert.alert(
-                    "Redirection Impossible",
-                    "Nous rencontrons une difficulté technique. Veuillez contacter directement le support SHOPNET au +243 896 037 137 ou réessayez ultérieurement."
-                  );
+                  Alert.alert("Redirection Impossible", "Veuillez contacter directement le support SHOPNET au +243 896 037 137.");
                 }
               }
             }
           ]
         );
       }
-    } catch (appError) {
-      // En cas d'erreur, on tente directement l'URL web
+    } catch {
       try {
         await Linking.openURL(webUrl);
-      } catch (fallbackError) {
-        Alert.alert(
-          "Service Temporairement Indisponible",
-          "Nous préparons une solution de contact encore plus fluide pour SHOPNET V3.2.3 En attendant, vous pouvez nous joindre directement au +243 896 037 137."
-        );
+      } catch {
+        Alert.alert("Service Indisponible", "Veuillez nous joindre au +243 896 037 137.");
       }
     }
   };
 
   const premiumFeatures = [
-    {
-      icon: "ai",
-      title: "IA Avancée",
-      description:
-        "Intelligence artificielle intégrée pour optimiser vos ventes",
-    },
-    {
-      icon: "analytics",
-      title: "Analytics Pro",
-      description: "Statistiques détaillées et prédictions de tendances",
-    },
-    {
-      icon: "rocket",
-      title: "Performance Max",
-      description: "Vitesse et performances ultra-rapides",
-    },
-    {
-      icon: "security",
-      title: "Sécurité VIP",
-      description: "Protection de niveau entreprise",
-    },
-    {
-      icon: "auto-graph",
-      title: "Marketing Auto",
-      description: "Campagnes marketing automatisées",
-    },
-    {
-      icon: "inventory",
-      title: "Stock Intelligent",
-      description: "Gestion de stock avec IA prédictive",
-    },
+    { icon: "ai", title: "IA Avancée", description: "Intelligence artificielle intégrée pour optimiser vos ventes" },
+    { icon: "analytics", title: "Analytics Pro", description: "Statistiques détaillées et prédictions de tendances" },
+    { icon: "rocket", title: "Performance Max", description: "Vitesse et performances ultra-rapides" },
+    { icon: "security", title: "Sécurité VIP", description: "Protection de niveau entreprise" },
+    { icon: "auto-graph", title: "Marketing Auto", description: "Campagnes marketing automatisées" },
+    { icon: "inventory", title: "Stock Intelligent", description: "Gestion de stock avec IA prédictive" },
+    { icon: "notifications-active", title: "Notifications IA", description: "Alertez automatiquement vos abonnés de vos nouveaux produits, même en votre absence" },
+    { icon: "assessment", title: "Rapports Pro", description: "Suivi détaillé de votre activité (journalier, hebdomadaire, mensuel, annuel)" },
+    { icon: "local-shipping", title: "Suivi de colis", description: "Gérez vos expéditions en temps réel et informez vos clients" },
+    { icon: "groups", title: "Communauté", description: "Créez et animez votre communauté d'acheteurs fidèles" },
+    { icon: "visibility", title: "Visibilité Boost", description: "Outils premium pour augmenter votre visibilité et vendre plus" },
+    { icon: "support-agent", title: "Assistant Vendeur IA", description: "Conseils personnalisés et stratégies de vente optimisées" },
   ];
 
   return (
     <View style={styles.container}>
-      {/* Background avec effets */}
       <View style={styles.backgroundEffects}>
         <View style={styles.glowCircle1} />
         <View style={styles.glowCircle2} />
@@ -210,74 +139,36 @@ const ComingSoonPage = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header VIP */}
-        <Animated.View
-          style={[
-            styles.headerSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.headerSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.vipBadgeContainer}>
-            <Animated.View
-              style={[styles.vipBadge, { transform: [{ scale: pulseAnim }] }]}
-            >
+            <Animated.View style={[styles.vipBadge, { transform: [{ scale: pulseAnim }] }]}>
               <Ionicons name="diamond" size={20} color="#FFD700" />
               <Text style={styles.vipText}>VIP PRO</Text>
             </Animated.View>
           </View>
-
-          <Animated.View
-            style={[
-              styles.mainIconContainer,
-              { transform: [{ scale: scaleAnim }] },
-            ]}
-          >
+          <Animated.View style={[styles.mainIconContainer, { transform: [{ scale: scaleAnim }] }]}>
             <View style={styles.iconGlow}>
               <Ionicons name="rocket" size={60} color={PRO_BLUE} />
             </View>
           </Animated.View>
-
-          <Text style={styles.title}>SHOPNET V3.2.3</Text>
+          <Text style={styles.title}>SHOPNET 10.2.4</Text>
           <Text style={styles.subtitle}>La Révolution Pro Arrive</Text>
-
           <View style={styles.exclusiveBadge}>
             <Feather name="star" size={14} color="#FFD700" />
             <Text style={styles.exclusiveText}>EXCLUSIVITÉ ENTREPRISE</Text>
           </View>
         </Animated.View>
 
-        {/* Message Principal */}
-        <Animated.View
-          style={[
-            styles.messageSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.messageSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Text style={styles.messageTitle}>Une Expérience Réinventée</Text>
           <Text style={styles.message}>
             Nous préparons une révolution complète de votre expérience boutique.
-            La V3.2.3 apporte des technologies de pointe et des fonctionnalités
-            exclusives réservées aux professionnels les plus exigeants.
+            La version 10.2.4 apporte des technologies de pointe et des fonctionnalités exclusives réservées aux professionnels.
           </Text>
         </Animated.View>
 
-        {/* Compte à Rebours Spectaculaire */}
         {timeLeft ? (
-          <Animated.View
-            style={[
-              styles.countdownSection,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
+          <Animated.View style={[styles.countdownSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <Text style={styles.countdownTitle}>Lancement dans</Text>
             <View style={styles.countdownGrid}>
               <View style={styles.timeCard}>
@@ -301,52 +192,26 @@ const ComingSoonPage = () => {
         ) : (
           <View style={styles.launchedSection}>
             <Text style={styles.launchedTitle}>🎉 C'EST MAINTENANT !</Text>
-            <Text style={styles.launchedText}>
-              La révolution SHOPNET V3.2.3 est lancée
-            </Text>
+            <Text style={styles.launchedText}>La révolution SHOPNET 10.2.4 est lancée</Text>
           </View>
         )}
 
-        {/* Fonctionnalités Premium */}
-        <Animated.View
-          style={[
-            styles.featuresSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <Text style={styles.sectionTitle}>Fonctionnalités Exclusive Pro</Text>
+        <Animated.View style={[styles.featuresSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <Text style={styles.sectionTitle}>Fonctionnalités Exclusives SHOPNET 10.2.4</Text>
           <View style={styles.featuresGrid}>
             {premiumFeatures.map((feature, index) => (
               <View key={index} style={styles.featureCard}>
                 <View style={styles.featureIconContainer}>
-                  <MaterialIcons
-                    name={feature.icon as any}
-                    size={28}
-                    color={PRO_BLUE}
-                  />
+                  <MaterialIcons name={feature.icon as any} size={28} color={PRO_BLUE} />
                 </View>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureDescription}>
-                  {feature.description}
-                </Text>
+                <Text style={styles.featureDescription}>{feature.description}</Text>
               </View>
             ))}
           </View>
         </Animated.View>
 
-        {/* Avantages VIP */}
-        <Animated.View
-          style={[
-            styles.benefitsSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.benefitsSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Text style={styles.sectionTitle}>Avantages Réservés VIP</Text>
           <View style={styles.benefitsList}>
             {[
@@ -364,21 +229,12 @@ const ComingSoonPage = () => {
           </View>
         </Animated.View>
 
-        {/* Section Information VIP */}
-        <Animated.View
-          style={[
-            styles.infoSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.infoSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Ionicons name="information-circle" size={28} color={PRO_BLUE} style={styles.infoIcon} />
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>Service VIP - Contact Direct</Text>
             <Text style={styles.infoText}>
-              Notre équipe d'experts SHOPNET vous répond en priorité. Cette fonctionnalité utilise le lien officiel WhatsApp pour une prise en charge immédiate et personnalisée. Aucune erreur de détection, juste une connexion directe à notre support.
+              Notre équipe d'experts SHOPNET vous répond en priorité via le lien officiel WhatsApp pour une prise en charge immédiate et personnalisée.
             </Text>
             <View style={styles.featureList}>
               <Text style={styles.featureItem}>✓ Réponse garantie sous 15 minutes</Text>
@@ -389,53 +245,30 @@ const ComingSoonPage = () => {
           </View>
         </Animated.View>
 
-        {/* CTA Section */}
-        <Animated.View
-          style={[
-            styles.ctaSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.ctaSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.ctaCard}>
             <Text style={styles.ctaTitle}>Prêt pour la Révolution ?</Text>
             <Text style={styles.ctaDescription}>
-              Rejoignez l'élite des boutiques professionnelles et soyez parmi
-              les premiers à découvrir SHOPNET V3.2.3 Notre équipe est à votre écoute pour répondre à toutes vos questions.
+              Rejoignez l'élite des boutiques professionnelles et soyez parmi les premiers à découvrir SHOPNET 10.2.4.
             </Text>
-
-            <TouchableOpacity
-              style={styles.contactButton}
-              onPress={handleContactSupport}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity style={styles.contactButton} onPress={handleContactSupport} activeOpacity={0.8}>
               <Ionicons name="logo-whatsapp" size={24} color="#fff" />
               <Text style={styles.contactButtonText}>Contacter l'équipe SHOPNET</Text>
               <View style={styles.buttonBadge}>
                 <Text style={styles.buttonBadgeText}>VIP</Text>
               </View>
             </TouchableOpacity>
-
             <View style={styles.noteBox}>
               <Ionicons name="time-outline" size={14} color="#FFD700" />
               <Text style={styles.noteText}>
-                Cette fonctionnalité utilise le lien officiel WhatsApp. Si l'application n'est pas détectée, vous serez redirigé vers WhatsApp Web pour une expérience continue.
+                Cette fonctionnalité utilise le lien officiel WhatsApp. Si l'application n'est pas détectée, vous serez redirigé vers WhatsApp Web.
               </Text>
             </View>
-
             <View style={styles.guaranteeSection}>
               <Ionicons name="diamond" size={16} color="#FFD700" />
-              <Text style={styles.guaranteeText}>
-                Accès Garanti • Support Premium • Satisfaction 100%
-              </Text>
+              <Text style={styles.guaranteeText}>Accès Garanti • Support Premium • Satisfaction 100%</Text>
             </View>
-
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={18} color={PRO_BLUE} />
               <Text style={styles.backButtonText}>Retour à l'Accueil</Text>
             </TouchableOpacity>
@@ -443,15 +276,11 @@ const ComingSoonPage = () => {
         </Animated.View>
       </ScrollView>
 
-      {/* Footer Luxueux */}
+      {/* Footer sans les icônes diamant */}
       <View style={styles.footer}>
-        <View style={styles.footerContent}>
-          <Ionicons name="diamond" size={16} color={PRO_BLUE} />
-          <Text style={styles.footerText}>
-            SHOPNET V3.2.3 • EXPÉRIENCE PRO ULTIME • SUPPORT VIP
-          </Text>
-          <Ionicons name="diamond" size={16} color={PRO_BLUE} />
-        </View>
+        <Text style={styles.footerText}>
+          SHOPNET – L'intelligence au cœur du e-commerce africain.
+        </Text>
       </View>
     </View>
   );
@@ -872,18 +701,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(66, 165, 245, 0.2)",
     backgroundColor: "rgba(0, 24, 42, 0.95)",
-  },
-  footerContent: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
   },
   footerText: {
     color: PRO_BLUE,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
-    marginHorizontal: 8,
-    letterSpacing: 1,
+    textAlign: "center",
+    letterSpacing: 0.5,
   },
 });
 

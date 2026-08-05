@@ -216,15 +216,6 @@ export default function ListeFollowers() {
     });
   };
 
-  const handlePromotion = () => {
-    if (!selectedFollower) return;
-    setModalVisible(false);
-    router.push({
-      pathname: "/(tabs)/Auth/Profiles/ProposerPromotion",
-      params: { userId: selectedFollower.id.toString() },
-    });
-  };
-
   const renderFollower = ({ item }: { item: Follower }) => (
     <View style={styles.followerItem}>
       <TouchableOpacity
@@ -321,10 +312,6 @@ export default function ListeFollowers() {
           <TouchableOpacity style={styles.option} onPress={handleWhatsApp}>
             <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
             <Text style={styles.optionText}>Envoyer un message via WhatsApp</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.option} onPress={handlePromotion}>
-            <Ionicons name="pricetag-outline" size={22} color={PRO_BLUE} />
-            <Text style={styles.optionText}>Proposer une promotion</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.option} onPress={handleViewProducts}>
             <Ionicons name="cube-outline" size={22} color={PRO_BLUE} />
